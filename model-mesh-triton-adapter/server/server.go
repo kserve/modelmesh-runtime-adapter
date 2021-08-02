@@ -1,0 +1,296 @@
+// Copyright 2021 IBM Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/go-logr/logr"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
+	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
+	"github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/puller"
+	"github.com/kserve/modelmesh-runtime-adapter/util"
+)
+
+type AdapterConfiguration struct {
+	Port                       int
+	TritonPort                 int
+	TritonContainerMemReqBytes int
+	TritonMemBufferBytes       int
+	CapacityInBytes            int
+	MaxLoadingConcurrency      int
+	ModelLoadingTimeoutMS      int
+	DefaultModelSizeInBytes    int
+	ModelSizeMultiplier        float64
+	RuntimeVersion             string
+	LimitModelConcurrency      bool
+	RootModelDir               string
+	UseEmbeddedPuller          bool
+}
+
+type TritonAdapterServer struct {
+	Client        triton.GRPCInferenceServiceClient
+	Conn          *grpc.ClientConn
+	Puller        *puller.Puller
+	AdapterConfig *AdapterConfiguration
+	Log           logr.Logger
+}
+
+func NewTritonAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *TritonAdapterServer {
+	log = log.WithName("Triton Adapter Server")
+	log.Info("Connecting to Triton...", "port", runtimePort)
+
+	tritonClientCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	conn, err := grpc.DialContext(tritonClientCtx, fmt.Sprintf("localhost:%d", runtimePort), grpc.WithInsecure(), grpc.WithBlock(),
+		grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig, MinConnectTimeout: 10 * time.Second}))
+
+	if err != nil {
+		log.Error(err, "Can not connect to Triton Runtime")
+		os.Exit(1)
+	}
+
+	s := new(TritonAdapterServer)
+	s.Log = log
+	s.AdapterConfig = config
+	s.Client = triton.NewGRPCInferenceServiceClient(conn)
+	s.Conn = conn
+	if s.AdapterConfig.UseEmbeddedPuller {
+		// puller is configured from its own env vars
+		s.Puller = puller.NewPuller(log)
+	}
+
+	resp, tritonErr := s.Client.ServerMetadata(tritonClientCtx, &triton.ServerMetadataRequest{})
+
+	if tritonErr != nil {
+		log.Info("Warning: Triton failed to get version from server metadata", "error", tritonErr)
+	} else {
+		s.AdapterConfig.RuntimeVersion = resp.Version
+	}
+
+	log.Info("Triton Runtime connected!")
+
+	return s
+}
+
+func (s *TritonAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelResponse, error) {
+	log := s.Log.WithName("Load Model").WithValues("model_id", req.ModelId)
+	modelType := getModelType(req, log)
+	log.Info("Using model type", "model_type", modelType)
+
+	if s.AdapterConfig.UseEmbeddedPuller {
+		var pullerErr error
+		req, pullerErr = s.Puller.ProcessLoadModelRequest(req)
+		if pullerErr != nil {
+			log.Error(pullerErr, "Failed to pull model from storage")
+			return nil, pullerErr
+		}
+	}
+
+	err := rewriteModelPath(s.AdapterConfig.RootModelDir, req.ModelId, modelType, log)
+
+	if err != nil {
+		log.Error(err, "Failed to create model directory and load model")
+		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %s", err)
+	}
+	_, tritonErr := s.Client.RepositoryModelLoad(ctx, &triton.RepositoryModelLoadRequest{
+		ModelName: req.ModelId,
+	})
+
+	if tritonErr != nil {
+		log.Error(tritonErr, "Triton failed to load model")
+		return nil, status.Errorf(status.Code(tritonErr), "Failed to load Model due to Triton runtime error: %s", tritonErr)
+	}
+
+	size := calcMemCapacity(req.ModelKey, s.AdapterConfig, log)
+
+	log.Info("Triton model loaded")
+
+	return &mmesh.LoadModelResponse{
+		SizeInBytes:    size,
+		MaxConcurrency: 1,
+	}, nil
+}
+
+// getModelType first tries to read the type from the LoadModelRequest.ModelKey json
+// If there is an error parsing LoadModelRequest.ModelKey or the type is not found there, this will
+// return the LoadModelRequest.ModelType which could possibly be an empty string
+func getModelType(req *mmesh.LoadModelRequest, log logr.Logger) string {
+	modelType := req.ModelType
+	var modelKey map[string]interface{}
+	err := json.Unmarshal([]byte(req.ModelKey), &modelKey)
+	if err != nil {
+		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey value is not valid JSON", "model_type", req.ModelType, "model_key", req.ModelKey, "error", err)
+	} else if modelKey[modelTypeJSONKey] == nil {
+		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey does not have specified attribute", "model_type", req.ModelType, "attribute", modelTypeJSONKey)
+	} else if modelKeyModelType, ok := modelKey[modelTypeJSONKey].(map[string]interface{}); ok {
+		if str, ok := modelKeyModelType["name"].(string); ok {
+			modelType = str
+		} else {
+			log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey attribute is not a string.", "model_type", req.ModelType, "attribute", modelTypeJSONKey, "attribute_value", modelKey[modelTypeJSONKey])
+		}
+	} else if str, ok := modelKey[modelTypeJSONKey].(string); ok {
+		modelType = str
+	} else {
+		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey attribute is not a string or map[string].", "model_type", req.ModelType, "attribute", modelTypeJSONKey, "attribute_value", modelKey[modelTypeJSONKey])
+	}
+	return modelType
+}
+
+func calcMemCapacity(reqModelKey string, adapterConfig *AdapterConfiguration, log logr.Logger) uint64 {
+	// Try to calculate the model size from the disk size passed in the LoadModelRequest.ModelKey
+	// but first set the default to fall back on if we cannot get the disk size.
+	size := uint64(adapterConfig.DefaultModelSizeInBytes)
+	var modelKey map[string]interface{}
+	err := json.Unmarshal([]byte(reqModelKey), &modelKey)
+	if err != nil {
+		log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey value is not valid JSON", "SizeInBytes", size, "model_key", reqModelKey, "error", err)
+	} else {
+		if modelKey[diskSizeBytesJSONKey] != nil {
+			diskSize, ok := modelKey[diskSizeBytesJSONKey].(float64)
+			if ok {
+				size = uint64(diskSize * adapterConfig.ModelSizeMultiplier)
+				log.Info("Setting 'SizeInBytes' to a multiple of model disk size", "SizeInBytes", size, "disk_size", diskSize, "multiplier", adapterConfig.ModelSizeMultiplier)
+			} else {
+				log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey 'disk_size_bytes' value is not a number", "SizeInBytes", size, "model_key", modelKey)
+			}
+		} else {
+			log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey did not contain a value for 'disk_size_bytes'", "SizeInBytes", size, "model_key", modelKey)
+		}
+	}
+	return size
+}
+
+func (s *TritonAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
+	_, tritonErr := s.Client.RepositoryModelUnload(ctx, &triton.RepositoryModelUnloadRequest{
+		ModelName: req.ModelId,
+	})
+
+	if tritonErr != nil {
+		// check if we got a gRPC error as a response that indicates that Triton
+		// does not have the model registered. In that case we still want to proceed
+		// with removing the model files.
+		// Currently, Triton returns OK if a model does not exist, but handle
+		// NOT_FOUND in case the response changes in the future.
+		if grpcStatus, ok := status.FromError(tritonErr); ok && grpcStatus.Code() == codes.NotFound {
+			s.Log.Info("Unload request for model not found in Triton", "error", tritonErr, "model_id", req.ModelId)
+		} else {
+			s.Log.Error(tritonErr, "Failed to unload model from Triton", "model_id", req.ModelId)
+			return nil, status.Errorf(status.Code(tritonErr), "Failed to unload model from Triton")
+		}
+	}
+
+	tritonModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, tritonModelSubdir, req.ModelId)
+	if err != nil {
+		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "tritonModelSubdir", tritonModelSubdir, "modelId", req.ModelId)
+		return nil, err
+	}
+	err = os.RemoveAll(tritonModelIDDir)
+	if err != nil {
+		return nil, status.Errorf(status.Code(err), "Error while deleting the %s dir: %v", tritonModelIDDir, err)
+	}
+
+	if s.AdapterConfig.UseEmbeddedPuller {
+		// delete files from puller cache
+		err = s.Puller.CleanupModel(req.ModelId)
+		if err != nil {
+			return nil, status.Errorf(status.Code(err), "Failed to delete model files from puller cache: %s", err)
+		}
+	}
+
+	return &mmesh.UnloadModelResponse{}, nil
+}
+
+//TODO: this implementation need to be reworked
+func (s *TritonAdapterServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
+	size := s.AdapterConfig.DefaultModelSizeInBytes
+	return &mmesh.PredictModelSizeResponse{SizeInBytes: uint64(size)}, nil
+}
+
+func (s *TritonAdapterServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
+	size := s.AdapterConfig.DefaultModelSizeInBytes // TODO find out size
+
+	return &mmesh.ModelSizeResponse{SizeInBytes: uint64(size)}, nil
+}
+
+func (s *TritonAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
+	log := s.Log
+	runtimeStatus := new(mmesh.RuntimeStatusResponse)
+
+	serverReadyResponse, tritonErr := s.Client.ServerReady(ctx, &triton.ServerReadyRequest{})
+
+	if tritonErr != nil {
+		log.Info("Triton failed to get status or not ready", "error", tritonErr)
+		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+		return runtimeStatus, nil
+	}
+
+	if !serverReadyResponse.Ready {
+		log.Info("Triton runtime not ready")
+		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+		return runtimeStatus, nil
+	}
+
+	// unloading if there are any models already loaded
+	indexResponse, tritonErr := s.Client.RepositoryIndex(ctx, &triton.RepositoryIndexRequest{
+		RepositoryName: "",
+		Ready:          true})
+
+	if tritonErr != nil {
+		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+		log.Info("Triton runtime status, getting model info failed", "error", tritonErr)
+		return runtimeStatus, nil
+	}
+
+	for model := range indexResponse.Models {
+		_, tritonErr := s.Client.RepositoryModelUnload(ctx, &triton.RepositoryModelUnloadRequest{
+			ModelName: indexResponse.Models[model].Name,
+		})
+
+		if tritonErr != nil {
+			runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+			s.Log.Info("Triton runtime status, unload model failed", "error", tritonErr)
+			return runtimeStatus, nil
+		}
+	}
+
+	runtimeStatus.Status = mmesh.RuntimeStatusResponse_READY
+	runtimeStatus.CapacityInBytes = uint64(s.AdapterConfig.CapacityInBytes)
+	runtimeStatus.MaxLoadingConcurrency = uint32(s.AdapterConfig.MaxLoadingConcurrency)
+	runtimeStatus.ModelLoadingTimeoutMs = uint32(s.AdapterConfig.ModelLoadingTimeoutMS)
+	runtimeStatus.DefaultModelSizeInBytes = uint64(s.AdapterConfig.DefaultModelSizeInBytes)
+	runtimeStatus.RuntimeVersion = s.AdapterConfig.RuntimeVersion
+	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency
+
+	path1 := []uint32{1}
+
+	mis := make(map[string]*mmesh.RuntimeStatusResponse_MethodInfo)
+
+	// only support Transform for now
+	mis[tritonServiceName+"/ModelInfer"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
+	runtimeStatus.MethodInfos = mis
+
+	log.Info("runtimeStatus", "Status", runtimeStatus)
+	return runtimeStatus, nil
+}

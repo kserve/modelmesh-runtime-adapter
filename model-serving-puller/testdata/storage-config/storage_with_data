@@ -1,0 +1,9 @@
+{
+  "type": "s3",
+  "access_key_id": "56421a5768b68451c86546d87654e467",
+  "secret_access_key": "abc643587654876546457985647863547865431786540521",
+  "endpoint_url": "https://some-url.appdomain.cloud",
+  "region": "us-south",
+  "default_bucket": "",
+  "certificate": "random-cert"
+}

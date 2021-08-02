@@ -1,0 +1,6 @@
+# binaries created by test
+main
+triton/mocktriton
+
+server/testdata/generated
+server/testdata/_triton_models

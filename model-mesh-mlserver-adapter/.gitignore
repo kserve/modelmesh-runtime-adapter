@@ -1,0 +1,6 @@
+# binaries created by test
+main
+mlserver/mockmlserver
+
+server/testdata/generated
+server/testdata/_mlserver_models

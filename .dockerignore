@@ -1,0 +1,5 @@
+.env
+.dockerignore
+.vscode
+.DS_Store
+Dockerfile

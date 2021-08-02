@@ -1,0 +1,26 @@
+name: "mock_tfmnist"
+platform: "tensorflow_graphdef"
+max_batch_size: 1
+
+input [
+  {
+    name: "INPUT__0"
+    data_type: TYPE_FP32
+    dims: [1, 28, 28]
+  }
+]
+
+output [
+  {
+    name: "OUTPUT__0"
+    data_type: TYPE_FP32
+    dims: [10]
+  }
+]
+
+instance_group [
+    {
+        count: 1
+        kind: KIND_CPU
+    }
+]

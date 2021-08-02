@@ -1,0 +1,23 @@
+name: Unit Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]        
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build develop image
+      run: |
+        BUILD_ID=$(date '+%Y%m%d')-$(git rev-parse HEAD | cut -c -5)
+        IMAGE_TAG=main_${BUILD_ID}
+        ./scripts/build_docker.sh --target develop --tag $IMAGE_TAG
+    - name: Run unit test
+      run: |
+        ./scripts/develop.sh make test
