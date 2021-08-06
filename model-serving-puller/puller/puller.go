@@ -32,7 +32,8 @@ import (
 const jsonAttrModelKeyStorageKey = "storage_key"
 const jsonAttrModelKeyBucket = "bucket"
 const jsonAttrModelKeyDiskSizeBytes = "disk_size_bytes"
-const jsonAtrrModelSchemaPath = "schema_path"
+const jsonAttrModelSchemaPath = "schema_path"
+const jsonAttrStorageParams = "storage_params"
 
 // Puller represents the GRPC server and its configuration
 type Puller struct {
@@ -74,8 +75,46 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 // rewritten to a local file path and the size of the model on disk is added to
 // the model metadata.
 func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
+	// parse json
+	var modelKey map[string]interface{}
+	parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey)
+	if parseErr != nil {
+		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON: %s", req.ModelKey, parseErr)
+	}
+	schemaPath, ok := modelKey[jsonAttrModelSchemaPath].(string)
+	if !ok {
+		if modelKey[jsonAttrModelSchemaPath] != nil {
+			return nil, fmt.Errorf("Invalid schemaPath in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelSchemaPath, modelKey[jsonAttrModelSchemaPath])
+		}
+	}
+	storageKey, ok := modelKey[jsonAttrModelKeyStorageKey].(string)
+	if !ok {
+		return nil, fmt.Errorf("Predictor Storage field missing")
+	}
+
+	//  get storage config
+	storageConfig, err := s.PullerConfig.GetStorageConfiguration(storageKey, s.Log)
+	if err != nil {
+		return nil, err
+	}
+
+	//  get storage params
+	storageParams, ok := modelKey[jsonAttrStorageParams].(map[string]interface{})
+	if !ok {
+		// backwards compatability: if storage_params does not exist
+		bucketName, ok := modelKey[jsonAttrModelKeyBucket].(string)
+		if !ok {
+			if modelKey[jsonAttrModelKeyBucket] != nil {
+				return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelKeyBucket, modelKey[jsonAttrModelKeyBucket])
+			}
+		}
+		storageParams = make(map[string]interface{})
+		storageParams[jsonAttrModelKeyBucket] = bucketName
+		modelKey[jsonAttrStorageParams] = storageParams
+	}
+
 	// download the model
-	localPath, pullerErr := s.DownloadFromCOS(req)
+	localPath, pullerErr := s.DownloadFromCOS(req.ModelId, req.ModelPath, schemaPath, storageKey, storageConfig, storageParams)
 	if pullerErr != nil {
 		return nil, status.Errorf(status.Code(pullerErr), "Failed to pull model from storage due to error: %s", pullerErr)
 	}

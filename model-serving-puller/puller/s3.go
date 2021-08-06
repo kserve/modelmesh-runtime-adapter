@@ -14,7 +14,6 @@
 package puller
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +29,6 @@ import (
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3/s3manager"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
-	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/util"
 )
 
@@ -120,28 +118,11 @@ func NewS3Downloader(config *StorageConfiguration, downloadConcurrency int, log 
 	return &s3Downloader{downloader: downloader, client: s3Client, config: config, Log: log}, nil
 }
 
-func (s *Puller) DownloadFromCOS(req *mmesh.LoadModelRequest) (string, error) {
-	modelID := req.ModelId
-	objPath := req.ModelPath
-
-	var modelKey map[string]interface{}
-	parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey)
-	if parseErr != nil {
-		return "", fmt.Errorf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON: %s", req.ModelKey, parseErr)
-	}
-	storageKey, ok := modelKey[jsonAttrModelKeyStorageKey].(string)
+func (s *Puller) DownloadFromCOS(modelID string, objPath string, schemaPath string, storageKey string, storageConfig *StorageConfiguration, s3Params map[string]interface{}) (string, error) {
+	bucketName, ok := s3Params[jsonAttrModelKeyBucket].(string)
 	if !ok {
-		return "", fmt.Errorf("Invalid modelKey in LoadModelRequest, '%s' attribute must exist and have a string value. Found value %v", jsonAttrModelKeyStorageKey, modelKey[jsonAttrModelKeyStorageKey])
-	}
-	storageConfig, err := s.PullerConfig.GetStorageConfiguration(storageKey, s.Log)
-	if err != nil {
-		return "", err
-	}
-
-	bucketName, ok := modelKey[jsonAttrModelKeyBucket].(string)
-	if !ok {
-		if modelKey[jsonAttrModelKeyBucket] != nil {
-			return "", fmt.Errorf("Invalid modelKey in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelKeyBucket, modelKey[jsonAttrModelKeyBucket])
+		if s3Params[jsonAttrModelKeyBucket] != nil {
+			return "", fmt.Errorf("Invalid storageParams in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelKeyBucket, s3Params[jsonAttrModelKeyBucket])
 		}
 		// no bucket attribute specified, fall down to the default
 		bucketName = ""
@@ -153,15 +134,6 @@ func (s *Puller) DownloadFromCOS(req *mmesh.LoadModelRequest) (string, error) {
 
 	if bucketName == "" {
 		return "", fmt.Errorf("Storage bucket was not specified in the LoadModel request and there is no default bucket in the storage configuration")
-	}
-
-	schemaPath, ok := modelKey[jsonAtrrModelSchemaPath].(string)
-	if !ok {
-		if modelKey[jsonAtrrModelSchemaPath] != nil {
-			return "", fmt.Errorf("Invalid schemaPath in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAtrrModelSchemaPath, modelKey[jsonAtrrModelSchemaPath])
-		}
-		// no schemaPath attribute specified, fall down to the default
-		schemaPath = ""
 	}
 
 	downloader, err := s.getS3Downloader(storageKey, storageConfig)
@@ -204,7 +176,7 @@ func (s *Puller) DownloadFromCOS(req *mmesh.LoadModelRequest) (string, error) {
 		}
 
 		if len(schemaToDownload) == 1 {
-			schemaStorage := storage{storagekey: storageKey, bucketname: bucketName, path: modelKey[jsonAtrrModelSchemaPath].(string)}
+			schemaStorage := storage{storagekey: storageKey, bucketname: bucketName, path: schemaPath}
 			p, serr := s.DownloadObjectsfromCOS(modelID, &schemaStorage, schemaToDownload, downloader)
 
 			if serr != nil {
@@ -230,7 +202,7 @@ func (s *Puller) DownloadFromCOS(req *mmesh.LoadModelRequest) (string, error) {
 		}
 	}
 
-	modelStorage := storage{storagekey: storageKey, bucketname: bucketName, path: req.ModelPath}
+	modelStorage := storage{storagekey: storageKey, bucketname: bucketName, path: objPath}
 	p, err := s.DownloadObjectsfromCOS(modelID, &modelStorage, objectsToDownload, downloader)
 
 	if err != nil {
