@@ -22,6 +22,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/generated/mocks"
 
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -193,4 +194,137 @@ func Test_CleanCache_DeletesFakeKeys(t *testing.T) {
 
 	p.CleanCache()
 	assert.Equal(t, 2, len(p.s3DownloaderCache))
+}
+
+func Test_DownloadFromCOS_ErrorBucketDoesNotExist(t *testing.T) {
+	expectedError := "Storage bucket was not specified in the LoadModel request and there is no default bucket in the storage configuration"
+
+	p, _, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	bucketParam := make(map[string]interface{})
+	downloader, err := p.DownloadFromCOS("modelID", "object/path", "", "storageKey", &StorageConfigTest, bucketParam)
+	assert.Equal(t, "", downloader)
+	assert.EqualError(t, err, expectedError)
+}
+
+func Test_DownloadFromCOS_Success(t *testing.T) {
+	objectPath := "myPath"
+	modelId := "myModelID"
+	bucket := "bucket1"
+	p, mockDownloader, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	expectedPath := filepath.Join(p.PullerConfig.RootModelDir, modelId, objectPath)
+
+	mockDownloader.EXPECT().ListObjectsUnderPrefix(bucket, objectPath).Return([]string{objectPath}, nil).Times(1)
+	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	bucketParam := map[string]interface{}{"bucket": bucket}
+	path, err := p.DownloadFromCOS(modelId, objectPath, "", StorageKeyTest, &StorageConfigTest, bucketParam)
+	assert.Equal(t, expectedPath, path)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_Success(t *testing.T) {
+	p, mockDownloader, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1"}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "testmodel/model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage"}`,
+	}
+
+	mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", "model.zip").Return([]string{"model.zip"}, nil).Times(1)
+	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_SuccessWithStorageParams(t *testing.T) {
+	p, mockDownloader, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_params":{"bucket":"bucket1"}, "storage_key": "myStorage"}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "testmodel/model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"disk_size_bytes":0,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
+	}
+
+	mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", "model.zip").Return([]string{"model.zip"}, nil).Times(1)
+	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_FailInvalidModelKey(t *testing.T) {
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{}{"storage_params":{"bucket":"bucket1"}, "storage_key": "myStorage"}`,
+	}
+	expectedError := fmt.Sprintf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON", request.ModelKey)
+
+	p, _, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Nil(t, returnRequest)
+	assert.Contains(t, err.Error(), expectedError)
+}
+
+func Test_ProcessLoadModelRequest_FailInvalidSchemaPath(t *testing.T) {
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_params":{"bucket":"bucket1"}, "storage_key": "myStorage", "schema_path": 2}`,
+	}
+	expectedError := "Invalid schemaPath in LoadModelRequest, 'schema_path' attribute must have a string value. Found value 2"
+
+	p, _, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Nil(t, returnRequest)
+	assert.EqualError(t, err, expectedError)
+}
+
+func Test_ProcessLoadModelRequest_FailMissingStorageKey(t *testing.T) {
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_params":{"bucket":"bucket1"}}`,
+	}
+	expectedError := "Predictor Storage field missing"
+
+	p, _, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Nil(t, returnRequest)
+	assert.EqualError(t, err, expectedError)
 }
