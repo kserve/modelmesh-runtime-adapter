@@ -1,31 +1,31 @@
 name: Build and Push
 
 on:
-  pull_request:
-    branches: [ main ]
-    types: [closed]
+  push:
+    branches: [main]
 
 jobs:
-  build:
-    if: github.event.pull_request.merged == true
+  test:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: Build runtime image
-      run: |
-        BUILD_ID=$(date '+%Y%m%d')-$(git rev-parse HEAD | cut -c -5)
-        IMAGE_TAG=main_${BUILD_ID}
-
-        ./scripts/build_docker.sh --target runtime --tag $IMAGE_TAG
-
-    - name: Log in to docker hub
-      run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Push to docker hub
-      run: |
-        IMAGE_NAME=modelmesh-runtime-adapter
-        IMAGE_ID=kserve/$IMAGE_NAME
-        IMAGE_VERSION=latest
-
-        docker push $IMAGE_ID:$IMAGE_VERSION
+      - uses: actions/checkout@v2
+      - name: Build develop image
+        run: make build.develop
+      - name: Run lint
+        run: ./scripts/develop.sh make fmt
+      - name: Run unit test
+        run: ./scripts/develop.sh make test
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: kserve/modelmesh-runtime-adapter
+      IMAGE_TAG: latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build runtime image
+        run: make build
+      - name: Log in to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_ACCESS_TOKEN }}
+      - name: Push to Docker Hub
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}

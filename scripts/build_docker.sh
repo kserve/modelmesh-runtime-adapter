@@ -73,13 +73,10 @@ if [ "${DOCKER_TARGET}" != "runtime" ]; then
   IMAGE_SUFFIX="-${DOCKER_TARGET}"
 fi
 
-BASE_TAG="$(cat BASE_IMAGE_TAG | awk -F= '{print $2}')"
-
 declare -a docker_args=(
   --target "${DOCKER_TARGET}"
   -t "kserve/modelmesh-runtime-adapter${IMAGE_SUFFIX}:${DOCKER_TAG}"
   -t "kserve/modelmesh-runtime-adapter${IMAGE_SUFFIX}:latest"
-  --build-arg "BASE_IMAGE_TAG=${BASE_TAG}"
 )
 
 if [[ $DOCKER_TARGET == 'runtime' ]]; then
