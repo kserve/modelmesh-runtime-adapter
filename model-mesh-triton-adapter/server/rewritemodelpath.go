@@ -14,6 +14,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -214,24 +215,12 @@ func createTritonModelRepositoryFromFiles(inputFiles []os.FileInfo, modelType st
 		return nil // skip writing config.pbtxt if there is no schema file provided
 	}
 
-	// for some level of human readability...
-	marshalOpts := prototext.MarshalOptions{
-		Multiline: true,
-	}
-
-	var pbtxtOut []byte
-
-	if pbtxtOut, err = marshalOpts.Marshal(&m); err != nil {
-		log.Error(err, "Unable to marshal config.pbtxt")
-		return err
-	}
-
 	configFile, err := util.SecureJoin(tritonModelIDDir, tritonRepositoryConfigFilename)
 	if err != nil {
 		return fmt.Errorf("Error joining path to config file: %w", err)
 	}
-	if err = ioutil.WriteFile(configFile, pbtxtOut, 0644); err != nil {
-		log.Error(err, "Unable to create config.pbtxt")
+	err = writeConfigPbtxt(configFile, &m)
+	if err != nil {
 		return err
 	}
 
@@ -374,8 +363,30 @@ func processModelConfig(pbtxtIn []byte, log logr.Logger, sourceModelIDDir string
 			return pbtxtIn, errs
 		}
 
-		m.Input = sm.Input
-		m.Output = sm.Output
+		// handle batch support
+		//
+		// In Triton, if max_batch_size > 0 the input and output schema
+		// are modified to include the batch dimension as [ -1 ] + dims
+		// REF: https://github.com/triton-inference-server/server/blob/main/docs/model_configuration.md#maximum-batch-size
+		// In Serving, we do not have config for max_batch_size in the
+		// schema, so we require the batch dimension to be explicit. If
+		// the schema file is provided and a model config has
+		// max_batch_size > 0, the added dims need to be removed before
+		// writing the config.pbtxt
+		if m.MaxBatchSize > 0 {
+			if !allInputsAndOuputsHaveBatchDimension(sm) {
+				return pbtxtIn, errors.New("Conflicting model configuration: If model has schema and config.pbtxt with max_batch_size > 0, then the first dimension of all inputs and outputs must have size -1.")
+			}
+			removeFirstDimensionFromInputsAndOutputs(sm)
+		}
+
+		// rewrite schema input/output
+		if sm.Input != nil {
+			m.Input = sm.Input
+		}
+		if sm.Output != nil {
+			m.Output = sm.Output
+		}
 	}
 
 	// for some level of human readability...
@@ -390,6 +401,29 @@ func processModelConfig(pbtxtIn []byte, log logr.Logger, sourceModelIDDir string
 	}
 
 	return pbtxtOut, nil
+}
+
+func allInputsAndOuputsHaveBatchDimension(m *triton.ModelConfig) bool {
+	for _, in := range m.Input {
+		if in.Dims[0] != -1 {
+			return false
+		}
+	}
+	for _, out := range m.Output {
+		if out.Dims[0] != -1 {
+			return false
+		}
+	}
+	return true
+}
+
+func removeFirstDimensionFromInputsAndOutputs(m *triton.ModelConfig) {
+	for _, in := range m.Input {
+		in.Dims = in.Dims[1:]
+	}
+	for _, out := range m.Output {
+		out.Dims = out.Dims[1:]
+	}
 }
 
 // removeFileFromListOfFileInfo

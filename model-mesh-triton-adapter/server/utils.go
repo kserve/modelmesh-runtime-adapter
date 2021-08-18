@@ -13,7 +13,14 @@
 // limitations under the License.
 package server
 
-import "os"
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
+	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
+	"google.golang.org/protobuf/encoding/prototext"
+)
 
 func fileExists(path string) (bool, error) {
 	if _, err := os.Stat(path); err == nil {
@@ -23,4 +30,23 @@ func fileExists(path string) (bool, error) {
 	} else {
 		return false, err
 	}
+}
+
+func writeConfigPbtxt(filename string, modelConfig *triton.ModelConfig) error {
+	var err error
+
+	// for some level of human readability...
+	marshalOpts := prototext.MarshalOptions{
+		Multiline: true,
+	}
+
+	var pbtxtOut []byte
+	if pbtxtOut, err = marshalOpts.Marshal(modelConfig); err != nil {
+		return fmt.Errorf("Unable to marshal config.pbtxt: %w", err)
+	}
+
+	if err = ioutil.WriteFile(filename, pbtxtOut, 0644); err != nil {
+		return fmt.Errorf("Unable to write config.pbtxt: %w", err)
+	}
+	return nil
 }
