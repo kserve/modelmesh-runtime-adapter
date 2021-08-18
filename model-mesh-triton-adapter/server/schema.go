@@ -57,28 +57,36 @@ var (
 )
 
 func convertSchemaToConfig(schemaFile string, log logr.Logger) (*triton.ModelConfig, error) {
-	config := triton.ModelConfig{}
-
 	schemaInput, err := ioutil.ReadFile(schemaFile)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read model schema file %s: %w", schemaFile, err)
 	}
 
-	schemaJson := Schema{}
-	if err := json.Unmarshal(schemaInput, &schemaJson); err != nil {
-		return nil, fmt.Errorf("Unable to parse model schema file %s: %w", schemaFile, err)
+	return convertSchemaJSONToConfig(schemaInput, log)
+}
+
+func convertSchemaJSONToConfig(schemaJSON []byte, log logr.Logger) (*triton.ModelConfig, error) {
+	config := triton.ModelConfig{}
+
+	schema := Schema{}
+	if err := json.Unmarshal([]byte(schemaJSON), &schema); err != nil {
+		return nil, fmt.Errorf("Unable to parse model schema JSON: %w", err)
 	}
 
-	config.Input = make([]*triton.ModelInput, len(schemaJson.Inputs))
-	for index, input := range schemaJson.Inputs {
-		modelInput := triton.ModelInput{Name: input.Name, Dims: input.Shape, DataType: TensorType[input.Datatype]}
-		config.Input[index] = &modelInput
+	if schema.Inputs != nil {
+		config.Input = make([]*triton.ModelInput, len(schema.Inputs))
+		for index, input := range schema.Inputs {
+			modelInput := triton.ModelInput{Name: input.Name, Dims: input.Shape, DataType: TensorType[input.Datatype]}
+			config.Input[index] = &modelInput
+		}
 	}
 
-	config.Output = make([]*triton.ModelOutput, len(schemaJson.Outputs))
-	for index, output := range schemaJson.Outputs {
-		modelOutput := triton.ModelOutput{Name: output.Name, Dims: output.Shape, DataType: TensorType[output.Datatype]}
-		config.Output[index] = &modelOutput
+	if schema.Outputs != nil {
+		config.Output = make([]*triton.ModelOutput, len(schema.Outputs))
+		for index, output := range schema.Outputs {
+			modelOutput := triton.ModelOutput{Name: output.Name, Dims: output.Shape, DataType: TensorType[output.Datatype]}
+			config.Output[index] = &modelOutput
+		}
 	}
 
 	return &config, nil

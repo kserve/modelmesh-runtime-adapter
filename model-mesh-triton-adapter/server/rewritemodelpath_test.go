@@ -76,11 +76,13 @@ type rewriteModelPathTestCase struct {
 	ModelID            string
 	InputModelType     string
 	InputFiles         []string
+	InputConfig        *triton.ModelConfig
 	InputSchema        map[string]interface{}
 	ExpectedLinkPath   string
 	ExpectedLinkTarget string
 	ExpectedFiles      []string
 	ExpectedConfig     *triton.ModelConfig
+	ExpectError        bool
 }
 
 func (tt rewriteModelPathTestCase) getSourceDir() string {
@@ -98,28 +100,48 @@ func (tt rewriteModelPathTestCase) generateSourceDirectory(t *testing.T) {
 	for _, f := range tt.InputFiles {
 		createEmptyFile(filepath.Join(sourceModelIDDir, f), t)
 	}
-	// setup the schema
+	// setup the schema if provided
 	if tt.InputSchema != nil {
 		tt.writeSchemaFile(t)
+	}
+	// setup the config if provided
+	if tt.InputConfig != nil {
+		tt.writeConfigFile(t)
+	}
+}
+
+func (tt rewriteModelPathTestCase) writeConfigFile(t *testing.T) {
+	// assert that "config.pbtxt" is included as an input file to avoid
+	// confusion with this writing a file that is not part of the model's
+	// files
+	configInInputFiles := false
+	for _, f := range tt.InputFiles {
+		if f == "config.pbtxt" {
+			configInInputFiles = true
+		}
+	}
+	if !configInInputFiles {
+		t.Fatalf("Test case %s has InputConfig but config.pbtxt is not in InputFiles", tt.ModelID)
+	}
+
+	sourceModelIDDir := tt.getSourceDir()
+	configFilename := filepath.Join(sourceModelIDDir, "config.pbtxt")
+	if werr := writeConfigPbtxt(configFilename, tt.InputConfig); werr != nil {
+		t.Fatal(werr)
 	}
 }
 
 func (tt rewriteModelPathTestCase) writeSchemaFile(t *testing.T) {
-	sourceModelIDDir := tt.getSourceDir()
-	schemaFilename := "_schema.json"
-	schemaFile, err := os.Create(filepath.Join(sourceModelIDDir, schemaFilename))
-	if err != nil {
-		t.Fatal("Unexpected error creating a file", err)
-	}
 	jsonBytes, jerr := json.Marshal(tt.InputSchema)
 	if jerr != nil {
-		t.Fatal("Error marshalling schema JSON", err)
+		t.Fatal("Error marshalling schema JSON", jerr)
 	}
-	_, werr := schemaFile.Write(jsonBytes)
-	if werr != nil {
-		t.Fatal("Error writing JSON to schema file", err)
+
+	sourceModelIDDir := tt.getSourceDir()
+	schemaFilename := filepath.Join(sourceModelIDDir, "_schema.json")
+	if werr := ioutil.WriteFile(schemaFilename, jsonBytes, 0644); werr != nil {
+		t.Fatal("Error writing JSON to schema file", werr)
 	}
-	schemaFile.Close()
 }
 
 func TestRewriteModelPath(t *testing.T) {
@@ -135,9 +157,12 @@ func TestRewriteModelPath(t *testing.T) {
 			// run function under test
 			err = rewriteModelPath(generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
 
-			// assert no error
-			if err != nil {
-				t.Error("Did not expect the error", err)
+			if tt.ExpectError && err == nil {
+				t.Fatal("ExpectError is true, but no error was returned")
+			}
+
+			if !tt.ExpectError && err != nil {
+				t.Fatal("Did not expect the error", err)
 			}
 
 			assertLinkAndPathsExist(t, tt)
@@ -162,15 +187,22 @@ func TestRewriteModelPathMultiple(t *testing.T) {
 	// next run the function under test for all the models
 	for _, tt := range rewriteModelPathTests {
 		err = rewriteModelPath(generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
-		// assert no error
-		if err != nil {
-			t.Error("Did not expect the error", err)
+		if tt.ExpectError && err == nil {
+			t.Fatal("ExpectError is true, but no error was returned")
+		}
+
+		if !tt.ExpectError && err != nil {
+			t.Fatal("Did not expect the error", err)
 		}
 	}
 
 	// finally assert all the links and files exist
 	for _, tt := range rewriteModelPathTests {
 		// t.Logf("Asserting on %s", tt.ModelID) // for debugging
+		// skip check if an error was expected
+		if tt.ExpectError {
+			continue
+		}
 		assertLinkAndPathsExist(t, tt)
 		assertConfigFileContents(t, tt)
 	}
@@ -205,12 +237,11 @@ func assertConfigFileContents(t *testing.T, tt rewriteModelPathTestCase) {
 	}
 
 	if !proto.Equal(expected, actual) {
-		t.Fatalf("Expected and actual config file contents do not match")
+		t.Fatalf("Expected and actual config file contents do not match.\nExpected: %v\nActual: %v", expected, actual)
 	}
 }
 
 func assertLinkAndPathsExist(t *testing.T, tt rewriteModelPathTestCase) {
-	// func assertLinkAndPathsExist(sourceModelIDDir, targetModelIDDir, expectedLinkPath, expectedLinkTarget string, paths []string, t *testing.T) {
 	sourceModelIDDir := tt.getSourceDir()
 	targetModelIDDir := tt.getTargetDir()
 	symlinks := findSymlinks(targetModelIDDir)
@@ -905,5 +936,159 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 				},
 			},
 		},
+	},
+	{
+		ModelID:        "schemaOverwritesConfig",
+		InputModelType: "tensorflow",
+		InputSchema: map[string]interface{}{
+			"inputs": []map[string]interface{}{
+				{
+					"name":     "NEW_INPUT",
+					"datatype": "FP32",
+					"shape":    []int{1, 64, 64},
+				},
+			},
+		},
+		InputConfig: &triton.ModelConfig{
+			Name:    "this-should-be-removed",
+			Backend: "tensorflow",
+			Input: []*triton.ModelInput{
+				{
+					Name:     "SOME_INPUT",
+					DataType: triton.DataType_TYPE_FP32,
+					Dims:     []int64{3, 32, 32},
+				},
+			},
+			Output: []*triton.ModelOutput{
+				{
+					Name:     "OUTPUT",
+					DataType: triton.DataType_TYPE_INT64,
+					Dims:     []int64{1},
+				},
+			},
+		},
+		InputFiles: []string{
+			"1/model.graphdef",
+			"some-other-file",
+			"config.pbtxt",
+		},
+		ExpectedLinkPath:   "",
+		ExpectedLinkTarget: "",
+		ExpectedFiles: []string{
+			"1/model.graphdef",
+			"some-other-file",
+			"config.pbtxt",
+		},
+		ExpectedConfig: &triton.ModelConfig{
+			Backend: "tensorflow",
+			Input: []*triton.ModelInput{
+				{
+					Name:     "NEW_INPUT",
+					DataType: triton.DataType_TYPE_FP32,
+					Dims:     []int64{1, 64, 64},
+				},
+			},
+			Output: []*triton.ModelOutput{
+				{
+					Name:     "OUTPUT",
+					DataType: triton.DataType_TYPE_INT64,
+					Dims:     []int64{1},
+				},
+			},
+		},
+	},
+
+	// Group: schema edge-cases
+	{
+		ModelID:        "schemaEdgeMaxBatchSize",
+		InputModelType: "pytorch",
+		// schema for model that supports batching
+		InputSchema: map[string]interface{}{
+			"inputs": []map[string]interface{}{
+				{
+					"name":     "INPUT",
+					"datatype": "FP32",
+					"shape":    []int{-1, 64, 64},
+				},
+				{
+					"name":     "TYPE",
+					"datatype": "INT8",
+					"shape":    []int{-1, 1},
+				},
+			},
+			"outputs": []map[string]interface{}{
+				{
+					"name":     "OUTPUT",
+					"datatype": "INT64",
+					"shape":    []int{-1, 10},
+				},
+			},
+		},
+		InputConfig: &triton.ModelConfig{
+			Backend:      "pytorch",
+			MaxBatchSize: 100,
+		},
+		InputFiles: []string{
+			"1/model.pt",
+			"config.pbtxt",
+		},
+		ExpectedLinkPath:   "",
+		ExpectedLinkTarget: "",
+		ExpectedFiles: []string{
+			"1/model.pt",
+			"config.pbtxt",
+		},
+		ExpectedConfig: &triton.ModelConfig{
+			Backend:      "pytorch",
+			MaxBatchSize: 100,
+			Input: []*triton.ModelInput{
+				{
+					Name:     "INPUT",
+					DataType: triton.DataType_TYPE_FP32,
+					Dims:     []int64{64, 64},
+				},
+				{
+					Name:     "TYPE",
+					DataType: triton.DataType_TYPE_INT8,
+					Dims:     []int64{1},
+				},
+			},
+			Output: []*triton.ModelOutput{
+				{
+					Name:     "OUTPUT",
+					DataType: triton.DataType_TYPE_INT64,
+					Dims:     []int64{10},
+				},
+			},
+		},
+	},
+	{
+		ModelID:        "schemaEdgeMaxBatchSizeError",
+		InputModelType: "pytorch",
+		// schema for model that supports batching, but output is missing batch dim
+		InputSchema: map[string]interface{}{
+			"inputs": []map[string]interface{}{
+				{
+					"name":     "INPUT",
+					"datatype": "FP32",
+					"shape":    []int{-1, 64, 64},
+				},
+			},
+			"outputs": []map[string]interface{}{
+				{
+					"name":     "OUTPUT",
+					"datatype": "INT64",
+					"shape":    []int{10},
+				},
+			},
+		},
+		InputConfig: &triton.ModelConfig{
+			MaxBatchSize: 100,
+		},
+		InputFiles: []string{
+			"1/model.pt",
+			"config.pbtxt",
+		},
+		ExpectError: true,
 	},
 }
