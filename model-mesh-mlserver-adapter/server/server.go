@@ -336,7 +336,7 @@ func adaptModelRepository(files []os.FileInfo, modelID string, modelType string,
 
 	} else {
 		// unsupported repo structure
-		return fmt.Errorf("Unsupported model repo for model id %s", modelID)
+		return fmt.Errorf("Unsupported file layout for model %s. Expected a single file or directory.", modelID)
 	}
 
 	err := os.Symlink(targetPath, linkName)
