@@ -1,8 +1,6 @@
 # Model Mesh Triton Adapter
 
-This is an adapter which implements Model Mesh API for [Triton Inference Server](https://github.com/triton-inference-server/server).
-
-Written in Golang.
+This is an adapter which implements the internal model-mesh model management API for [Triton Inference Server](https://github.com/triton-inference-server/server).
 
 ## How to
 
