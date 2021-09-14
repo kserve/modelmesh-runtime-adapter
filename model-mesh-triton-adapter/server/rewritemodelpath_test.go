@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 )
@@ -276,7 +277,7 @@ func assertLinkAndPathsExist(t *testing.T, tt rewriteModelPathTestCase) {
 
 		// non-sepcial check for other symlinks
 		// assert that the target file exists
-		if exists, err := fileExists(resolvedLinkFullPath); !exists {
+		if exists, err := util.FileExists(resolvedLinkFullPath); !exists {
 			if err != nil {
 				t.Errorf("Expected link target %s to exist but got an error checking: %v", resolvedLinkFullPath, err)
 			} else {
@@ -292,7 +293,7 @@ func assertLinkAndPathsExist(t *testing.T, tt rewriteModelPathTestCase) {
 	// assert all the expected files exist
 	for _, f := range tt.ExpectedFiles {
 		fullExpectedPath := filepath.Join(targetModelIDDir, f)
-		if exists, err := fileExists(fullExpectedPath); !exists {
+		if exists, err := util.FileExists(fullExpectedPath); !exists {
 			if err != nil {
 				t.Errorf("Expected file %s to exist but got an error checking: %v", fullExpectedPath, err)
 			} else {

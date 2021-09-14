@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"google.golang.org/grpc"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -36,8 +37,6 @@ const testMLServerContainerMemReqBytes = 6 * 1024 * 1024 * 1024 // 6GB
 
 var log = zap.New(zap.UseDevMode(true))
 var testdataDir = abs("testdata")
-var generatedTestdataDir = filepath.Join(testdataDir, "generated")
-var generatedMlserverModelsDir string = filepath.Join(generatedTestdataDir, mlserverModelSubdir)
 
 func abs(path string) string {
 	a, err := filepath.Abs(path)
@@ -174,7 +173,7 @@ func TestAdapter(t *testing.T) {
 	t.Logf("runtime status: Model unloaded, %v", resp4)
 
 	// after unload, the generated model directory should no longer exist
-	exists, err := fileExists(generatedModelDir)
+	exists, err := util.FileExists(generatedModelDir)
 	if err != nil {
 		t.Errorf("Expected model dir %s to not exist but got an error checking: %v", generatedModelDir, err)
 	} else if exists {
@@ -196,7 +195,10 @@ func TestProcessConfigJSON(t *testing.T) {
 	modelID := "test-model-id"
 	json := []byte(jsonIn)
 	targetPath := "/targetDir"
-	json = processConfigJSON(json, modelID, targetPath, log)
+	json, err := processConfigJSON(json, modelID, targetPath, "", log)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	jsonOut := string(json)
 	if strings.Contains(jsonOut, "\"name\": \"mnist-svm\"") || !strings.Contains(jsonOut, "test-model-id") {
@@ -248,7 +250,7 @@ func assertGeneratedModelDirIsCorrect(sourceDir string, generatedDir string, mod
 			t.Errorf("Error resolving symlink [%s]: %v", filePath, err)
 		}
 		// assert that the target file exists
-		if exists, err := fileExists(resolvedPath); !exists {
+		if exists, err := util.FileExists(resolvedPath); !exists {
 			if err != nil {
 				t.Errorf("Expected file %s to exist but got an error checking: %v", resolvedPath, err)
 			} else {
@@ -260,295 +262,4 @@ func assertGeneratedModelDirIsCorrect(sourceDir string, generatedDir string, mod
 	if !configFileFound {
 		t.Errorf("Did not find config file [%s] in [%s]", mlserverRepositoryConfigFilename, generatedDir)
 	}
-}
-
-func fileExists(path string) (bool, error) {
-	if _, err := os.Stat(path); err == nil {
-		return true, err
-	} else if os.IsNotExist(err) {
-		return false, nil
-	} else {
-		return false, err
-	}
-}
-
-type linkExpectation struct {
-	Name   string
-	Target string
-}
-
-type rewriteModelDirTestCase struct {
-	ModelID       string
-	ModelType     string
-	InputFile     string
-	InputFiles    []string
-	ExpectedLinks []linkExpectation
-}
-
-var rewriteModelDirTests = []rewriteModelDirTestCase{
-	// standard native
-	{
-		ModelID:   "sklearn-standard-native",
-		ModelType: "sklearn",
-		InputFiles: []string{
-			"model-settings.json",
-			"model.joblib",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "model.joblib",
-			},
-		},
-	},
-
-	// to directory with single file with arbitrary name
-	{
-		ModelID:   "sklearn-single-file",
-		ModelType: "sklearn",
-		InputFiles: []string{
-			"arbitrary-named-joblib",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-named-joblib",
-				Target: "arbitrary-named-joblib",
-			},
-		},
-	},
-
-	// direct to single file with arbitrary name
-	{
-		ModelID:   "sklearn-direct-to-file",
-		ModelType: "sklearn",
-		InputFile: "arbitrary-named-joblib",
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-named-joblib",
-				Target: "arbitrary-named-joblib",
-			},
-		},
-	},
-
-	// standard native
-	{
-		ModelID:   "xgboost-standard-native",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"model-settings.json",
-			"model.bst",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "model.bst",
-			},
-		},
-	},
-
-	// to directory with single .json file with arbitrary name
-	{
-		ModelID:   "xgboost-single-file-json",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"arbitrary-name.json",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-name.json",
-				Target: "arbitrary-name.json",
-			},
-		},
-	},
-
-	// to directory with single .bst file with arbitrary name
-	{
-		ModelID:   "xgboost-single-file-bst",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"arbitrary-name.bst",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-name.bst",
-				Target: "arbitrary-name.bst",
-			},
-		},
-	},
-
-	// direct to .json file with arbitrary name
-	{
-		ModelID:   "xgboost-direct-json",
-		ModelType: "xgboost",
-		InputFile: "another-arbitrary-name.json",
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "another-arbitrary-name.json",
-				Target: "another-arbitrary-name.json",
-			},
-		},
-	},
-
-	// direct to file with arbitrary name
-	{
-		ModelID:   "xgboost-direct-no-extension",
-		ModelType: "xgboost",
-		InputFile: "yet-another-arbitrary-name",
-		ExpectedLinks: []linkExpectation{
-			{
-				// should default to .json
-				Name:   "yet-another-arbitrary-name",
-				Target: "yet-another-arbitrary-name",
-			},
-		},
-	},
-
-	// mllib could have multiple directories
-	{
-		ModelID:   "mllib-standard",
-		ModelType: "mllib",
-		InputFiles: []string{
-			"model-settings.json",
-			"data/some-files",
-			"metadata/some-files",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "data",
-			},
-			{
-				Name: "metadata",
-			},
-		},
-	},
-}
-
-func TestRewriteModelDir(t *testing.T) {
-	var err error
-	// cleanup the entire generatedTestdataDir before running tests
-	err = os.RemoveAll(generatedTestdataDir)
-	if err != nil {
-		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
-	}
-	for _, tt := range rewriteModelDirTests {
-		t.Run(tt.ModelID, func(t *testing.T) {
-			var err1 error
-			sourceModelIDDir := filepath.Join(generatedTestdataDir, tt.ModelID)
-			targetModelIDDir := filepath.Join(generatedMlserverModelsDir, tt.ModelID)
-			os.MkdirAll(sourceModelIDDir, 0755)
-			// setup the requested files
-			if tt.InputFiles != nil {
-				for _, f := range tt.InputFiles {
-					// a generated config file should have valid JSON content, eg. '{}'
-					if f == mlserverRepositoryConfigFilename {
-						assertCreateConfigFile(filepath.Join(sourceModelIDDir, f), t)
-						continue
-					}
-					assertCreateEmptyFile(filepath.Join(sourceModelIDDir, f), t)
-				}
-			} else if tt.InputFile != "" {
-				assertCreateEmptyFile(filepath.Join(sourceModelIDDir, tt.InputFile), t)
-			} else {
-				t.Fatalf("Invalid test case with no input files %v", tt.ModelID)
-			}
-
-			// run function under test
-			err1 = rewriteModelPath(generatedTestdataDir, tt.ModelID, tt.ModelType, log)
-			// assert no error
-			if err1 != nil {
-				t.Error(err1)
-			}
-
-			// assert that the expected links exist and are correct
-			generatedFiles, err1 := getFilesInDir(targetModelIDDir)
-			if err1 != nil {
-				t.Error(err1)
-			}
-			for _, link := range tt.ExpectedLinks {
-				var err2 error
-				// assert that the expected file exists
-				var expectedFile os.FileInfo = nil
-				for _, f := range generatedFiles {
-					if f.Name() == link.Name {
-						expectedFile = f
-					}
-				}
-				if expectedFile == nil {
-					t.Errorf("Expected link [%s] not found in generated files for model %s", link.Name, tt.ModelID)
-					continue
-				}
-
-				// assert that it is a symlink
-				if expectedFile.Mode()&os.ModeSymlink != os.ModeSymlink {
-					t.Errorf("Expected [%s] to be a symlink.", expectedFile.Name())
-				}
-
-				// assert on the target of the link
-				expectedFileFullPath := filepath.Join(generatedMlserverModelsDir, tt.ModelID, expectedFile.Name())
-				resolvedPath, err2 := filepath.EvalSymlinks(expectedFileFullPath)
-				if err2 != nil {
-					t.Errorf("Error resolving symlink [%s]: %w", expectedFileFullPath, err2)
-				}
-				// the target can be explicit in the expectedLink or is assumed to be
-				// the same as the link name
-				var expectedTarget string
-				if link.Target != "" {
-					expectedTarget = link.Target
-				} else {
-					expectedTarget = link.Name
-				}
-				expectedTargetFullPath := filepath.Join(sourceModelIDDir, expectedTarget)
-
-				if resolvedPath != expectedTargetFullPath {
-					t.Errorf("Expected symlink [%s] to point to [%s] but instead it pointed to [%s]", expectedFileFullPath, expectedTargetFullPath, resolvedPath)
-				}
-
-				// assert that the target file exists
-				if exists, err2 := fileExists(resolvedPath); !exists {
-					if err2 != nil {
-						t.Errorf("Expected file %s to exist but got an error checking: %w", resolvedPath, err2)
-					} else {
-						t.Errorf("Expected file %s to exist but it was not found", resolvedPath)
-					}
-				}
-			}
-
-			assertGeneratedModelDirIsCorrect(sourceModelIDDir, targetModelIDDir, tt.ModelID, t)
-		})
-	}
-	// cleanup the entire generatedTestdataDir after all the tests
-	err = os.RemoveAll(generatedTestdataDir)
-	if err != nil {
-		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
-	}
-}
-
-func assertCreateEmptyFile(path string, t *testing.T) {
-	err := createFile(path, "")
-	if err != nil {
-		t.Fatal("Unexpected error creating empty file", err)
-	}
-}
-
-func createFile(path, contents string) error {
-	os.MkdirAll(filepath.Dir(path), 0755)
-	err := ioutil.WriteFile(path, []byte(contents), 0644)
-	return err
-}
-
-func assertCreateConfigFile(path string, t *testing.T) {
-	err := createFile(path, "{}")
-	if err != nil {
-		t.Fatal("Unexpected error creating empty file", err)
-	}
-}
-
-func getFilesInDir(root string) ([]os.FileInfo, error) {
-	result := make([]os.FileInfo, 0, 1)
-	err := filepath.Walk(root, func(path string, info os.FileInfo, errIn error) error {
-		result = append(result, info)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }

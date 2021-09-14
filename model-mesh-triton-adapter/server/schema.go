@@ -17,61 +17,43 @@ package server
 // https://github.com/triton-inference-server/server/blob/829d4ba2d007fdb9ae71d064039f96101868b1d6/src/core/model_config.proto
 
 import (
-	"encoding/json"
-	"io/ioutil"
-
 	"fmt"
 
 	"github.com/go-logr/logr"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
 )
 
-type Schema struct {
-	Inputs  []Tensor `json:"inputs"`
-	Outputs []Tensor `json:"outputs"`
-}
-
-type Tensor struct {
-	Name     string  `json:"name"`
-	Datatype string  `json:"datatype,omitempty"`
-	Shape    []int64 `json:"shape,omitempty"`
-}
-
 var (
 	TensorType = map[string]triton.DataType{
-		"INVALID": triton.DataType_TYPE_INVALID,
-		"BOOL":    triton.DataType_TYPE_BOOL,
-		"UINT8":   triton.DataType_TYPE_UINT8,
-		"UINT16":  triton.DataType_TYPE_UINT16,
-		"UINT32":  triton.DataType_TYPE_UINT32,
-		"UINT64":  triton.DataType_TYPE_UINT64,
-		"INT8":    triton.DataType_TYPE_INT8,
-		"INT16":   triton.DataType_TYPE_INT16,
-		"INT32":   triton.DataType_TYPE_INT32,
-		"INT64":   triton.DataType_TYPE_INT64,
-		"FP16":    triton.DataType_TYPE_FP16,
-		"FP32":    triton.DataType_TYPE_FP32,
-		"FP64":    triton.DataType_TYPE_FP64,
-		"STRING":  triton.DataType_TYPE_STRING,
+		"INVALID":          triton.DataType_TYPE_INVALID,
+		modelschema.BOOL:   triton.DataType_TYPE_BOOL,
+		modelschema.UINT8:  triton.DataType_TYPE_UINT8,
+		modelschema.UINT16: triton.DataType_TYPE_UINT16,
+		modelschema.UINT32: triton.DataType_TYPE_UINT32,
+		modelschema.UINT64: triton.DataType_TYPE_UINT64,
+		modelschema.INT8:   triton.DataType_TYPE_INT8,
+		modelschema.INT16:  triton.DataType_TYPE_INT16,
+		modelschema.INT32:  triton.DataType_TYPE_INT32,
+		modelschema.INT64:  triton.DataType_TYPE_INT64,
+		modelschema.FP16:   triton.DataType_TYPE_FP16,
+		modelschema.FP32:   triton.DataType_TYPE_FP32,
+		modelschema.FP64:   triton.DataType_TYPE_FP64,
+		modelschema.STRING: triton.DataType_TYPE_STRING,
 	}
 )
 
-func convertSchemaToConfig(schemaFile string, log logr.Logger) (*triton.ModelConfig, error) {
-	schemaInput, err := ioutil.ReadFile(schemaFile)
+func convertSchemaToConfigFromFile(schemaFile string, log logr.Logger) (*triton.ModelConfig, error) {
+	ms, err := modelschema.NewFromFile(schemaFile)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read model schema file %s: %w", schemaFile, err)
+		return nil, fmt.Errorf("Error trying to convert schema to config: %w", err)
 	}
 
-	return convertSchemaJSONToConfig(schemaInput, log)
+	return convertSchemaToConfig(*ms, log)
 }
 
-func convertSchemaJSONToConfig(schemaJSON []byte, log logr.Logger) (*triton.ModelConfig, error) {
+func convertSchemaToConfig(schema modelschema.ModelSchema, log logr.Logger) (*triton.ModelConfig, error) {
 	config := triton.ModelConfig{}
-
-	schema := Schema{}
-	if err := json.Unmarshal([]byte(schemaJSON), &schema); err != nil {
-		return nil, fmt.Errorf("Unable to parse model schema JSON: %w", err)
-	}
 
 	if schema.Inputs != nil {
 		config.Input = make([]*triton.ModelInput, len(schema.Inputs))

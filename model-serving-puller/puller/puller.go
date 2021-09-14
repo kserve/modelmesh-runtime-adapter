@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
-	"github.com/kserve/modelmesh-runtime-adapter/util"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 )
 
 const jsonAttrModelKeyStorageKey = "storage_key"

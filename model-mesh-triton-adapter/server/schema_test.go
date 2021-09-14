@@ -16,27 +16,31 @@ package server
 import (
 	"testing"
 
+	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestConvertSchema(t *testing.T) {
-	schemaJSON := `{
-		"inputs": [{
-			"name": "inputs",
-			"datatype": "FP32",
-			"shape": [784]
-		}],
-		"outputs": [{
-			"name": "classes",
-			"datatype": "INT64",
-			"shape": [1]
-		}]
+	schema := modelschema.ModelSchema{
+		Inputs: []modelschema.TensorMetadata{
+			{
+				Name:     "inputs",
+				Datatype: modelschema.FP32,
+				Shape:    []int64{784},
+			},
+		},
+		Outputs: []modelschema.TensorMetadata{
+			{
+				Name:     "classes",
+				Datatype: modelschema.INT64,
+				Shape:    []int64{1},
+			},
+		},
 	}
-	`
 
 	var err error
-	config, err := convertSchemaJSONToConfig([]byte(schemaJSON), log)
+	config, err := convertSchemaToConfig(schema, log)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

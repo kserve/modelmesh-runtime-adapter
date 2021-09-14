@@ -28,8 +28,8 @@ import (
 
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/puller"
-	"github.com/kserve/modelmesh-runtime-adapter/util"
 )
 
 type AdapterConfiguration struct {

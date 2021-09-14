@@ -28,8 +28,8 @@ import (
 	"github.com/IBM/ibm-cos-sdk-go/aws/session"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3/s3manager"
-	"github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
-	"github.com/kserve/modelmesh-runtime-adapter/util"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 )
 
 type storage struct {
@@ -183,8 +183,8 @@ func (s *Puller) DownloadFromCOS(modelID string, objPath string, schemaPath stri
 				return "", fmt.Errorf("Error downloading schema from path '%s'", schemaPath)
 			}
 
-			if filepath.Base(schemaPath) != envconfig.ModelSchemaFile {
-				s, serr := util.SecureJoin(s.PullerConfig.RootModelDir, modelID, envconfig.ModelSchemaFile)
+			if filepath.Base(schemaPath) != modelschema.ModelSchemaFile {
+				s, serr := util.SecureJoin(s.PullerConfig.RootModelDir, modelID, modelschema.ModelSchemaFile)
 				if serr != nil {
 					return "", serr
 				}
@@ -210,13 +210,13 @@ func (s *Puller) DownloadFromCOS(modelID string, objPath string, schemaPath stri
 	}
 
 	// If schema found in model path and not _schema.json, rename it
-	if schemaInModelPath && filepath.Base(schemaPath) != envconfig.ModelSchemaFile {
+	if schemaInModelPath && filepath.Base(schemaPath) != modelschema.ModelSchemaFile {
 		sp, serr := util.SecureJoin(s.PullerConfig.RootModelDir, modelID, filepath.Base(schemaPath))
 		if serr != nil {
 			return "", serr
 		}
 
-		tp, serr := util.SecureJoin(s.PullerConfig.RootModelDir, modelID, envconfig.ModelSchemaFile)
+		tp, serr := util.SecureJoin(s.PullerConfig.RootModelDir, modelID, modelschema.ModelSchemaFile)
 		if serr != nil {
 			return "", serr
 		}

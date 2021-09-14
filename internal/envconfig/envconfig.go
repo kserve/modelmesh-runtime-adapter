@@ -20,8 +20,6 @@ import (
 	"github.com/go-logr/logr"
 )
 
-const ModelSchemaFile = "_schema.json"
-
 // Returns the string value of environment variable "key" or the default value
 // if "key" is not set. Note if the environment variable is set to an empty
 // string, this will return an empty string, not defaultValue.

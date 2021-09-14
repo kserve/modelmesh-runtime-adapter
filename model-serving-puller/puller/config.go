@@ -23,7 +23,7 @@ import (
 	"github.com/go-logr/logr"
 
 	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
-	"github.com/kserve/modelmesh-runtime-adapter/util"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 )
 
 // PullerConfiguration stores configuration variables for the puller server
