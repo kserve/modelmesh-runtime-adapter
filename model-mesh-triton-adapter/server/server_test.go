@@ -28,6 +28,7 @@ import (
 
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/prototext"
 )
@@ -131,7 +132,7 @@ func TestAdapter(t *testing.T) {
 	}
 
 	modelDir := filepath.Join(testdataDir, tritonModelSubdir, "tfmnist", "1", "model.savedmodel")
-	if exists, existsErr := fileExists(modelDir); !exists {
+	if exists, existsErr := util.FileExists(modelDir); !exists {
 		if existsErr != nil {
 			t.Errorf("Expected model dir %s to exists but got an error checking: %v", modelDir, existsErr)
 		} else {
@@ -140,7 +141,7 @@ func TestAdapter(t *testing.T) {
 	}
 
 	configFile := filepath.Join(testdataDir, tritonModelSubdir, "tfmnist", "config.pbtxt")
-	if exists, existsErr := fileExists(configFile); !exists {
+	if exists, existsErr := util.FileExists(configFile); !exists {
 		if existsErr != nil {
 			t.Errorf("Expected config file %s to exist but got an error checking: %v", modelDir, existsErr)
 		} else {
@@ -203,7 +204,7 @@ func TestAdapter(t *testing.T) {
 	t.Logf("runtime status: Model unloaded, %v", resp4)
 
 	modelDir = filepath.Join(testdataDir, tritonModelSubdir, "tfmnist")
-	exists, err := fileExists(modelDir)
+	exists, err := util.FileExists(modelDir)
 	if err != nil {
 		t.Errorf("Expected model dir %s to not exist but got an error checking: %v", modelDir, err)
 	} else if exists {

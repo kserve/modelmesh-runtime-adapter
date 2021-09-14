@@ -25,9 +25,9 @@ import (
 	"github.com/go-logr/logr"
 	"google.golang.org/protobuf/encoding/prototext"
 
-	"github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
-	"github.com/kserve/modelmesh-runtime-adapter/util"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 )
 
 // modelTypeToDirNameMapping and modelTypeToFileNameMapping contain constant values which define
@@ -99,13 +99,13 @@ func createTritonModelRepositoryFromFiles(inputFiles []os.FileInfo, modelType st
 
 	// check if the model dir includes our schema file
 	var schemaFileExists bool
-	schemaPath, err := util.SecureJoin(sourceModelIDDir, envconfig.ModelSchemaFile)
+	schemaPath, err := util.SecureJoin(sourceModelIDDir, modelschema.ModelSchemaFile)
 	if err != nil {
 		return fmt.Errorf("Error joining path to schema file: %w", err)
 	}
 	// if it does exist, remove it from the files list because the schema file is not part of the model's data
 	// processing of the schema file will happen after the model data is transformed
-	schemaFileExists, files = removeFileFromListOfFileInfo(envconfig.ModelSchemaFile, files)
+	schemaFileExists, files = util.RemoveFileFromListOfFileInfo(modelschema.ModelSchemaFile, files)
 
 	// try to find the largest version directory
 	largestNum := largestNumberDir(files)
@@ -203,7 +203,7 @@ func createTritonModelRepositoryFromFiles(inputFiles []os.FileInfo, modelType st
 
 	// if _schema.json file exists then update config.pbtxt with schema
 	if schemaFileExists {
-		sm, errs := convertSchemaToConfig(schemaPath, log)
+		sm, errs := convertSchemaToConfigFromFile(schemaPath, log)
 
 		if errs != nil {
 			return errs
@@ -246,7 +246,7 @@ func processTritonRepositoryFiles(files []os.FileInfo, sourceModelIDDir string, 
 		}
 
 		// skip if file being handled is _schema.json
-		if filename == envconfig.ModelSchemaFile {
+		if filename == modelschema.ModelSchemaFile {
 			continue
 		}
 
@@ -348,16 +348,16 @@ func processModelConfig(pbtxtIn []byte, log logr.Logger, sourceModelIDDir string
 	m.Name = ""
 
 	// if sourceModelIDDir passed and _schema.json file exists then update schema to config.pbtxt
-	schemaPath, err := util.SecureJoin(sourceModelIDDir, envconfig.ModelSchemaFile)
+	schemaPath, err := util.SecureJoin(sourceModelIDDir, modelschema.ModelSchemaFile)
 	if err != nil {
 		return pbtxtIn, fmt.Errorf("Unable to join path to schema file: %w", err)
 	}
 	var schemaFileExists bool
-	if schemaFileExists, err = fileExists(schemaPath); err != nil {
+	if schemaFileExists, err = util.FileExists(schemaPath); err != nil {
 		return pbtxtIn, fmt.Errorf("Error determining if schema file exists: %w", err)
 	}
 	if sourceModelIDDir != "" && schemaFileExists {
-		sm, errs := convertSchemaToConfig(schemaPath, log)
+		sm, errs := convertSchemaToConfigFromFile(schemaPath, log)
 
 		if errs != nil {
 			return pbtxtIn, errs
@@ -424,23 +424,4 @@ func removeFirstDimensionFromInputsAndOutputs(m *triton.ModelConfig) {
 	for _, out := range m.Output {
 		out.Dims = out.Dims[1:]
 	}
-}
-
-// removeFileFromListOfFileInfo
-// The input `files` content is modified, the order of elements is changed
-func removeFileFromListOfFileInfo(filename string, files []os.FileInfo) (bool, []os.FileInfo) {
-	var fileIndex int = -1
-	for i, f := range files {
-		if f.Name() == filename {
-			fileIndex = i
-		}
-	}
-	if fileIndex == -1 {
-		return false, files
-	}
-	// overwrite the entry to be removed with the last entry
-	files[fileIndex] = files[len(files)-1]
-	// then return a shortend slice
-	return true, files[:len(files)-1]
-
 }

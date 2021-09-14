@@ -28,11 +28,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	mlserver "github.com/kserve/modelmesh-runtime-adapter/internal/proto/mlserver/dataplane"
 	modelrepo "github.com/kserve/modelmesh-runtime-adapter/internal/proto/mlserver/modelrepo"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/puller"
-	"github.com/kserve/modelmesh-runtime-adapter/util"
 )
 
 const (
@@ -243,7 +244,10 @@ func processNativeRepository(files []os.FileInfo, modelID string, sourceDir stri
 			}
 
 			// process the config to set the model's `name` to the model-mesh model id
-			processedConfigJSON := processConfigJSON(configJSON, modelID, targetDir, log)
+			processedConfigJSON, err1 := processConfigJSON(configJSON, modelID, targetDir, sourceDir, log)
+			if err1 != nil {
+				return fmt.Errorf("Error processing config file %s. %v", source, err1)
+			}
 
 			target, jerr := util.SecureJoin(targetDir, mlserverRepositoryConfigFilename)
 			if jerr != nil {
@@ -276,13 +280,13 @@ func processNativeRepository(files []os.FileInfo, modelID string, sourceDir stri
 // Returns bytes with the bytes of the processed config. MLServer requires the
 // name parameter to exist and be equal to the model id. The directory is
 // ignored.
-func processConfigJSON(jsonIn []byte, modelID string, targetDir string, log logr.Logger) []byte {
+func processConfigJSON(jsonIn []byte, modelID string, targetDir string, sourceModelIDDir string, log logr.Logger) ([]byte, error) {
 	// parse the json as a map
 	var j map[string]interface{}
 	if err := json.Unmarshal(jsonIn, &j); err != nil {
 		log.Info("Unable to unmarshal config file", "modelID", modelID, "error", err)
 		// return the input and hope for the best
-		return jsonIn
+		return jsonIn, nil
 	}
 	// set the name field
 	j["name"] = modelID
@@ -293,7 +297,27 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, log logr
 		j["parameters"].(map[string]interface{})["uri"], err = util.SecureJoin(targetDir, uri)
 		if err != nil {
 			log.Info("Error joining paths", "directory", targetDir, "uri", uri, "error", err)
-			return jsonIn
+			return jsonIn, nil
+		}
+	}
+
+	// if the standard schema file exists, update the config with it
+	schemaPath, err := util.SecureJoin(sourceModelIDDir, modelschema.ModelSchemaFile)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to join path to schema file: %w", err)
+	}
+	var schemaFileExists bool
+	if schemaFileExists, err = util.FileExists(schemaPath); err != nil {
+		return nil, fmt.Errorf("Error determining if schema file exists: %w", err)
+	}
+
+	if schemaFileExists {
+		s, err1 := modelschema.NewFromFile(schemaPath)
+		if err1 != nil {
+			return nil, fmt.Errorf("Error parsing schema file: %w", err1)
+		}
+		if err1 = processSchema(j, s); err1 != nil {
+			return nil, fmt.Errorf("Error processing schema file: %w", err1)
 		}
 	}
 
@@ -301,10 +325,10 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, log logr
 	if err != nil {
 		log.Info("Unable to marshal config file", "modelID", modelID, "error", err)
 		// return the input and hope for the best
-		return jsonIn
+		return jsonIn, nil
 	}
 
-	return jsonOut
+	return jsonOut, nil
 }
 
 // adaptModelRepository attempts to generate a functional repo structure from the input files
@@ -315,6 +339,13 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, log logr
 func adaptModelRepository(files []os.FileInfo, modelID string, modelType string, sourceDir string, targetDir string, log logr.Logger) error {
 	// inspect the structure of the sourceDir and attempt to generate a repo that
 	// will be loadable by MLServer (with the default generated configuration)
+
+	// if the schema file exists, remove it from the files list because the
+	// schema file is not part of the model's data
+	// processing of the schema file occurs when the config file is
+	// processed
+	_, files = util.RemoveFileFromListOfFileInfo(modelschema.ModelSchemaFile, files)
+
 	var linkName, targetPath string
 	if len(files) == 0 {
 		// sourceDir is empty, nothing to do
@@ -344,8 +375,8 @@ func adaptModelRepository(files []os.FileInfo, modelID string, modelType string,
 		return fmt.Errorf("Error creating symlink: %v", err)
 	}
 
-	// generate the requried configuration file
-	configJSON, err := generateModelConfigJSON(modelID, modelType, linkName)
+	// generate the required configuration file
+	configJSON, err := generateModelConfigJSON(modelID, modelType, linkName, sourceDir)
 	if err != nil {
 		return fmt.Errorf("Error generating config file for %s: %w", modelID, err)
 	}
@@ -363,7 +394,7 @@ func adaptModelRepository(files []os.FileInfo, modelID string, modelType string,
 	return nil
 }
 
-func generateModelConfigJSON(modelID string, modelType string, uri string) ([]byte, error) {
+func generateModelConfigJSON(modelID string, modelType string, uri string, sourceModelIDDir string) ([]byte, error) {
 	j := make(map[string]interface{})
 	// set the name
 	j["name"] = modelID
@@ -392,12 +423,61 @@ func generateModelConfigJSON(modelID string, modelType string, uri string) ([]by
 	// parameters.uri to "./" as the default path
 	// REF: https://github.com/SeldonIO/MLServer/blob/7c0e98e14d128dba2d91a225038bad4b974efac0/runtimes/mllib/mlserver_mllib/utils.py#L36-L46
 
+	// if the standard schema file exists, update the config with it
+	schemaPath, err := util.SecureJoin(sourceModelIDDir, modelschema.ModelSchemaFile)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to join path to schema file: %w", err)
+	}
+	var schemaFileExists bool
+	if schemaFileExists, err = util.FileExists(schemaPath); err != nil {
+		return nil, fmt.Errorf("Error determining if schema file exists: %w", err)
+	}
+
+	if schemaFileExists {
+		s, err1 := modelschema.NewFromFile(schemaPath)
+		if err1 != nil {
+			return nil, fmt.Errorf("Error parsing schema file: %w", err1)
+		}
+		if err1 = processSchema(j, s); err1 != nil {
+			return nil, fmt.Errorf("Error processing schema file: %w", err1)
+		}
+	}
+
 	jsonOut, err := json.MarshalIndent(j, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("Unable to marshal JSON: %w", err)
 	}
 
 	return jsonOut, nil
+}
+
+func processSchema(c map[string]interface{}, s *modelschema.ModelSchema) error {
+	if s.Inputs != nil {
+		inputs := make([]interface{}, len(s.Inputs))
+		for i, m := range s.Inputs {
+			inputs[i] = tensorMetadataToJson(m)
+		}
+		c["inputs"] = inputs
+	}
+
+	if s.Outputs != nil {
+		outputs := make([]interface{}, len(s.Outputs))
+		for i, m := range s.Outputs {
+			outputs[i] = tensorMetadataToJson(m)
+		}
+		c["outputs"] = outputs
+	}
+
+	return nil
+}
+
+func tensorMetadataToJson(tm modelschema.TensorMetadata) map[string]interface{} {
+	json := make(map[string]interface{})
+	json["name"] = tm.Name
+	json["datatype"] = tm.Datatype
+	json["shape"] = tm.Shape
+
+	return json
 }
 
 func calcMemCapacity(reqModelKey string, adapterConfig *AdapterConfiguration, log logr.Logger) uint64 {

@@ -16,21 +16,10 @@ package server
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 
 	triton "github.com/kserve/modelmesh-runtime-adapter/internal/proto/triton"
 	"google.golang.org/protobuf/encoding/prototext"
 )
-
-func fileExists(path string) (bool, error) {
-	if _, err := os.Stat(path); err == nil {
-		return true, nil
-	} else if os.IsNotExist(err) {
-		return false, nil
-	} else {
-		return false, err
-	}
-}
 
 func writeConfigPbtxt(filename string, modelConfig *triton.ModelConfig) error {
 	var err error
