@@ -40,8 +40,8 @@ const (
 	defaultModelSizeMultiplier                 = 1.25
 	runtimeVersion                      string = "RUNTIME_VERSION"
 	defaultRuntimeVersion                      = "v1"
-	disableModelConcurrency             string = "DISABLE_MODEL_CONCURRENCY"
-	defaulDisableModelConcurrency              = false
+	limitPerModelConcurrency            string = "LIMIT_PER_MODEL_CONCURRENCY"
+	defaultLimitPerModelConcurrency            = 0 // 0 means don't limit request concurrency
 	rootModelDir                        string = "ROOT_MODEL_DIR"
 	defaultRootModelDir                        = "/models"
 	useEmbeddedPuller                   string = "USE_EMBEDDED_PULLER"
@@ -59,8 +59,8 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.ModelLoadingTimeoutMS = GetEnvInt(maxLoadingTimeoutMs, defaultMaxLoadingTimeoutMs, log)
 	adapterConfig.DefaultModelSizeInBytes = GetEnvInt(defaultModelSize, defaultModelSizeInBytes, log)
 	adapterConfig.ModelSizeMultiplier = GetEnvFloat(modelSizeMultiplier, defaultModelSizeMultiplier, log)
-	adapterConfig.RuntimeVersion = GetEnvString(runtimeVersion, defaultRuntimeVersion)                            // retrieved from runtime status later
-	adapterConfig.LimitModelConcurrency = GetEnvBool(disableModelConcurrency, defaulDisableModelConcurrency, log) // enabled by default
+	adapterConfig.RuntimeVersion = GetEnvString(runtimeVersion, defaultRuntimeVersion)
+	adapterConfig.LimitModelConcurrency = GetEnvInt(limitPerModelConcurrency, defaultLimitPerModelConcurrency, log)
 	adapterConfig.RootModelDir = GetEnvString(rootModelDir, defaultRootModelDir)
 	adapterConfig.UseEmbeddedPuller = GetEnvBool(useEmbeddedPuller, defaultUseEmbeddedPuller, log)
 
