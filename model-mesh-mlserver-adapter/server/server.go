@@ -55,7 +55,7 @@ type AdapterConfiguration struct {
 	DefaultModelSizeInBytes      int
 	ModelSizeMultiplier          float64
 	RuntimeVersion               string
-	LimitModelConcurrency        bool
+	LimitModelConcurrency        int // 0 means no limit (default)
 	RootModelDir                 string
 	UseEmbeddedPuller            bool
 }
@@ -97,11 +97,11 @@ func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log
 
 	resp, mlserverErr := s.Client.ServerMetadata(mlserverClientCtx, &mlserver.ServerMetadataRequest{})
 
-	if mlserverErr != nil {
-		log.Info("MLServer failed to get server metadata", "Failure Reason", mlserverErr)
+	if mlserverErr != nil || resp.Version == "" {
+		log.Error(mlserverErr, "MLServer failed to get server metadata")
+	} else {
+		s.AdapterConfig.RuntimeVersion = resp.Version
 	}
-
-	s.AdapterConfig.RuntimeVersion = resp.Version
 
 	log.Info("MLServer Runtime connected!")
 
@@ -144,7 +144,7 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 
 	return &mmesh.LoadModelResponse{
 		SizeInBytes:    size,
-		MaxConcurrency: 1,
+		MaxConcurrency: uint32(s.AdapterConfig.LimitModelConcurrency),
 	}, nil
 }
 
@@ -608,7 +608,7 @@ func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 	runtimeStatus.ModelLoadingTimeoutMs = uint32(s.AdapterConfig.ModelLoadingTimeoutMS)
 	runtimeStatus.DefaultModelSizeInBytes = uint64(s.AdapterConfig.DefaultModelSizeInBytes)
 	runtimeStatus.RuntimeVersion = s.AdapterConfig.RuntimeVersion
-	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency
+	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency > 0
 
 	path1 := []uint32{1}
 

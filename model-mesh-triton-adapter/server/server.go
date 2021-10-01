@@ -43,7 +43,7 @@ type AdapterConfiguration struct {
 	DefaultModelSizeInBytes    int
 	ModelSizeMultiplier        float64
 	RuntimeVersion             string
-	LimitModelConcurrency      bool
+	LimitModelConcurrency      int // 0 means no limit (default)
 	RootModelDir               string
 	UseEmbeddedPuller          bool
 }
@@ -82,9 +82,8 @@ func NewTritonAdapterServer(runtimePort int, config *AdapterConfiguration, log l
 	}
 
 	resp, tritonErr := s.Client.ServerMetadata(tritonClientCtx, &triton.ServerMetadataRequest{})
-
-	if tritonErr != nil {
-		log.Info("Warning: Triton failed to get version from server metadata", "error", tritonErr)
+	if tritonErr != nil || resp.Version == "" {
+		log.Error(tritonErr, "Warning: Triton failed to get version from server metadata")
 	} else {
 		s.AdapterConfig.RuntimeVersion = resp.Version
 	}
@@ -129,7 +128,7 @@ func (s *TritonAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMode
 
 	return &mmesh.LoadModelResponse{
 		SizeInBytes:    size,
-		MaxConcurrency: 1,
+		MaxConcurrency: uint32(s.AdapterConfig.LimitModelConcurrency),
 	}, nil
 }
 
@@ -281,7 +280,7 @@ func (s *TritonAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runt
 	runtimeStatus.ModelLoadingTimeoutMs = uint32(s.AdapterConfig.ModelLoadingTimeoutMS)
 	runtimeStatus.DefaultModelSizeInBytes = uint64(s.AdapterConfig.DefaultModelSizeInBytes)
 	runtimeStatus.RuntimeVersion = s.AdapterConfig.RuntimeVersion
-	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency
+	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency > 0
 
 	path1 := []uint32{1}
 
