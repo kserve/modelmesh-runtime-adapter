@@ -102,12 +102,23 @@ LABEL name="model-serving-runtime-adapter" \
       summary="Sidecar container which runs in the Model-Mesh Serving model server pods" \
       description="Container which runs in each model serving pod and act as an intermediary between model-mesh and third-party model-server containers"
 
+USER root
+# install python to convert keras to tf
+RUN microdnf install \
+    gcc \
+    gcc-c++ \
+    python38 && \ 
+    ln -sf /usr/bin/python3 /usr/bin/python && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip && \
+    pip install tensorflow
+
 USER ${USER}
 
 # Copy over the binary and use it as the entrypoint
 COPY --from=build /opt/app/puller /opt/app/
 COPY --from=build /opt/app/triton-adapter /opt/app/
 COPY --from=build /opt/app/mlserver-adapter /opt/app/
+COPY --from=build /opt/app/model-mesh-triton-adapter/scripts/tf_pb.py /opt/scripts/
 
 # Don't define an entrypoint. This is a multi-purpose image so the user should specify which binary they want to run (e.g. /opt/app/puller or /opt/app/triton-adapter)
 # ENTRYPOINT ["/opt/app/puller"]

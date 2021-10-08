@@ -14,6 +14,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -156,7 +157,8 @@ func TestRewriteModelPath(t *testing.T) {
 			tt.generateSourceDirectory(t)
 
 			// run function under test
-			err = rewriteModelPath(generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
+			ctx := context.Background()
+			err = rewriteModelPath(ctx, generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
 
 			if tt.ExpectError && err == nil {
 				t.Fatal("ExpectError is true, but no error was returned")
@@ -186,8 +188,9 @@ func TestRewriteModelPathMultiple(t *testing.T) {
 	}
 
 	// next run the function under test for all the models
+	ctx := context.Background()
 	for _, tt := range rewriteModelPathTests {
-		err = rewriteModelPath(generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
+		err = rewriteModelPath(ctx, generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
 		if tt.ExpectError && err == nil {
 			t.Fatal("ExpectError is true, but no error was returned")
 		}

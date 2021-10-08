@@ -14,6 +14,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -53,7 +54,7 @@ var modelTypeToFileNameMapping = map[string]string{
 	"pytorch":    "model.pt",
 }
 
-func rewriteModelPath(rootModelDir, modelID, modelType string, log logr.Logger) error {
+func rewriteModelPath(ctx context.Context, rootModelDir, modelID, modelType string, log logr.Logger) error {
 	// convert to lower case and remove anything after the :
 	modelType = strings.ToLower(strings.Split(modelType, ":")[0])
 
@@ -72,6 +73,11 @@ func rewriteModelPath(rootModelDir, modelID, modelType string, log logr.Logger) 
 		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "modelID", modelID)
 		return err
 	}
+
+	if err = convertKerasToTF(sourceModelIDDir, ctx, log); err != nil {
+		return fmt.Errorf("Error while converting keras model %s to tensorflow: %w", sourceModelIDDir, err)
+	}
+
 	files, err := ioutil.ReadDir(sourceModelIDDir)
 	if err != nil {
 		return fmt.Errorf("Could not read files in dir %s: %w", sourceModelIDDir, err)
