@@ -107,7 +107,7 @@ func (s *TritonAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMode
 		}
 	}
 
-	err := rewriteModelPath(s.AdapterConfig.RootModelDir, req.ModelId, modelType, log)
+	err := rewriteModelPath(ctx, s.AdapterConfig.RootModelDir, req.ModelId, modelType, log)
 
 	if err != nil {
 		log.Error(err, "Failed to create model directory and load model")
