@@ -13,6 +13,7 @@
 # limitations under the License.
 import os
 import sys
+import time
 import tensorflow as tf
 from tensorflow import keras
 
@@ -28,7 +29,7 @@ def export_h5_to_pb(path_to_h5, export_path):
 print('Converting keras model to tensorflow model. Argument(s) passed: {}'.format(str(sys.argv)))
 source_path = sys.argv[1]
 target_path = sys.argv[2]
-
+start = time.time()
 export_h5_to_pb(source_path, target_path)
+print('Successfully converted keras model to tensorflow model. Conversion time: {} seconds'.format(time.time() - start))
 os.remove(source_path)
-print('Successfully converted keras model to tensorflow model.')
