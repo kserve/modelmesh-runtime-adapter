@@ -127,7 +127,7 @@ func (m *modelStateManager) execute() {
 					results:  m.results,
 				}
 				m.data[req.modelId] = data
-				go data.execute(&m.log)
+				go data.execute()
 			}
 
 			data.refCount += 1
@@ -151,7 +151,7 @@ func (m *modelStateManager) execute() {
 	}
 }
 
-func (d *modelData) execute(log *logr.Logger) {
+func (d *modelData) execute() {
 	req, ok := <-d.requests
 	for ; ok; req, ok = <-d.requests {
 		var res interface{}
@@ -162,8 +162,7 @@ func (d *modelData) execute(log *logr.Logger) {
 		case *mmesh.UnloadModelRequest:
 			res, err = d.m.unloadModel(req.ctx, request)
 		default:
-			(*log).Error(nil, "Unrecognized request type", "type", fmt.Sprintf("%T", req.grpcRequest))
-			continue
+			err = fmt.Errorf("unrecognized request type: %T", req.grpcRequest)
 		}
 		d.results <- &result{req.modelId, res, err, req.c}
 	}
