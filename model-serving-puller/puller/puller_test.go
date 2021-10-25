@@ -226,7 +226,7 @@ func Test_DownloadFromCOS_Success(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func Test_ProcessLoadModelRequest_Success(t *testing.T) {
+func Test_ProcessLoadModelRequest_Success_SingleFileModel(t *testing.T) {
 	p, mockDownloader, mockCtrl := newPullerWithMock(t)
 	defer mockCtrl.Finish()
 
@@ -241,10 +241,68 @@ func Test_ProcessLoadModelRequest_Success(t *testing.T) {
 		ModelId:   "testmodel",
 		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "testmodel/model.zip"),
 		ModelType: "tensorflow",
-		ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage"}`,
+		ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
 	}
 
 	mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", "model.zip").Return([]string{"model.zip"}, nil).Times(1)
+	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_Success_MultiFileModel(t *testing.T) {
+	p, mockDownloader, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "path/to/model",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1"}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "testmodel"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
+	}
+
+	mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", "path/to/model").Return([]string{"path/to/model/model.zip", "path/to/model/metadata.txt", "path/to/model/model/data"}, nil).Times(1)
+	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
+	p, mockDownloader, mockCtrl := newPullerWithMock(t)
+	defer mockCtrl.Finish()
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "schema_path": "my_schema"}`,
+	}
+
+	// expect updated schema_path in ModelKey
+	expectedSchemaPath := filepath.Join(p.PullerConfig.RootModelDir, "testmodel/_schema.json")
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "testmodel",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "testmodel/model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  fmt.Sprintf(`{"bucket":"bucket1","disk_size_bytes":0,"schema_path":"%s","storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`, expectedSchemaPath),
+	}
+
+	// model file
+	mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", "model.zip").Return([]string{"model.zip"}, nil).Times(1)
+	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	// schema
+	mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", "my_schema").Return([]string{"my_schema"}, nil).Times(1)
 	mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
@@ -327,4 +385,24 @@ func Test_ProcessLoadModelRequest_FailMissingStorageKey(t *testing.T) {
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Nil(t, returnRequest)
 	assert.EqualError(t, err, expectedError)
+}
+
+func Test_getModelDiskSize(t *testing.T) {
+	var diskSizeTests = []struct {
+		modelPath    string
+		expectedSize int64
+	}{
+		{"testModelSize/1/airbnb.model.lr.zip", 15259},
+		{"testModelSize/1", 15259},
+		{"testModelSize/2", 39375276},
+	}
+
+	for _, tt := range diskSizeTests {
+		t.Run("", func(t *testing.T) {
+			fullPath := filepath.Join(RootModelDir, tt.modelPath)
+			diskSize, err := getModelDiskSize(fullPath)
+			assert.NoError(t, err)
+			assert.EqualValues(t, tt.expectedSize, diskSize)
+		})
+	}
 }

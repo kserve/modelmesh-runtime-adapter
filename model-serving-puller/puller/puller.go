@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc/status"
 
+	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 )
@@ -69,16 +70,17 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 	return s
 }
 
-// processLoadModelRequest is for use in an mmesh ModelRuntimeServer that embeds the puller
+// ProcessLoadModelRequest is for use in an mmesh serving runtime that embeds the puller
 //
-// The input request is modified in place and also returned. The path is
-// rewritten to a local file path and the size of the model on disk is added to
-// the model metadata.
+// The input request is modified in place and also returned.
+// After pulling the model files, changes to the request are:
+// - rewrite ModelPath to a local filesystem path
+// - rewrite ModelKey["schema_path"] to a local filesystem path
+// - add the size of the model on disk to ModelKey["disk_size_bytes"]
 func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
 	// parse json
 	var modelKey map[string]interface{}
-	parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey)
-	if parseErr != nil {
+	if parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey); parseErr != nil {
 		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON: %s", req.ModelKey, parseErr)
 	}
 	schemaPath, ok := modelKey[jsonAttrModelSchemaPath].(string)
@@ -118,9 +120,32 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	if pullerErr != nil {
 		return nil, status.Errorf(status.Code(pullerErr), "Failed to pull model from storage due to error: %s", pullerErr)
 	}
-	// update the request
+
+	// update the model path
 	req.ModelPath = localPath
-	req = AddModelDiskSize(req, s.Log)
+
+	// update the model key to add the schema path
+	if schemaPath != "" {
+		schemaFullPath, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId, modelschema.ModelSchemaFile)
+		if joinErr != nil {
+			return nil, fmt.Errorf("Error joining paths '%s', '%s', and '%s': %w", s.PullerConfig.RootModelDir, req.ModelId, modelschema.ModelSchemaFile, joinErr)
+		}
+		modelKey[jsonAttrModelSchemaPath] = schemaFullPath
+	}
+
+	// update the model key to add the disk size
+	if size, err1 := getModelDiskSize(localPath); err1 != nil {
+		s.Log.Info("Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey, "error", err1)
+	} else {
+		modelKey[jsonAttrModelKeyDiskSizeBytes] = size
+	}
+
+	// rewrite the ModelKey JSON with any updates that have been made
+	modelKeyBytes, err := json.Marshal(modelKey)
+	if err != nil {
+		return nil, fmt.Errorf("Error serializing ModelKey back to JSON: %w", err)
+	}
+	req.ModelKey = string(modelKeyBytes)
 
 	return req, nil
 }
@@ -158,19 +183,12 @@ func (s *Puller) CleanCache() {
 	}
 }
 
-func AddModelDiskSize(req *mmesh.LoadModelRequest, log logr.Logger) *mmesh.LoadModelRequest {
-	var modelKey map[string]interface{}
-	err := json.Unmarshal([]byte(req.ModelKey), &modelKey)
-	if err != nil {
-		log.Info("ModelDiskSize will not be included in the LoadModelRequest as LoadModelRequest.ModelKey value is not valid JSON", "size", jsonAttrModelKeyDiskSizeBytes, "model_key", req.ModelKey, "error", err)
-		return req
-	}
-
+func getModelDiskSize(modelPath string) (int64, error) {
 	// This walks the local filesystem and accumulates the size of the model
 	// It would be more efficient to accumulate the size as the files are downloaded,
 	// but this would require refactoring because the s3 download iterator does not return a size.
 	var size int64
-	err = filepath.Walk(req.ModelPath, func(_ string, info os.FileInfo, err error) error {
+	err := filepath.Walk(modelPath, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -180,19 +198,10 @@ func AddModelDiskSize(req *mmesh.LoadModelRequest, log logr.Logger) *mmesh.LoadM
 		return nil
 	})
 	if err != nil {
-		log.Info("ModelDiskSize will not be included in the LoadModelRequest due to error getting the disk size", "size", jsonAttrModelKeyDiskSizeBytes, "path", req.ModelPath, "error", err)
-		return req
+		return size, fmt.Errorf("Error computing model's disk size: %w", err)
 	}
 
-	modelKey[jsonAttrModelKeyDiskSizeBytes] = size
-	modelKeyBytes, err := json.Marshal(modelKey)
-	if err != nil {
-		log.Info("ModelDiskSize will not be included in the LoadModelRequest as failure in marshalling to JSON", "size", jsonAttrModelKeyDiskSizeBytes, "model_key", modelKey, "error", err)
-		return req
-	}
-	req.ModelKey = string(modelKeyBytes)
-
-	return req
+	return size, nil
 }
 
 func (p *Puller) CleanupModel(modelID string) error {

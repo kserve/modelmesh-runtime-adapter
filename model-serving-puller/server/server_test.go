@@ -15,7 +15,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"path/filepath"
 	"testing"
 	"time"
@@ -27,7 +26,6 @@ import (
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/generated/mocks"
 	. "github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/puller"
-	"github.com/stretchr/testify/assert"
 
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -101,7 +99,7 @@ func TestLoadModel(t *testing.T) {
 				ModelId:   tt.modelID,
 				ModelPath: filepath.Join(s.puller.PullerConfig.RootModelDir, tt.outputModelPath),
 				ModelType: "tensorflow",
-				ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage"}`,
+				ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
 			}
 
 			// Assert s.LoadModel calls the s3 Download and then the model runtime LoadModel rpc
@@ -121,53 +119,6 @@ func TestLoadModel(t *testing.T) {
 
 			// TODO assert that the model file was created at the correct path
 			// TODO assert that the new filepath is passed to the runtime LoadModel rpc call
-		})
-	}
-}
-
-func TestAddModelDiskSize(t *testing.T) {
-	var diskSizeTests = []struct {
-		modelPath    string
-		expectedSize int64
-	}{
-		{"testModelSize/1/airbnb.model.lr.zip", 15259},
-		{"testModelSize/1", 15259},
-		{"testModelSize/2", 39375276},
-	}
-
-	for _, tt := range diskSizeTests {
-		t.Run("", func(t *testing.T) {
-			requestBefore := &mmesh.LoadModelRequest{
-				ModelId:   filepath.Base(filepath.Dir(tt.modelPath)),
-				ModelPath: filepath.Join(RootModelDir, tt.modelPath),
-				ModelType: "tensorflow",
-				ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "modelType": "tensorflow"}`,
-			}
-			var modelKeyBefore map[string]interface{}
-			err := json.Unmarshal([]byte(requestBefore.ModelKey), &modelKeyBefore)
-			if err != nil {
-				t.Fatal("Error unmarshalling modelKeyBefore JSON", err)
-			}
-			assert.Equal(t, "myStorage", modelKeyBefore["storage_key"])
-			assert.Equal(t, "bucket1", modelKeyBefore["bucket"])
-			assert.Equal(t, "tensorflow", modelKeyBefore["modelType"])
-			log := zap.New(zap.UseDevMode(true))
-			requestAfter := addModelDiskSize(requestBefore, log)
-
-			assert.Equal(t, requestBefore.ModelId, requestAfter.ModelId)
-			assert.Equal(t, requestBefore.ModelPath, requestAfter.ModelPath)
-			assert.Equal(t, requestBefore.ModelType, requestAfter.ModelType)
-
-			var modelKeyAfter map[string]interface{}
-			err = json.Unmarshal([]byte(requestAfter.ModelKey), &modelKeyAfter)
-			if err != nil {
-				t.Fatal("Error unmarshalling modelKeyAfter JSON", err)
-			}
-
-			assert.Equal(t, modelKeyBefore["storage_key"], modelKeyAfter["storage_key"])
-			assert.Equal(t, modelKeyBefore["bucket"], modelKeyAfter["bucket"])
-			assert.Equal(t, modelKeyBefore["modelType"], modelKeyAfter["modelType"])
-			assert.EqualValues(t, tt.expectedSize, modelKeyAfter["disk_size_bytes"])
 		})
 	}
 }

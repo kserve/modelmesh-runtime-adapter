@@ -230,7 +230,3 @@ func (s *PullerServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStat
 func (s *PullerServer) CleanCache() {
 	s.puller.CleanCache()
 }
-
-func addModelDiskSize(req *mmesh.LoadModelRequest, log logr.Logger) *mmesh.LoadModelRequest {
-	return puller.AddModelDiskSize(req, log)
-}
