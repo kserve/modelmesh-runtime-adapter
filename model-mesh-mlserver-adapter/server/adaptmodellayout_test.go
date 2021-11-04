@@ -28,32 +28,28 @@ import (
 var generatedTestdataDir = filepath.Join(testdataDir, "generated")
 var generatedMlserverModelsDir string = filepath.Join(generatedTestdataDir, mlserverModelSubdir)
 
-type linkExpectation struct {
-	Name   string
-	Target string
-}
-
-type rewriteModelDirTestCase struct {
+type adaptModelLayoutTestCase struct {
 	ModelID        string
 	ModelType      string
+	ModelPath      string
+	SchemaPath     string
 	InputFiles     []string
 	InputConfig    map[string]interface{}
 	InputSchema    map[string]interface{}
-	ExpectedLinks  []linkExpectation
 	ExpectedFiles  []string
 	ExpectedConfig map[string]interface{}
 	ExpectError    bool
 }
 
-func (tt rewriteModelDirTestCase) getSourceDir() string {
+func (tt adaptModelLayoutTestCase) getSourceDir() string {
 	return filepath.Join(generatedTestdataDir, tt.ModelID)
 }
 
-func (tt rewriteModelDirTestCase) getTargetDir() string {
+func (tt adaptModelLayoutTestCase) getTargetDir() string {
 	return filepath.Join(generatedMlserverModelsDir, tt.ModelID)
 }
 
-func (tt rewriteModelDirTestCase) generateSourceDirectory(t *testing.T) {
+func (tt adaptModelLayoutTestCase) generateSourceDirectory(t *testing.T) {
 	sourceModelIDDir := tt.getSourceDir()
 	os.MkdirAll(sourceModelIDDir, 0755)
 	// setup the requested files
@@ -62,16 +58,30 @@ func (tt rewriteModelDirTestCase) generateSourceDirectory(t *testing.T) {
 	}
 	// setup the schema if provided
 	if tt.InputSchema != nil {
+		// assert that SchemaPath is set
+		if tt.SchemaPath == "" {
+			t.Fatalf("Test case %s has InputSchema but SchemaPath is unset", tt.ModelID)
+		}
+		// assert that the file pointed at by schema path is included as
+		// an input file to avoid confusion
+		schemaInInputFiles := false
+		for _, f := range tt.InputFiles {
+			if f == tt.SchemaPath {
+				schemaInInputFiles = true
+			}
+		}
+		if !schemaInInputFiles {
+			t.Fatalf("Test case %s has file pointed at by SchemaPath that is not in InputFiles", tt.ModelID)
+		}
 		tt.writeSchemaFile(t)
 	}
 	// setup the config if provided
 	if tt.InputConfig != nil {
-		// assert that "model-settings.json" is included as an input file to avoid
-		// confusion with this writing a file that is not part of the model's
-		// files
+		// assert that "model-settings.json" is included as an input
+		// file to avoid confusion
 		configInInputFiles := false
 		for _, f := range tt.InputFiles {
-			if f == "model-settings.json" {
+			if f == filepath.Join(tt.ModelPath, "model-settings.json") {
 				configInInputFiles = true
 			}
 		}
@@ -82,184 +92,183 @@ func (tt rewriteModelDirTestCase) generateSourceDirectory(t *testing.T) {
 	}
 }
 
-func (tt rewriteModelDirTestCase) writeConfigFile(t *testing.T) {
-	sourceModelIDDir := tt.getSourceDir()
-	configFilename := filepath.Join(sourceModelIDDir, "model-settings.json")
+func (tt adaptModelLayoutTestCase) writeConfigFile(t *testing.T) {
+	configFullPath := filepath.Join(tt.getSourceDir(), tt.ModelPath, "model-settings.json")
 	jsonBytes, jerr := json.Marshal(tt.InputConfig)
 	if jerr != nil {
 		t.Fatal("Error marshalling config JSON", jerr)
 	}
-	if err := ioutil.WriteFile(configFilename, jsonBytes, 0644); err != nil {
+	if err := ioutil.WriteFile(configFullPath, jsonBytes, 0644); err != nil {
 		t.Fatalf("Unable to write config JSON: %v", err)
 	}
 }
 
-func (tt rewriteModelDirTestCase) writeSchemaFile(t *testing.T) {
+func (tt adaptModelLayoutTestCase) writeSchemaFile(t *testing.T) {
 	jsonBytes, jerr := json.Marshal(tt.InputSchema)
 	if jerr != nil {
 		t.Fatal("Error marshalling schema JSON", jerr)
 	}
 
-	sourceModelIDDir := tt.getSourceDir()
-	schemaFilename := filepath.Join(sourceModelIDDir, "_schema.json")
-	if werr := ioutil.WriteFile(schemaFilename, jsonBytes, 0644); werr != nil {
+	schemaFullPath := filepath.Join(tt.getSourceDir(), tt.SchemaPath)
+	if werr := ioutil.WriteFile(schemaFullPath, jsonBytes, 0644); werr != nil {
 		t.Fatal("Error writing JSON to schema file", werr)
 	}
 }
 
-var rewriteModelDirTests = []rewriteModelDirTestCase{
-	// standard native
+var adaptModelLayoutTests = []adaptModelLayoutTestCase{
+	// Group: file layout / model path support
+
+	// path to single file
+	{
+		ModelID:   "single-file",
+		ModelType: "custom",
+		ModelPath: "some-file",
+		InputFiles: []string{
+			"some-file",
+		},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"some-file",
+		},
+	},
+
+	// path to a directory with a single file
+	{
+		ModelID:   "dir-with-single-file",
+		ModelType: "custom",
+		ModelPath: "somedir",
+		InputFiles: []string{
+			"somedir/somefile",
+		},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"somedir",
+		},
+	},
+
+	// path to a directory with a mix of files and dirs
+	{
+		ModelID:   "dir-with-complex-structure",
+		ModelType: "custom",
+		ModelPath: "modelname",
+		InputFiles: []string{
+			"modelname/data",
+			"modelname/metadata",
+			"modelname/somedir/somefile1",
+			"modelname/somedir/somefile2",
+			"modelname/anotherdir/morefiles",
+		},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"modelname",
+		},
+	},
+
+	// path to a standard MLServer directory
+	{
+		ModelID:   "dir-mlserver-layout",
+		ModelType: "custom",
+		ModelPath: "",
+		InputFiles: []string{
+			"model-settings.json",
+			"somefile",
+			"somedir/data",
+		},
+		InputConfig: map[string]interface{}{},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"somefile",
+			"somedir",
+		},
+	},
+
+	// backwards compatibility with path to model id directory
+	{
+		ModelID:   "path-to-modelid-dir",
+		ModelType: "custom",
+		ModelPath: "",
+		InputFiles: []string{
+			"somefile",
+		},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"path-to-modelid-dir",
+		},
+	},
+
+	// Group: native model types and layouts
+
 	{
 		ModelID:   "sklearn-standard-native",
 		ModelType: "sklearn",
+		ModelPath: "model",
 		InputFiles: []string{
+			"model/model-settings.json",
+			"model/model.joblib",
+		},
+		InputConfig: map[string]interface{}{
+			"name":           "my sklearn model",
+			"implementation": "mlserver_sklearn.SKLearnModel",
+		},
+		ExpectedFiles: []string{
 			"model-settings.json",
 			"model.joblib",
 		},
-		InputConfig: map[string]interface{}{},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "model.joblib",
-			},
-		},
 		ExpectedConfig: map[string]interface{}{
-			"name": "sklearn-standard-native",
+			"name":           "sklearn-standard-native",
+			"implementation": "mlserver_sklearn.SKLearnModel",
 		},
 	},
 
-	// to directory with single file with arbitrary name
-	{
-		ModelID:   "sklearn-single-file",
-		ModelType: "sklearn",
-		InputFiles: []string{
-			"arbitrary-named-joblib",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-named-joblib",
-				Target: "arbitrary-named-joblib",
-			},
-		},
-	},
-
-	// direct to single file with arbitrary name
-	{
-		ModelID:   "sklearn-direct-to-file",
-		ModelType: "sklearn",
-		InputFiles: []string{
-			"arbitrary-named-joblib",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-named-joblib",
-				Target: "arbitrary-named-joblib",
-			},
-		},
-	},
-
-	// standard native
+	// xgboost standard native
 	{
 		ModelID:   "xgboost-standard-native",
 		ModelType: "xgboost",
+		ModelPath: "data",
 		InputFiles: []string{
-			"model-settings.json",
-			"model.bst",
-		},
-		InputConfig: map[string]interface{}{},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "model.bst",
-			},
-		},
-		ExpectedConfig: map[string]interface{}{
-			"name": "xgboost-standard-native",
-		},
-	},
-
-	// standard native with URI
-	{
-		ModelID:   "xgboost-standard-native",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"model-settings.json",
-			"model.bst",
+			"data/model-settings.json",
+			"data/model.bst",
 		},
 		InputConfig: map[string]interface{}{
-			"name": "some-name",
-			"parameters": map[string]interface{}{
-				"uri": "./model.bst",
-			},
+			"implementation": "mlserver_xgboost.XGBoostModel",
 		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "model.bst",
-			},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"model.bst",
 		},
 		ExpectedConfig: map[string]interface{}{
-			"name": "xgboost-standard-native",
+			"name":           "xgboost-standard-native",
+			"implementation": "mlserver_xgboost.XGBoostModel",
+		},
+	},
+
+	// xgboost example model
+	{
+		ModelID:   "xgboost-example",
+		ModelType: "xgboost",
+		ModelPath: "dir",
+		InputFiles: []string{
+			"dir/model-settings.json",
+			"dir/mushroom-xgboost.json",
+		},
+		InputConfig: map[string]interface{}{
+			"name":           "mushroom-xgboost",
+			"implementation": "mlserver_xgboost.XGBoostModel",
 			"parameters": map[string]interface{}{
-				"uri": filepath.Join(generatedMlserverModelsDir, "xgboost-standard-native", "model.bst"),
+				"uri":     "./mushroom-xgboost.json",
+				"version": "v0.1.0",
 			},
 		},
-	},
-
-	// to directory with single .json file with arbitrary name
-	{
-		ModelID:   "xgboost-single-file-json",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"arbitrary-name.json",
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"mushroom-xgboost.json",
 		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-name.json",
-				Target: "arbitrary-name.json",
-			},
-		},
-	},
-
-	// to directory with single .bst file with arbitrary name
-	{
-		ModelID:   "xgboost-single-file-bst",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"arbitrary-name.bst",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "arbitrary-name.bst",
-				Target: "arbitrary-name.bst",
-			},
-		},
-	},
-
-	// direct to .json file with arbitrary name
-	{
-		ModelID:   "xgboost-direct-json",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"another-arbitrary-name.json",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "another-arbitrary-name.json",
-				Target: "another-arbitrary-name.json",
-			},
-		},
-	},
-
-	// direct to file with arbitrary name
-	{
-		ModelID:   "xgboost-direct-no-extension",
-		ModelType: "xgboost",
-		InputFiles: []string{
-			"yet-another-arbitrary-name",
-		},
-		ExpectedLinks: []linkExpectation{
-			{
-				// should default to .json
-				Name:   "yet-another-arbitrary-name",
-				Target: "yet-another-arbitrary-name",
+		ExpectedConfig: map[string]interface{}{
+			"name":           "xgboost-example",
+			"implementation": "mlserver_xgboost.XGBoostModel",
+			"parameters": map[string]interface{}{
+				"uri":     filepath.Join(generatedMlserverModelsDir, "xgboost-example", "mushroom-xgboost.json"),
+				"version": "v0.1.0",
 			},
 		},
 	},
@@ -268,28 +277,33 @@ var rewriteModelDirTests = []rewriteModelDirTestCase{
 	{
 		ModelID:   "mllib-standard",
 		ModelType: "mllib",
+		ModelPath: "mllib",
 		InputFiles: []string{
-			"model-settings.json",
-			"data/some-files",
-			"metadata/some-files",
+			"mllib/model-settings.json",
+			"mllib/data/some-files",
+			"mllib/metadata/some-files",
 		},
 		InputConfig: map[string]interface{}{},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name: "data",
-			},
-			{
-				Name: "metadata",
-			},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"data",
+			"metadata",
+		},
+		ExpectedConfig: map[string]interface{}{
+			"name": "mllib-standard",
 		},
 	},
 
-	// schema tests
+	// Group: schema tests
+
 	{
-		ModelID:   "schema-simple",
-		ModelType: "xgboost",
+		ModelID:    "schema-simple",
+		ModelType:  "xgboost",
+		ModelPath:  "model.json",
+		SchemaPath: "_schema.json",
 		InputFiles: []string{
 			"model.json",
+			"_schema.json",
 		},
 		InputSchema: map[string]interface{}{
 			"inputs": []map[string]interface{}{
@@ -307,11 +321,9 @@ var rewriteModelDirTests = []rewriteModelDirTestCase{
 				},
 			},
 		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "model.json",
-				Target: "model.json",
-			},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"model.json",
 		},
 		ExpectedConfig: map[string]interface{}{
 			"name":           "schema-simple",
@@ -336,11 +348,14 @@ var rewriteModelDirTests = []rewriteModelDirTestCase{
 		},
 	},
 	{
-		ModelID:   "schema-overwrite-outputs",
-		ModelType: "xgboost",
+		ModelID:    "schema-overwrite-outputs",
+		ModelType:  "xgboost",
+		ModelPath:  "my-model",
+		SchemaPath: "_schema.json",
 		InputFiles: []string{
-			"model-settings.json",
-			"model.json",
+			"my-model/model-settings.json",
+			"my-model/model.json",
+			"_schema.json",
 		},
 		InputConfig: map[string]interface{}{
 			"name": "some-name",
@@ -368,11 +383,9 @@ var rewriteModelDirTests = []rewriteModelDirTestCase{
 				},
 			},
 		},
-		ExpectedLinks: []linkExpectation{
-			{
-				Name:   "model.json",
-				Target: "model.json",
-			},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"model.json",
 		},
 		ExpectedConfig: map[string]interface{}{
 			"name": "schema-overwrite-outputs",
@@ -394,14 +407,14 @@ var rewriteModelDirTests = []rewriteModelDirTestCase{
 	},
 }
 
-func TestRewriteModelDir(t *testing.T) {
+func TestAdaptModelLayoutForRuntime(t *testing.T) {
 	var err error
 	// cleanup the entire generatedTestdataDir before running tests
 	err = os.RemoveAll(generatedTestdataDir)
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
 	}
-	for _, tt := range rewriteModelDirTests {
+	for _, tt := range adaptModelLayoutTests {
 		t.Run(tt.ModelID, func(t *testing.T) {
 			var err1 error
 			// cleanup the entire generatedTestdataDir before running each test
@@ -412,10 +425,16 @@ func TestRewriteModelDir(t *testing.T) {
 			tt.generateSourceDirectory(t)
 
 			// run function under test
-			err1 = rewriteModelPath(generatedTestdataDir, tt.ModelID, tt.ModelType, log)
+			modelFullPath := filepath.Join(tt.getSourceDir(), tt.ModelPath)
+			schemaFullPath := ""
+			if tt.SchemaPath != "" {
+				schemaFullPath = filepath.Join(tt.getSourceDir(), tt.SchemaPath)
+			}
+			err1 = adaptModelLayoutForRuntime(generatedTestdataDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
+
 			// assert no error
 			if err1 != nil {
-				t.Error(err1)
+				t.Error("adaptModelLayoutForRuntime failed with error:", err1)
 			}
 
 			// assert that the expected links exist and are correct
@@ -423,45 +442,35 @@ func TestRewriteModelDir(t *testing.T) {
 			if err1 != nil {
 				t.Error(err1)
 			}
-			for _, link := range tt.ExpectedLinks {
-				var err2 error
+			for _, file := range tt.ExpectedFiles {
 				// assert that the expected file exists
 				var expectedFile os.FileInfo = nil
 				for _, f := range generatedFiles {
-					if f.Name() == link.Name {
+					if f.Name() == file {
 						expectedFile = f
 					}
 				}
 				if expectedFile == nil {
-					t.Errorf("Expected link [%s] not found in generated files for model %s", link.Name, tt.ModelID)
+					t.Errorf("Expected file [%s] not found in generated files for model %s", file, tt.ModelID)
 					continue
 				}
 
-				// assert that it is a symlink
+				// models settings file is checked below, so skip it here
+				if expectedFile.Name() == "model-settings.json" {
+					continue
+				}
+
+				// assert that it is a symlink,
 				if expectedFile.Mode()&os.ModeSymlink != os.ModeSymlink {
 					t.Errorf("Expected [%s] to be a symlink.", expectedFile.Name())
 				}
 
 				// assert on the target of the link
-				expectedFileFullPath := filepath.Join(generatedMlserverModelsDir, tt.ModelID, expectedFile.Name())
-				resolvedPath, err2 := filepath.EvalSymlinks(expectedFileFullPath)
+				linkFullPath := filepath.Join(generatedMlserverModelsDir, tt.ModelID, expectedFile.Name())
+				resolvedPath, err2 := filepath.EvalSymlinks(linkFullPath)
 				if err2 != nil {
-					t.Errorf("Error resolving symlink [%s]: %w", expectedFileFullPath, err2)
+					t.Errorf("Error resolving symlink [%s]: %w", linkFullPath, err2)
 				}
-				// the target can be explicit in the expectedLink or is assumed to be
-				// the same as the link name
-				var expectedTarget string
-				if link.Target != "" {
-					expectedTarget = link.Target
-				} else {
-					expectedTarget = link.Name
-				}
-				expectedTargetFullPath := filepath.Join(tt.getSourceDir(), expectedTarget)
-
-				if resolvedPath != expectedTargetFullPath {
-					t.Errorf("Expected symlink [%s] to point to [%s] but instead it pointed to [%s]", expectedFileFullPath, expectedTargetFullPath, resolvedPath)
-				}
-
 				// assert that the target file exists
 				if exists, err2 := util.FileExists(resolvedPath); !exists {
 					if err2 != nil {
@@ -470,6 +479,11 @@ func TestRewriteModelDir(t *testing.T) {
 						t.Errorf("Expected file %s to exist but it was not found", resolvedPath)
 					}
 				}
+				// and points to a file with the same name
+				if filepath.Base(resolvedPath) != filepath.Base(linkFullPath) {
+					t.Errorf("Expected symlink [%s] to point to [%s] but instead it pointed to [%s]", linkFullPath, filepath.Base(resolvedPath), filepath.Base(linkFullPath))
+				}
+
 			}
 
 			// assert on the config file
@@ -498,6 +512,11 @@ func TestRewriteModelDir(t *testing.T) {
 				t.Errorf("Unable to unmarshal config file: %v", err2)
 			}
 
+			// should have `name` field matching the modelID
+			if config["name"] != tt.ModelID {
+				t.Errorf("Expected `name` parameter to be [%s] but got value of [%s]", tt.ModelID, config["name"])
+			}
+
 			if tt.ExpectedConfig != nil {
 				// marshal to JSON strings and compare
 				expected, err2 := json.Marshal(tt.ExpectedConfig)
@@ -522,25 +541,33 @@ func TestRewriteModelDir(t *testing.T) {
 						break
 					}
 				}
-			} else {
-				// should have `name` field matching the modelID
-				if config["name"] != tt.ModelID {
-					t.Errorf("Expected `name` parameter to be [%s] but got value of [%s]", tt.ModelID, config["name"])
+			} else if tt.InputConfig == nil {
+				// for a generated config `parameters.uri` matches the model's full path
+				uri, ok := extractURI(config)
+				if !ok {
+					t.Errorf("Expected `parameters.uri` to exist in the config")
 				}
-				// if `uri` parameter exists, it should match the model's full path
-				if paramsI, ok := config["parameters"]; ok {
-					if params, ok := paramsI.(map[string]interface{}); !ok {
-						t.Error("Expected `parameters` to be a map in config")
-					} else {
-						if uri, ok := params["uri"]; !ok {
-							t.Error("Expected `parameters.uri` to exist in config")
-						} else {
-							if !strings.HasPrefix(uri.(string), tt.getTargetDir()) {
-								t.Errorf("Expected `parameters.uri` to be a full path starting with [%s] but got value of [%s]", tt.getTargetDir(), uri)
-							}
-						}
-					}
 
+				// if tt.ModelPath is empty, we expect the URI to point to the model id dir
+				var uriTarget string
+				if tt.ModelPath == "" {
+					uriTarget = tt.ModelID
+				} else {
+					uriTarget = filepath.Base(tt.ModelPath)
+				}
+				expectedURI := filepath.Join(tt.getTargetDir(), uriTarget)
+				if uri != expectedURI {
+					t.Errorf("Expected `parameters.uri` to be [%s] but got [%s]", expectedURI, uri)
+				}
+			} else if uri, ok := extractURI(config); ok {
+				// for an adapted config that had a URI, check that the uri is a full path to the target dir
+				if _, ok1 := extractURI(tt.InputConfig); ok1 {
+					if !strings.HasPrefix(uri, tt.getTargetDir()) {
+						t.Errorf("Expected `parameters.uri` to be a full path starting with [%s] but got [%s]", tt.getTargetDir(), uri)
+					}
+				} else {
+					// if the config had no value for uri, then the adapated config should not have it
+					t.Errorf("Expected `parameters.uri` to not exist in adapted config but got [%s]", uri)
 				}
 			}
 		})
@@ -549,6 +576,22 @@ func TestRewriteModelDir(t *testing.T) {
 	err = os.RemoveAll(generatedTestdataDir)
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
+	}
+}
+
+func extractURI(config map[string]interface{}) (string, bool) {
+	var uri string
+	if paramsI, ok := config["parameters"]; !ok {
+		return "", false
+	} else if params, ok := paramsI.(map[string]interface{}); !ok {
+		return "", false
+	} else {
+		if pURI, ok := params["uri"]; !ok {
+			return "", false
+		} else {
+			uri, ok = pURI.(string)
+			return uri, ok
+		}
 	}
 }
 

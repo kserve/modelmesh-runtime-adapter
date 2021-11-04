@@ -19,4 +19,5 @@ const (
 	modelTypeJSONKey               string = "model_type"
 	tritonModelSubdir              string = "_triton_models"
 	tritonRepositoryConfigFilename string = "config.pbtxt"
+	tensorflowSavedModelDirName    string = "model.savedmodel"
 )

@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 
 	"github.com/go-logr/logr"
@@ -62,17 +61,7 @@ func writeConfigPbtxt(filename string, modelConfig *triton.ModelConfig) error {
 	return nil
 }
 
-func convertKerasToTF(sourceModelIDDir string, ctx context.Context, loggr logr.Logger) error {
-	// check if keras and return the file name
-	kerasFile, err := checkAndReturnModelFile(sourceModelIDDir)
-	if err != nil {
-		return err
-	}
-	if kerasFile == "" {
-		//not a keras model
-		return nil
-	}
-	targetPath := filepath.Join(sourceModelIDDir, "model.savedmodel")
+func convertKerasToTF(kerasFile string, targetPath string, ctx context.Context, loggr logr.Logger) error {
 	cmd := exec.Command("python", "/opt/scripts/tf_pb.py", kerasFile, targetPath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -105,25 +94,4 @@ func copyOutput(r io.Reader, loggr logr.Logger) {
 	for scanner.Scan() {
 		loggr.Info(scanner.Text())
 	}
-}
-
-func checkAndReturnModelFile(sourceModelIDDir string) (string, error) {
-	files, err := ioutil.ReadDir(sourceModelIDDir)
-	if err != nil {
-		return "", fmt.Errorf("could not read files in dir %s: %w", sourceModelIDDir, err)
-	}
-	var modelFilePath string
-	var extFiles []string
-	for _, file := range files {
-		if filepath.Ext(file.Name()) == ".h5" {
-			modelFilePath = filepath.Join(sourceModelIDDir, file.Name())
-		} else if file.Name() != "_schema.json" {
-			extFiles = append(extFiles, file.Name())
-		}
-	}
-	if modelFilePath != "" && len(extFiles) != 0 {
-		return "", fmt.Errorf("model dir contains other files in addition to a keras model %s: %v",
-			modelFilePath, extFiles)
-	}
-	return modelFilePath, nil
 }

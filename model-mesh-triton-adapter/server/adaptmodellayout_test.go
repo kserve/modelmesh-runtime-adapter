@@ -16,6 +16,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -55,7 +56,7 @@ instance_group [
 `
 	pbtxt := []byte(pbtxtIn)
 	var err error
-	pbtxt, err = processModelConfig(pbtxt, log, "")
+	pbtxt, err = processModelConfig(pbtxt, "", log)
 
 	if err != nil {
 		t.Errorf("Expected `name` field to be removed from ModelConfig pbtxt")
@@ -74,9 +75,11 @@ instance_group [
 	}
 }
 
-type rewriteModelPathTestCase struct {
+type adaptModelLayoutTestCase struct {
 	ModelID            string
-	InputModelType     string
+	ModelType          string
+	ModelPath          string
+	SchemaPath         string
 	InputFiles         []string
 	InputConfig        *triton.ModelConfig
 	InputSchema        map[string]interface{}
@@ -87,32 +90,61 @@ type rewriteModelPathTestCase struct {
 	ExpectError        bool
 }
 
-func (tt rewriteModelPathTestCase) getSourceDir() string {
+func (tt adaptModelLayoutTestCase) getSourceDir() string {
 	return filepath.Join(generatedTestdataDir, tt.ModelID)
 }
 
-func (tt rewriteModelPathTestCase) getTargetDir() string {
+func (tt adaptModelLayoutTestCase) getTargetDir() string {
 	return filepath.Join(tritonModelsDir, tt.ModelID)
 }
 
-func (tt rewriteModelPathTestCase) generateSourceDirectory(t *testing.T) {
+func (tt adaptModelLayoutTestCase) generateSourceDirectory(t *testing.T) {
 	sourceModelIDDir := tt.getSourceDir()
 	os.MkdirAll(sourceModelIDDir, 0755)
+
 	// setup the requested files
 	for _, f := range tt.InputFiles {
 		createEmptyFile(filepath.Join(sourceModelIDDir, f), t)
 	}
+
 	// setup the schema if provided
 	if tt.InputSchema != nil {
+		// assert that SchemaPath is set
+		if tt.SchemaPath == "" {
+			t.Fatalf("Test case %s has InputSchema but SchemaPath is unset", tt.ModelID)
+		}
+		// assert that the file pointed at by schema path is included as
+		// an input file to avoid confusion
+		schemaInInputFiles := false
+		for _, f := range tt.InputFiles {
+			if f == tt.SchemaPath {
+				schemaInInputFiles = true
+			}
+		}
+		if !schemaInInputFiles {
+			t.Fatalf("Test case %s has file pointed at by SchemaPath that is not in InputFiles", tt.ModelID)
+		}
 		tt.writeSchemaFile(t)
 	}
+
 	// setup the config if provided
 	if tt.InputConfig != nil {
+		// assert that "config.pbtxt" is included as an input file to
+		// avoid confusion
+		configInInputFiles := false
+		for _, f := range tt.InputFiles {
+			if f == filepath.Join(tt.ModelPath, "config.pbtxt") {
+				configInInputFiles = true
+			}
+		}
+		if !configInInputFiles {
+			t.Fatalf("Test case %s has InputConfig but model-settings.json is not in InputFiles", tt.ModelID)
+		}
 		tt.writeConfigFile(t)
 	}
 }
 
-func (tt rewriteModelPathTestCase) writeConfigFile(t *testing.T) {
+func (tt adaptModelLayoutTestCase) writeConfigFile(t *testing.T) {
 	// assert that "config.pbtxt" is included as an input file to avoid
 	// confusion with this writing a file that is not part of the model's
 	// files
@@ -133,32 +165,35 @@ func (tt rewriteModelPathTestCase) writeConfigFile(t *testing.T) {
 	}
 }
 
-func (tt rewriteModelPathTestCase) writeSchemaFile(t *testing.T) {
+func (tt adaptModelLayoutTestCase) writeSchemaFile(t *testing.T) {
 	jsonBytes, jerr := json.Marshal(tt.InputSchema)
 	if jerr != nil {
 		t.Fatal("Error marshalling schema JSON", jerr)
 	}
 
-	sourceModelIDDir := tt.getSourceDir()
-	schemaFilename := filepath.Join(sourceModelIDDir, "_schema.json")
-	if werr := ioutil.WriteFile(schemaFilename, jsonBytes, 0644); werr != nil {
+	schemaFullpath := filepath.Join(tt.getSourceDir(), tt.SchemaPath)
+	if werr := ioutil.WriteFile(schemaFullpath, jsonBytes, 0644); werr != nil {
 		t.Fatal("Error writing JSON to schema file", werr)
 	}
 }
 
-func TestRewriteModelPath(t *testing.T) {
-	for _, tt := range rewriteModelPathTests {
+func TestAdaptModelLayoutForRuntime(t *testing.T) {
+	for _, tt := range adaptModelLayoutTests {
 		t.Run(tt.ModelID, func(t *testing.T) {
-			// cleanup the entire generatedTestdataDir before running each test
-			err := os.RemoveAll(generatedTestdataDir)
+			// cleanup the source directory before running each test
+			err := os.RemoveAll(tt.getSourceDir())
 			if err != nil {
 				t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
 			}
 			tt.generateSourceDirectory(t)
 
 			// run function under test
-			ctx := context.Background()
-			err = rewriteModelPath(ctx, generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
+			modelFullPath := filepath.Join(tt.getSourceDir(), tt.ModelPath)
+			schemaFullPath := ""
+			if tt.SchemaPath != "" {
+				schemaFullPath = filepath.Join(tt.getSourceDir(), tt.SchemaPath)
+			}
+			err = adaptModelLayoutForRuntime(context.Background(), generatedTestdataDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
 
 			if tt.ExpectError && err == nil {
 				t.Fatal("ExpectError is true, but no error was returned")
@@ -174,23 +209,29 @@ func TestRewriteModelPath(t *testing.T) {
 	}
 }
 
-func TestRewriteModelPathMultiple(t *testing.T) {
-	// cleanup the entire generated testdata dir now but before each rewriteModelPath only cleanup the source dir so we make sure
-	// the rewrite works with existing models in the triton dir
+func TestAdaptModelLayoutForRuntime_Multiple(t *testing.T) {
+	// cleanup the entire generated testdata dir now instead of before each
+	// test case so we make sure the function works with existing models in
+	// the triton dir
 	err := os.RemoveAll(generatedTestdataDir)
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
 	}
 
 	// first create all the source files
-	for _, tt := range rewriteModelPathTests {
+	for _, tt := range adaptModelLayoutTests {
 		tt.generateSourceDirectory(t)
 	}
 
 	// next run the function under test for all the models
 	ctx := context.Background()
-	for _, tt := range rewriteModelPathTests {
-		err = rewriteModelPath(ctx, generatedTestdataDir, tt.ModelID, tt.InputModelType, log)
+	for _, tt := range adaptModelLayoutTests {
+		modelFullPath := filepath.Join(tt.getSourceDir(), tt.ModelPath)
+		schemaFullPath := ""
+		if tt.SchemaPath != "" {
+			schemaFullPath = filepath.Join(tt.getSourceDir(), tt.SchemaPath)
+		}
+		err = adaptModelLayoutForRuntime(ctx, generatedTestdataDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
 		if tt.ExpectError && err == nil {
 			t.Fatal("ExpectError is true, but no error was returned")
 		}
@@ -201,7 +242,7 @@ func TestRewriteModelPathMultiple(t *testing.T) {
 	}
 
 	// finally assert all the links and files exist
-	for _, tt := range rewriteModelPathTests {
+	for _, tt := range adaptModelLayoutTests {
 		// t.Logf("Asserting on %s", tt.ModelID) // for debugging
 		// skip check if an error was expected
 		if tt.ExpectError {
@@ -212,11 +253,19 @@ func TestRewriteModelPathMultiple(t *testing.T) {
 	}
 }
 
+// If running as a suite, remove the generated files
+func TestCleanupGeneratedDir(t *testing.T) {
+	err := os.RemoveAll(generatedTestdataDir)
+	if err != nil {
+		fmt.Printf("Could not remove generated model dir %s due to error %v\n", generatedTestdataDir, err)
+	}
+}
+
 //
 // Helper functions
 //
 
-func assertConfigFileContents(t *testing.T, tt rewriteModelPathTestCase) {
+func assertConfigFileContents(t *testing.T, tt adaptModelLayoutTestCase) {
 	var err error
 
 	// only assert if an expected content is given
@@ -226,8 +275,7 @@ func assertConfigFileContents(t *testing.T, tt rewriteModelPathTestCase) {
 	}
 
 	// read in the generated config file
-	targetModelIDDir := filepath.Join(tritonModelsDir, tt.ModelID)
-	configFilePath := filepath.Join(targetModelIDDir, "config.pbtxt")
+	configFilePath := filepath.Join(tt.getTargetDir(), "config.pbtxt")
 	configFileContents, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		t.Fatalf("Unable to read config file [%s]: %v", configFilePath, err)
@@ -245,7 +293,7 @@ func assertConfigFileContents(t *testing.T, tt rewriteModelPathTestCase) {
 	}
 }
 
-func assertLinkAndPathsExist(t *testing.T, tt rewriteModelPathTestCase) {
+func assertLinkAndPathsExist(t *testing.T, tt adaptModelLayoutTestCase) {
 	sourceModelIDDir := tt.getSourceDir()
 	targetModelIDDir := tt.getTargetDir()
 	symlinks := findSymlinks(targetModelIDDir)
@@ -330,15 +378,138 @@ func findSymlinks(root string) []string {
 }
 
 //
-// Definition of rewriteModelDir test cases
+// Definition of writeModelLayoutForRuntime test cases
 //
+var adaptModelLayoutTests = []adaptModelLayoutTestCase{
+	// Group: file layout / model path support
+	{
+		ModelID:   "layoutFile",
+		ModelType: "unknown",
+		ModelPath: "model.data",
+		InputFiles: []string{
+			"model.data",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1/model.data",
+		ExpectedLinkTarget: "model.data",
+	},
+	{
+		ModelID:   "layoutDirectoryWithSingleFile",
+		ModelType: "unknown",
+		ModelPath: "modeldir",
+		InputFiles: []string{
+			"modeldir/data",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "modeldir",
+	},
+	{
+		ModelID:   "layoutDirectoryWithMultiFile",
+		ModelType: "unknown",
+		ModelPath: "modeldir",
+		InputFiles: []string{
+			"modeldir/data",
+			"modeldir/file",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "modeldir",
+	},
+	{
+		ModelID:   "layoutDirectoryWithSingleDirectory",
+		ModelType: "unknown",
+		ModelPath: "modeldir",
+		InputFiles: []string{
+			"modeldir/subdir/1",
+			"modeldir/subdir/2",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "modeldir",
+	},
+	{
+		ModelID:   "layoutDirectoryWithComplex",
+		ModelType: "unknown",
+		ModelPath: "modeldir",
+		InputFiles: []string{
+			"modeldir/subdir1/data1",
+			"modeldir/subdir2/data2",
+			"modeldir/file",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "modeldir",
+	},
+	{
+		ModelID:   "layoutBackwardsCompatibilityComplex",
+		ModelType: "unknown",
+		ModelPath: "", // points at model id directory
+		InputFiles: []string{
+			"data/model.1",
+			"data/model.2",
+			"file",
+			"meta.json",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "", // points at model id directory
+	},
+	{
+		ModelID:   "layoutVersionSingleFile",
+		ModelType: "unknown",
+		ModelPath: "model",
+		InputFiles: []string{
+			"model/1/file",
+			"model/3/file",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "3",
+		ExpectedLinkTarget: "model/3",
+	},
+	{
+		ModelID:   "layoutVersionSingleDir",
+		ModelType: "unknown",
+		ModelPath: "model",
+		InputFiles: []string{
+			"model/7/dir/file",
+			"model/9/dir/file",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "9",
+		ExpectedLinkTarget: "model/9",
+	},
+	{
+		ModelID:   "layoutVersionMultiFile",
+		ModelType: "unknown",
+		ModelPath: "model",
+		InputFiles: []string{
+			"model/1/file",
+			"model/2/file1",
+			"model/2/file2",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "2",
+		ExpectedLinkTarget: "model/2",
+	},
+	{
+		ModelID:   "layoutVersionMultiFile_2",
+		ModelType: "unknown",
+		ModelPath: "model/2",
+		InputFiles: []string{
+			"model/1/file",
+			"model/2/file1",
+			"model/2/file2",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "model/2",
+	},
 
-var rewriteModelPathTests = []rewriteModelPathTestCase{
 	// Group: tensorflow
 	{
-		ModelID:        "tensorflowEmpty",
-		InputModelType: "tensorflow",
-		InputFiles:     []string{
+		ModelID:    "tensorflowEmpty",
+		ModelType:  "tensorflow",
+		InputFiles: []string{
 			// no files
 		},
 		ExpectedLinkPath:   "1/model.savedmodel",
@@ -348,8 +519,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSavedModel",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowSavedModel",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/model.savedmodel/saved_model.pb",
 		},
@@ -360,8 +531,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowGraphDef",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowGraphDef",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/model.graphdef",
 		},
@@ -372,8 +543,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowGraphDefForFile",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowGraphDefForFile",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"saved_model.pb",
 		},
@@ -384,8 +555,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSavedModelForDir",
-		InputModelType: "tensorflow:1.5",
+		ModelID:   "tensorflowSavedModelForDir",
+		ModelType: "tensorflow:1.5",
 		InputFiles: []string{
 			"saved_model.pb",
 			"variables",
@@ -398,8 +569,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowAllowSubdir_1",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowAllowSubdir_1",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"saved_model/saved_model.pb",
 			"saved_model/variables",
@@ -412,8 +583,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowAllowSubdir_2",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowAllowSubdir_2",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"model.savedmodel/saved_model.pb",
 		},
@@ -424,8 +595,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowVersionDirWithFile",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowVersionDirWithFile",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/saved_model.pb",
 		},
@@ -436,8 +607,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowVersionDirWithDir",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowVersionDirWithDir",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"2/saved_model.pb",
 			"2/variables",
@@ -450,8 +621,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSubdirInVersionDir",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowSubdirInVersionDir",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/saved_model/saved_model.pb",
 			"1/saved_model/variables",
@@ -464,8 +635,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowAssumeModelDataIfNotAllVersionNumbers",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowAssumeModelDataIfNotAllVersionNumbers",
+		ModelType: "tensorflow",
 		// this is a weird case and unlikely to happen, but we assume that this is the model if not all dirs are numbers
 		InputFiles: []string{
 			"1/model.savedmodel/saved_model.pb",
@@ -483,8 +654,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSelectHighVersionSubdir_1",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowSelectHighVersionSubdir_1",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/model.savedmodel/saved_model.pb",
 			"1/model.savedmodel/variables/index1",
@@ -501,8 +672,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSelectHighVersionSubdir_2",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowSelectHighVersionSubdir_2",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"2/model.savedmodel/saved_model.pb",
 			"2/model.savedmodel/variables/index",
@@ -517,8 +688,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSelectHighVersionSubdir_3",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowSelectHighVersionSubdir_3",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"2/model.savedmodel/saved_model.pb",
 			"2/model.savedmodel/variables/index",
@@ -531,8 +702,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowSavedModelWithConfig",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowSavedModelWithConfig",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/model.savedmodel/saved_model.pb",
 			"config.pbtxt",
@@ -545,8 +716,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorflowFilesWithConfig",
-		InputModelType: "tensorflow",
+		ModelID:   "tensorflowFilesWithConfig",
+		ModelType: "tensorflow",
 		InputFiles: []string{
 			"1/anything",
 			"14/anything/at/all",
@@ -564,8 +735,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 
 	// Group: tensorrt
 	{
-		ModelID:        "tensorrtWithVersion",
-		InputModelType: "tensorRT",
+		ModelID:   "tensorrtWithVersion",
+		ModelType: "tensorRT",
 		InputFiles: []string{
 			"1/model.plan",
 		},
@@ -576,8 +747,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorrtWithVersionRename",
-		InputModelType: "tensorRT:2x",
+		ModelID:   "tensorrtWithVersionRename",
+		ModelType: "tensorRT:2x",
 		InputFiles: []string{
 			"2/model_2.plan",
 		},
@@ -588,8 +759,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorrtSimple",
-		InputModelType: "tensorRT",
+		ModelID:   "tensorrtSimple",
+		ModelType: "tensorRT",
 		InputFiles: []string{
 			"model.plan",
 		},
@@ -600,8 +771,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorrtSubdir",
-		InputModelType: "tensorRT",
+		ModelID:   "tensorrtSubdir",
+		ModelType: "tensorRT",
 		InputFiles: []string{
 			"myModel/model.plan",
 		},
@@ -612,8 +783,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorrtSimpleMultifile",
-		InputModelType: "tensorRT",
+		ModelID:   "tensorrtSimpleMultifile",
+		ModelType: "tensorRT",
 		InputFiles: []string{
 			"model.plan",
 			"unexpectedFile",
@@ -626,8 +797,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorrtSubdirMultifile",
-		InputModelType: "tensorRT",
+		ModelID:   "tensorrtSubdirMultifile",
+		ModelType: "tensorRT",
 		InputFiles: []string{
 			"myModel/model.plan",
 			"myModel/unexpectedFile",
@@ -640,8 +811,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "tensorrtUnexpected",
-		InputModelType: "tensorRT",
+		ModelID:   "tensorrtUnexpected",
+		ModelType: "tensorRT",
 		// This is a case were we don't know what to do, so just add the version, but it will probably fail later on load
 		InputFiles: []string{
 			"myModel/model.plan",
@@ -657,8 +828,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 
 	// Group: pytorch
 	{
-		ModelID:        "pytorchWithVersion",
-		InputModelType: "PyTorch",
+		ModelID:   "pytorchWithVersion",
+		ModelType: "PyTorch",
 		InputFiles: []string{
 			"1/model.pt",
 		},
@@ -669,8 +840,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "pytorchSimpleRename",
-		InputModelType: "PyTorch",
+		ModelID:   "pytorchSimpleRename",
+		ModelType: "PyTorch",
 		InputFiles: []string{
 			"model.plan",
 		},
@@ -683,8 +854,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 
 	// Group: onnx
 	{
-		ModelID:        "onnxWithVersionFile",
-		InputModelType: "onnx",
+		ModelID:   "onnxWithVersionFile",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"1/model.onnx",
 		},
@@ -695,8 +866,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "onnxWithVersionDir",
-		InputModelType: "onnx",
+		ModelID:   "onnxWithVersionDir",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"1/model.onnx/model.onnx",
 		},
@@ -707,8 +878,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "onnxWithVersionDirMultifile",
-		InputModelType: "onnx",
+		ModelID:   "onnxWithVersionDirMultifile",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"1/model.onnx/model.onnx",
 			"1/model.onnx/modelfile.txt",
@@ -721,8 +892,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "onnxSimpleRename",
-		InputModelType: "onnx",
+		ModelID:   "onnxSimpleRename",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"model.x",
 		},
@@ -733,8 +904,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "onnxMultifile",
-		InputModelType: "onnx",
+		ModelID:   "onnxMultifile",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"model.x",
 			"variables",
@@ -747,8 +918,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "onnxSimpleSubdir",
-		InputModelType: "onnx",
+		ModelID:   "onnxSimpleSubdir",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"myModel/model.onnx",
 		},
@@ -759,8 +930,8 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "onnxSimpleSubdirMultifile",
-		InputModelType: "onnx",
+		ModelID:   "onnxSimpleSubdirMultifile",
+		ModelType: "onnx",
 		InputFiles: []string{
 			"myModel/model.onnx",
 			"myModel/variables",
@@ -773,69 +944,16 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 
-	// Group: unknown model type
-	{
-		ModelID:        "unknownSubdir",
-		InputModelType: "unknown",
-		InputFiles: []string{
-			"myModel/model.onnx",
-			"myModel/variables",
-		},
-		ExpectedLinkPath:   "1/myModel",
-		ExpectedLinkTarget: "myModel",
-		ExpectedFiles: []string{
-			"1/myModel/model.onnx",
-			"1/myModel/variables",
-		},
-	},
-	{
-		ModelID:        "unknownSimple",
-		InputModelType: "unknown",
-		InputFiles: []string{
-			"model.onnx",
-		},
-		ExpectedLinkPath:   "1/model.onnx",
-		ExpectedLinkTarget: "model.onnx",
-		ExpectedFiles: []string{
-			"1/model.onnx",
-		},
-	},
-	{
-		ModelID:        "unknownWithVersion",
-		InputModelType: "unknown",
-		InputFiles: []string{
-			"2/model.onnx",
-			"2/variables",
-		},
-		ExpectedLinkPath:   "2",
-		ExpectedLinkTarget: "2",
-		ExpectedFiles: []string{
-			"2/model.onnx",
-			"2/variables",
-		},
-	},
-	{
-		ModelID:        "unknownMultifile",
-		InputModelType: "unknown",
-		InputFiles: []string{
-			"model.onnx",
-			"variables",
-		},
-		ExpectedLinkPath:   "1",
-		ExpectedLinkTarget: "",
-		ExpectedFiles: []string{
-			"1/model.onnx",
-			"1/variables",
-		},
-	},
-
 	// Group: schema
 	{
-		ModelID:        "schemaOnnxSimpleRename",
-		InputModelType: "onnx",
-		InputSchema:    map[string]interface{}{},
+		ModelID:     "schemaOnnxSimpleRename",
+		ModelType:   "onnx",
+		ModelPath:   "my-model.onnx",
+		SchemaPath:  "my-schema.json",
+		InputSchema: map[string]interface{}{},
 		InputFiles: []string{
 			"my-model.onnx",
+			"my-schema.json",
 		},
 		ExpectedLinkPath:   "1/model.onnx",
 		ExpectedLinkTarget: "my-model.onnx",
@@ -848,8 +966,29 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "schemaPytorchSimple",
-		InputModelType: "pytorch",
+		ModelID:     "schemaBackwardsCompatiblity",
+		ModelType:   "onnx",
+		SchemaPath:  "_schema.json",
+		InputSchema: map[string]interface{}{},
+		InputFiles: []string{
+			"my-model.onnx",
+			"_schema.json",
+		},
+		ExpectedLinkPath:   "1/model.onnx",
+		ExpectedLinkTarget: "my-model.onnx",
+		ExpectedFiles: []string{
+			"1/model.onnx",
+			"config.pbtxt",
+		},
+		ExpectedConfig: &triton.ModelConfig{
+			Backend: "onnxruntime",
+		},
+	},
+	{
+		ModelID:    "schemaPytorchSimple",
+		ModelType:  "pytorch",
+		ModelPath:  "my-model.pt",
+		SchemaPath: "schema.json",
 		InputSchema: map[string]interface{}{
 			"inputs": []map[string]interface{}{
 				{
@@ -868,6 +1007,7 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 		InputFiles: []string{
 			"my-model.pt",
+			"schema.json",
 		},
 		ExpectedLinkPath:   "1/model.pt",
 		ExpectedLinkTarget: "my-model.pt",
@@ -894,8 +1034,9 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "schemaTensorflowSavedModelSimple",
-		InputModelType: "tensorflow",
+		ModelID:    "schemaTensorflowSavedModelSimple",
+		ModelType:  "tensorflow",
+		SchemaPath: "_schema.json",
 		InputSchema: map[string]interface{}{
 			"inputs": []map[string]interface{}{
 				{
@@ -915,6 +1056,7 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		InputFiles: []string{
 			"saved_model.pb",
 			"variables",
+			"_schema.json",
 		},
 		ExpectedLinkPath:   "1/model.savedmodel",
 		ExpectedLinkTarget: "",
@@ -942,8 +1084,9 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "schemaOverwritesConfig",
-		InputModelType: "tensorflow",
+		ModelID:    "schemaOverwritesConfig",
+		ModelType:  "tensorflow",
+		SchemaPath: "_schema.json",
 		InputSchema: map[string]interface{}{
 			"inputs": []map[string]interface{}{
 				{
@@ -975,6 +1118,7 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 			"1/model.graphdef",
 			"some-other-file",
 			"config.pbtxt",
+			"_schema.json",
 		},
 		ExpectedLinkPath:   "",
 		ExpectedLinkTarget: "",
@@ -1004,9 +1148,10 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 
 	// Group: schema edge-cases
 	{
-		ModelID:        "schemaEdgeMaxBatchSize",
-		InputModelType: "pytorch",
+		ModelID:   "schemaEdgeMaxBatchSize",
+		ModelType: "pytorch",
 		// schema for model that supports batching
+		SchemaPath: "_schema.json",
 		InputSchema: map[string]interface{}{
 			"inputs": []map[string]interface{}{
 				{
@@ -1035,6 +1180,7 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		InputFiles: []string{
 			"1/model.pt",
 			"config.pbtxt",
+			"_schema.json",
 		},
 		ExpectedLinkPath:   "",
 		ExpectedLinkTarget: "",
@@ -1067,9 +1213,10 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		},
 	},
 	{
-		ModelID:        "schemaEdgeMaxBatchSizeError",
-		InputModelType: "pytorch",
+		ModelID:   "schemaEdgeMaxBatchSizeError",
+		ModelType: "pytorch",
 		// schema for model that supports batching, but output is missing batch dim
+		SchemaPath: "_schema.json",
 		InputSchema: map[string]interface{}{
 			"inputs": []map[string]interface{}{
 				{
@@ -1092,6 +1239,7 @@ var rewriteModelPathTests = []rewriteModelPathTestCase{
 		InputFiles: []string{
 			"1/model.pt",
 			"config.pbtxt",
+			"_schema.json",
 		},
 		ExpectError: true,
 	},

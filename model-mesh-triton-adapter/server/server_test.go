@@ -121,7 +121,8 @@ func TestAdapter(t *testing.T) {
 	resp2, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
 		ModelId:   "tfmnist",
 		ModelType: "TensorFlow",
-		ModelPath: "empty",
+		ModelPath: filepath.Join(testdataDir, "tfmnist"),
+		ModelKey:  "{}",
 	})
 
 	if err != nil {
@@ -173,7 +174,7 @@ func TestAdapter(t *testing.T) {
 
 	resp3, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
 		ModelId:   "tfmnist",
-		ModelPath: "empty",
+		ModelPath: filepath.Join(testdataDir, "tfmnist"),
 		ModelType: "invalid", // this will be ignored
 		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "disk_size_bytes": 54321, "model_type": {"name": "tensorflow", "version": "1.5"}}`,
 	})
