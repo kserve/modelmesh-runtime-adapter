@@ -116,10 +116,12 @@ func TestAdapter(t *testing.T) {
 	defer cancel()
 
 	testModelID := "mnist-svm-00000000"
+	testModelPath := filepath.Join(testdataDir, testModelID)
 	resp2, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
 		ModelId:   testModelID,
 		ModelType: "sklearn",
-		ModelPath: "empty",
+		ModelPath: testModelPath,
+		ModelKey:  "{}",
 	})
 
 	if err != nil {
@@ -130,9 +132,8 @@ func TestAdapter(t *testing.T) {
 	}
 
 	// check the contents of the generated model dir
-	sourceModelDir := filepath.Join(testdataDir, testModelID)
 	generatedModelDir := filepath.Join(testdataDir, mlserverModelSubdir, testModelID)
-	assertGeneratedModelDirIsCorrect(sourceModelDir, generatedModelDir, testModelID, t)
+	assertGeneratedModelDirIsCorrect(testModelPath, generatedModelDir, testModelID, t)
 
 	t.Logf("runtime status: Model loaded, %v", resp2)
 
@@ -142,7 +143,7 @@ func TestAdapter(t *testing.T) {
 
 	resp3, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
 		ModelId:   testModelID,
-		ModelPath: "empty",
+		ModelPath: testModelPath,
 		ModelType: "invalid", // this will be ignored
 		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "disk_size_bytes": 54321, "model_type": {"name": "sklearn"}}`,
 	})

@@ -107,16 +107,22 @@ func (s *TritonAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMode
 		}
 	}
 
-	err := rewriteModelPath(ctx, s.AdapterConfig.RootModelDir, req.ModelId, modelType, log)
+	var err error
+	schemaPath, err := util.GetSchemaPath(req)
+	if err != nil {
+		return nil, err
+	}
 
+	// using the files downloaded by the puller, create a file layout that the runtime can understand and load from
+	err = adaptModelLayoutForRuntime(ctx, s.AdapterConfig.RootModelDir, req.ModelId, modelType, req.ModelPath, schemaPath, log)
 	if err != nil {
 		log.Error(err, "Failed to create model directory and load model")
 		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %s", err)
 	}
+
 	_, tritonErr := s.Client.RepositoryModelLoad(ctx, &triton.RepositoryModelLoadRequest{
 		ModelName: req.ModelId,
 	})
-
 	if tritonErr != nil {
 		log.Error(tritonErr, "Triton failed to load model")
 		return nil, status.Errorf(status.Code(tritonErr), "Failed to load Model due to Triton runtime error: %s", tritonErr)

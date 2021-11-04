@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -39,7 +40,6 @@ import (
 const (
 	mlserverServiceName              string = "inference.GRPCInferenceService"
 	diskSizeBytesJSONKey             string = "disk_size_bytes"
-	modelTypeJSONKey                 string = "model_type"
 	mlserverModelSubdir              string = "_mlserver_models"
 	mlserverRepositoryConfigFilename string = "model-settings.json"
 )
@@ -111,7 +111,7 @@ func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log
 func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelResponse, error) {
 	log := s.Log.WithName("Load Model")
 	log = log.WithValues("model_id", req.ModelId)
-	modelType := getModelType(req, log)
+	modelType := util.GetModelType(req, log)
 	log.Info("Using model type", "model_type", modelType)
 
 	if s.AdapterConfig.UseEmbeddedPuller {
@@ -123,16 +123,22 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 		}
 	}
 
-	// rewrite paths to adapt downloaded model to the runtime
-	err := rewriteModelPath(s.AdapterConfig.RootModelDir, req.ModelId, modelType, log)
+	var err error
+	schemaPath, err := util.GetSchemaPath(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// create a file layout from the files downloaded by the puller that can be loaded by the runtime
+	err = adaptModelLayoutForRuntime(s.AdapterConfig.RootModelDir, req.ModelId, modelType, req.ModelPath, schemaPath, log)
 	if err != nil {
 		log.Error(err, "Failed to create model directory and load model")
 		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %s", err)
 	}
+
 	_, mlserverErr := s.ModelRepoClient.RepositoryModelLoad(ctx, &modelrepo.RepositoryModelLoadRequest{
 		ModelName: req.ModelId,
 	})
-
 	if mlserverErr != nil {
 		log.Error(mlserverErr, "MLServer failed to load model")
 		return nil, status.Errorf(status.Code(mlserverErr), "Failed to load Model due to MLServer runtime error: %s", mlserverErr)
@@ -148,32 +154,8 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 	}, nil
 }
 
-// getModelType first tries to read the type from the LoadModelRequest.ModelKey json
-// If there is an error parsing LoadModelRequest.ModelKey or the type is not found there, this will
-// return the LoadModelRequest.ModelType which could possibly be an empty string
-func getModelType(req *mmesh.LoadModelRequest, log logr.Logger) string {
-	modelType := req.ModelType
-	var modelKey map[string]interface{}
-	err := json.Unmarshal([]byte(req.ModelKey), &modelKey)
-	if err != nil {
-		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey value is not valid JSON", "LoadModelRequest.ModelType", req.ModelType, "LoadModelRequest.ModelKey", req.ModelKey, "Error", err)
-	} else if modelKey[modelTypeJSONKey] == nil {
-		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey does not have specified attribute", "LoadModelRequest.ModelType", req.ModelType, "attribute", modelTypeJSONKey)
-	} else if modelKeyModelType, ok := modelKey[modelTypeJSONKey].(map[string]interface{}); ok {
-		if str, ok := modelKeyModelType["name"].(string); ok {
-			modelType = str
-		} else {
-			log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey attribute is not a string.", "LoadModelRequest.ModelType", req.ModelType, "attribute", modelTypeJSONKey, "attribute value", modelKey[modelTypeJSONKey])
-		}
-	} else if str, ok := modelKey[modelTypeJSONKey].(string); ok {
-		modelType = str
-	} else {
-		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey attribute is not a string or map[string].", "LoadModelRequest.ModelType", req.ModelType, "attribute", modelTypeJSONKey, "attribute value", modelKey[modelTypeJSONKey])
-	}
-	return modelType
-}
-
-func rewriteModelPath(rootModelDir, modelID, modelType string, log logr.Logger) error {
+// adaptModelLayoutForRuntime creates a directory that can be loaded by the runtime from the files downloaded by the puller
+func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, schemaPath string, log logr.Logger) error {
 	// convert to lower case and remove anything after a :
 	modelType = strings.ToLower(strings.Split(modelType, ":")[0])
 
@@ -182,71 +164,77 @@ func rewriteModelPath(rootModelDir, modelID, modelType string, log logr.Logger) 
 		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "mlserverModelSubdir", mlserverModelSubdir, "modelID", modelID)
 		return err
 	}
-	err = os.RemoveAll(mlserverModelIDDir)
-	if err != nil {
-		log.Info("Ignoring error trying to remove dir", "Directory", mlserverModelIDDir, "Error", err)
+
+	// clean up and then create directory where the rewritten model repo will live
+	if removeErr := os.RemoveAll(mlserverModelIDDir); removeErr != nil {
+		log.Info("Ignoring error trying to remove dir", "Directory", mlserverModelIDDir, "Error", removeErr)
+	}
+	if mkdirErr := os.MkdirAll(mlserverModelIDDir, 0755); mkdirErr != nil {
+		return fmt.Errorf("Error creating directories for path %s: %w", mlserverModelIDDir, mkdirErr)
 	}
 
-	sourceModelIDDir, err := util.SecureJoin(rootModelDir, modelID)
+	// if modelPath references a directory and contains the config file, we
+	// assume files are in the "native" repo structure
+	// otherwise, we attempt to adapt the model files to be loaded by MLServer
+	modelPathInfo, err := os.Stat(modelPath)
 	if err != nil {
-		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "modelID", modelID)
-		return err
-	}
-	files, err := ioutil.ReadDir(sourceModelIDDir)
-	if err != nil {
-		return fmt.Errorf("Could not read files in dir %s %v", sourceModelIDDir, err)
+		return fmt.Errorf("Error calling stat on %s: %w", modelPath, err)
 	}
 
-	// create directory where the rewritten model repo will live
-	err = os.MkdirAll(mlserverModelIDDir, 0755)
-	if err != nil {
-		return fmt.Errorf("Error creating directories for path %s %v", mlserverModelIDDir, err)
-	}
-
-	// check if the config file exists
-	// if it does, we assume files are in the "native" repo structure
-	assumeNativeModelRepository := false
-	for _, f := range files {
-		if f.Name() == mlserverRepositoryConfigFilename {
-			assumeNativeModelRepository = true
-			break
+	if !modelPathInfo.IsDir() {
+		// simpler case if ModelPath points to a file
+		err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, log)
+	} else {
+		// model path is a directory, inspect the files
+		files, err1 := ioutil.ReadDir(modelPath)
+		if err1 != nil {
+			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err)
+		}
+		// check if the config file exists
+		// if it does, we assume files are in the "native" repo structure
+		assumeNativeLayout := false
+		for _, f := range files {
+			if f.Name() == mlserverRepositoryConfigFilename {
+				assumeNativeLayout = true
+				break
+			}
+		}
+		if assumeNativeLayout {
+			err = adaptNativeModelLayout(files, modelID, modelPath, schemaPath, mlserverModelIDDir, log)
+		} else {
+			err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, log)
 		}
 	}
-	if assumeNativeModelRepository {
-		err = processNativeRepository(files, modelID, sourceModelIDDir, mlserverModelIDDir, log)
-	} else {
-		err = adaptModelRepository(files, modelID, modelType, sourceModelIDDir, mlserverModelIDDir, log)
-	}
 	if err != nil {
-		return fmt.Errorf("Error processing model directory %s: %v", sourceModelIDDir, err)
+		return fmt.Errorf("Error adapting model directory %s: %w", modelPath, err)
 	}
 	return nil
 }
 
-// processNativeRepository mostly passes the model through to the runtime
+// adaptNativeModelLayout mostly passes the model through to the runtime
 //
 // Only minimal changes should be made to the model repo to get it to load. For
 // MLServer, this means writing the model ID into the configuration file and
 // just symlinking all other files
-func processNativeRepository(files []os.FileInfo, modelID string, sourceDir string, targetDir string, log logr.Logger) error {
+func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath, targetDir string, log logr.Logger) error {
 	for _, f := range files {
 		filename := f.Name()
-		source, err := util.SecureJoin(sourceDir, filename)
+		source, err := util.SecureJoin(modelPath, filename)
 		if err != nil {
-			log.Error(err, "Unable to securely join", "sourceDir", sourceDir, "filename", filename)
+			log.Error(err, "Unable to securely join", "sourceDir", modelPath, "filename", filename)
 			return err
 		}
 		// special handling of the config file
 		if filename == mlserverRepositoryConfigFilename {
 			configJSON, err1 := ioutil.ReadFile(source)
 			if err1 != nil {
-				return fmt.Errorf("Could not read model config file %s %v", source, err1)
+				return fmt.Errorf("Could not read model config file %s: %w", source, err1)
 			}
 
 			// process the config to set the model's `name` to the model-mesh model id
-			processedConfigJSON, err1 := processConfigJSON(configJSON, modelID, targetDir, sourceDir, log)
+			processedConfigJSON, err1 := processConfigJSON(configJSON, modelID, targetDir, schemaPath, log)
 			if err1 != nil {
-				return fmt.Errorf("Error processing config file %s. %v", source, err1)
+				return fmt.Errorf("Error processing config file %s: %w", source, err1)
 			}
 
 			target, jerr := util.SecureJoin(targetDir, mlserverRepositoryConfigFilename)
@@ -256,7 +244,7 @@ func processNativeRepository(files []os.FileInfo, modelID string, sourceDir stri
 			}
 			err1 = ioutil.WriteFile(target, processedConfigJSON, f.Mode())
 			if err1 != nil {
-				return fmt.Errorf("Error writing config file %s. %v", source, err1)
+				return fmt.Errorf("Error writing config file %s: %w", source, err1)
 			}
 			continue
 		}
@@ -268,7 +256,7 @@ func processNativeRepository(files []os.FileInfo, modelID string, sourceDir stri
 		}
 		err = os.Symlink(source, link)
 		if err != nil {
-			return fmt.Errorf("Error creating symlink to %s. %v", source, err)
+			return fmt.Errorf("Error creating symlink to %s: %w", source, err)
 		}
 	}
 
@@ -280,7 +268,7 @@ func processNativeRepository(files []os.FileInfo, modelID string, sourceDir stri
 // Returns bytes with the bytes of the processed config. MLServer requires the
 // name parameter to exist and be equal to the model id. The directory is
 // ignored.
-func processConfigJSON(jsonIn []byte, modelID string, targetDir string, sourceModelIDDir string, log logr.Logger) ([]byte, error) {
+func processConfigJSON(jsonIn []byte, modelID string, targetDir string, schemaPath string, log logr.Logger) ([]byte, error) {
 	// parse the json as a map
 	var j map[string]interface{}
 	if err := json.Unmarshal(jsonIn, &j); err != nil {
@@ -301,17 +289,7 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, sourceMo
 		}
 	}
 
-	// if the standard schema file exists, update the config with it
-	schemaPath, err := util.SecureJoin(sourceModelIDDir, modelschema.ModelSchemaFile)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to join path to schema file: %w", err)
-	}
-	var schemaFileExists bool
-	if schemaFileExists, err = util.FileExists(schemaPath); err != nil {
-		return nil, fmt.Errorf("Error determining if schema file exists: %w", err)
-	}
-
-	if schemaFileExists {
+	if schemaPath != "" {
 		s, err1 := modelschema.NewFromFile(schemaPath)
 		if err1 != nil {
 			return nil, fmt.Errorf("Error parsing schema file: %w", err1)
@@ -331,52 +309,27 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, sourceMo
 	return jsonOut, nil
 }
 
-// adaptModelRepository attempts to generate a functional repo structure from the input files
+// adaptModelLayout attempts to generate a functional repo structure from the input files
 //
-// Inspect the structure of the sourceDir and attempt to generate a repo that
-// will be loadable by MLServer. This includes building a directory, linking to
-// model data with wellknown names, and generating a model configuration
-func adaptModelRepository(files []os.FileInfo, modelID string, modelType string, sourceDir string, targetDir string, log logr.Logger) error {
-	// inspect the structure of the sourceDir and attempt to generate a repo that
-	// will be loadable by MLServer (with the default generated configuration)
-
-	// if the schema file exists, remove it from the files list because the
-	// schema file is not part of the model's data
-	// processing of the schema file occurs when the config file is
-	// processed
-	_, files = util.RemoveFileFromListOfFileInfo(modelschema.ModelSchemaFile, files)
-
-	var linkName, targetPath string
-	if len(files) == 0 {
-		// sourceDir is empty, nothing to do
-		return nil
-	} else if len(files) == 1 {
-
-		var err error
-		targetPath, err = util.SecureJoin(sourceDir, files[0].Name())
-		if err != nil {
-			log.Error(err, "Unable to securely join", "sourceDir", sourceDir, "filename", files[0].Name())
-			return err
-		}
-		// soft-link to either directory or file depending on the input received
-		linkName, err = util.SecureJoin(targetDir, files[0].Name())
-		if err != nil {
-			log.Error(err, "Unable to securely join", "targetDir", targetDir, "filename", files[0].Name())
-			return err
-		}
-
-	} else {
-		// unsupported repo structure
-		return fmt.Errorf("Unsupported file layout for model %s. Expected a single file or directory.", modelID)
+// - generate a model settings file
+// - inject schema information if schemaPath is included
+// - use symlinks to reference files from the source modelPath
+// - use modelPath to construct the model's URI as an absolute path
+func adaptModelLayout(modelID, modelType, modelPath, schemaPath, targetDir string, log logr.Logger) error {
+	// soft-link to either directory or file depending on the input received
+	linkPath, err := util.SecureJoin(targetDir, filepath.Base(modelPath))
+	if err != nil {
+		log.Error(err, "Unable to securely join", "targetDir", targetDir, "filename", filepath.Base(modelPath))
+		return err
 	}
 
-	err := os.Symlink(targetPath, linkName)
+	err = os.Symlink(modelPath, linkPath)
 	if err != nil {
-		return fmt.Errorf("Error creating symlink: %v", err)
+		return fmt.Errorf("Error creating symlink: %w", err)
 	}
 
 	// generate the required configuration file
-	configJSON, err := generateModelConfigJSON(modelID, modelType, linkName, sourceDir)
+	configJSON, err := generateModelConfigJSON(modelID, modelType, linkPath, schemaPath)
 	if err != nil {
 		return fmt.Errorf("Error generating config file for %s: %w", modelID, err)
 	}
@@ -394,7 +347,7 @@ func adaptModelRepository(files []os.FileInfo, modelID string, modelType string,
 	return nil
 }
 
-func generateModelConfigJSON(modelID string, modelType string, uri string, sourceModelIDDir string) ([]byte, error) {
+func generateModelConfigJSON(modelID string, modelType string, uri string, schemaPath string) ([]byte, error) {
 	j := make(map[string]interface{})
 	// set the name
 	j["name"] = modelID
@@ -423,17 +376,7 @@ func generateModelConfigJSON(modelID string, modelType string, uri string, sourc
 	// parameters.uri to "./" as the default path
 	// REF: https://github.com/SeldonIO/MLServer/blob/7c0e98e14d128dba2d91a225038bad4b974efac0/runtimes/mllib/mlserver_mllib/utils.py#L36-L46
 
-	// if the standard schema file exists, update the config with it
-	schemaPath, err := util.SecureJoin(sourceModelIDDir, modelschema.ModelSchemaFile)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to join path to schema file: %w", err)
-	}
-	var schemaFileExists bool
-	if schemaFileExists, err = util.FileExists(schemaPath); err != nil {
-		return nil, fmt.Errorf("Error determining if schema file exists: %w", err)
-	}
-
-	if schemaFileExists {
+	if schemaPath != "" {
 		s, err1 := modelschema.NewFromFile(schemaPath)
 		if err1 != nil {
 			return nil, fmt.Errorf("Error parsing schema file: %w", err1)
