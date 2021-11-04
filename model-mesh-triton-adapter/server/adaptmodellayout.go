@@ -38,6 +38,7 @@ import (
 var modelTypeToDirNameMapping = map[string]string{
 	"tensorflow": tensorflowSavedModelDirName,
 	"onnx":       "model.onnx",
+	"keras":      "model.savedmodel",
 }
 
 var modelTypeToBackendMapping = map[string]string{
@@ -45,6 +46,7 @@ var modelTypeToBackendMapping = map[string]string{
 	"tensorrt":   "tensorrt",
 	"onnx":       "onnxruntime",
 	"pytorch":    "pytorch",
+	"keras":      "tensorflow",
 }
 
 var modelTypeToFileNameMapping = map[string]string{
