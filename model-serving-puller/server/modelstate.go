@@ -42,10 +42,10 @@ type modelStateManager struct {
 }
 
 type modelData struct {
-	m        iPullerServer
-	refCount int
 	requests chan *request
 	results  chan *result
+	m        iPullerServer
+	refCount int
 }
 
 type grpcRequest interface {
@@ -89,7 +89,7 @@ func newModelStateManager(log logr.Logger, s *PullerServer) (*modelStateManager,
 func (m *modelStateManager) submitRequest(ctx context.Context, req grpcRequest) (interface{}, error) {
 	c := make(chan *result)
 	select {
-	case m.requests <- &request{req.GetModelId(), ctx, req, c}:
+	case m.requests <- &request{modelId: req.GetModelId(), ctx: ctx, grpcRequest: req, c: c}:
 		select {
 		case res := <-c:
 			return res.grpcResponse, res.err
@@ -168,7 +168,7 @@ func (d *modelData) execute() {
 		default:
 			err = fmt.Errorf("unrecognized request type: %T", req.grpcRequest)
 		}
-		d.results <- &result{req.modelId, res, err, req.c}
+		d.results <- &result{modelId: req.modelId, grpcResponse: res, err: err, c: req.c}
 	}
 }
 

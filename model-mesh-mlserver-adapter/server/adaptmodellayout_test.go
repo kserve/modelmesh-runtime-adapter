@@ -469,12 +469,12 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 				linkFullPath := filepath.Join(generatedMlserverModelsDir, tt.ModelID, expectedFile.Name())
 				resolvedPath, err2 := filepath.EvalSymlinks(linkFullPath)
 				if err2 != nil {
-					t.Errorf("Error resolving symlink [%s]: %w", linkFullPath, err2)
+					t.Errorf("Error resolving symlink [%s]: %v", linkFullPath, err2)
 				}
 				// assert that the target file exists
 				if exists, err2 := util.FileExists(resolvedPath); !exists {
 					if err2 != nil {
-						t.Errorf("Expected file %s to exist but got an error checking: %w", resolvedPath, err2)
+						t.Errorf("Expected file %s to exist but got an error checking: %v", resolvedPath, err2)
 					} else {
 						t.Errorf("Expected file %s to exist but it was not found", resolvedPath)
 					}
