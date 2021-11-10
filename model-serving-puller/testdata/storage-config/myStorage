@@ -4,5 +4,5 @@
   "secret_access_key": "",
   "endpoint_url": "",
   "region": "",
-  "default_bucket": ""
+  "default_bucket": "default"
 }

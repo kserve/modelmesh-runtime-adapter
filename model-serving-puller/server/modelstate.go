@@ -90,8 +90,12 @@ func (m *modelStateManager) submitRequest(ctx context.Context, req grpcRequest) 
 	c := make(chan *result)
 	select {
 	case m.requests <- &request{req.GetModelId(), ctx, req, c}:
-		res := <-c
-		return res.grpcResponse, res.err
+		select {
+		case res := <-c:
+			return res.grpcResponse, res.err
+		case <-ctx.Done():
+			return nil, fmt.Errorf("Context cancelled while waiting for response")
+		}
 	default:
 		return nil, fmt.Errorf("Unable to send load/unload model request")
 	}

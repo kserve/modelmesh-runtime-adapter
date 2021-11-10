@@ -226,7 +226,3 @@ func (s *PullerServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStat
 
 	return s.modelRuntimeClient.RuntimeStatus(ctx, req)
 }
-
-func (s *PullerServer) CleanCache() {
-	s.puller.CleanCache()
-}
