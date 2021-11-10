@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/joho/godotenv"
 
@@ -36,7 +35,7 @@ var (
 	RootModelDir     = filepath.Join(TestDataDir, "/models")
 )
 
-func newPullerServerWithMocks(t *testing.T) (*PullerServer, *mocks.MockModelRuntimeClient, *mocks.MockS3Downloader, *gomock.Controller) {
+func newPullerServerWithMocks(t *testing.T) (*PullerServer, *mocks.MockModelRuntimeClient, *mocks.MockPullerInterface) {
 	log := zap.New()
 	err := godotenv.Load("../.env")
 	if err != nil {
@@ -45,8 +44,8 @@ func newPullerServerWithMocks(t *testing.T) (*PullerServer, *mocks.MockModelRunt
 
 	mockCtrl := gomock.NewController(t)
 	mockClient := mocks.NewMockModelRuntimeClient(mockCtrl)
-	mockDownloader := mocks.NewMockS3Downloader(mockCtrl)
 
+	mockPullManager := mocks.NewMockPullerInterface(mockCtrl)
 	rootModelDir, err := filepath.Abs(RootModelDir)
 	if err != nil {
 		t.Fatalf("Failed to get absolute path of testdata dir %v", err)
@@ -55,38 +54,31 @@ func newPullerServerWithMocks(t *testing.T) (*PullerServer, *mocks.MockModelRunt
 	pc := PullerConfiguration{
 		RootModelDir:            rootModelDir,
 		StorageConfigurationDir: StorageConfigDir,
-		S3DownloadConcurrency:   0,
 	}
 	p := NewPullerFromConfig(log, &pc)
 	p.Log = log
-	// inject mock downloader
-	p.NewS3DownloaderFromConfig = func(*StorageConfiguration, int, logr.Logger) (S3Downloader, error) { return mockDownloader, nil }
+	p.PullManager = mockPullManager
 
 	s := NewPullerServer(log)
 	s.modelRuntimeClient = mockClient
 	s.puller = p
 	s.Log = log
 
-	return s, mockClient, mockDownloader, mockCtrl
+	return s, mockClient, mockPullManager
 }
 
 func TestLoadModel(t *testing.T) {
 	var loadModelTests = []struct {
-		modelID           string
-		inputModelPath    string
-		cloudStorageFiles []string
-		outputModelPath   string
+		modelID        string
+		inputModelPath string
 	}{
-		{"testmodel", "model.zip", []string{"model.zip"}, "testmodel/model.zip"},
-		{"testmodel", "model.zip", []string{"model.zip"}, "testmodel/model.zip"},
-		{"testmodel", "models/app1/model.zip", []string{"models/app1/model.zip"}, "testmodel/model.zip"},
-		{"testmodel", "models/app1", []string{"models/app1/model.zip", "models/app1/metadata.txt"}, "testmodel"},
+		{"singlefile", "model.zip"},
+		{"multifile", "model"},
 	}
 
 	for _, tt := range loadModelTests {
 		t.Run("", func(t *testing.T) {
-			s, mockClient, mockDownloader, mockCtrl := newPullerServerWithMocks(t)
-			defer mockCtrl.Finish()
+			s, mockClient, mockPullManager := newPullerServerWithMocks(t)
 
 			request := &mmesh.LoadModelRequest{
 				ModelId:   tt.modelID,
@@ -97,16 +89,14 @@ func TestLoadModel(t *testing.T) {
 
 			expectedRequestRewrite := &mmesh.LoadModelRequest{
 				ModelId:   tt.modelID,
-				ModelPath: filepath.Join(s.puller.PullerConfig.RootModelDir, tt.outputModelPath),
+				ModelPath: filepath.Join(s.puller.PullerConfig.RootModelDir, tt.modelID, filepath.Base(tt.inputModelPath)),
 				ModelType: "tensorflow",
-				ModelKey:  `{"bucket":"bucket1","disk_size_bytes":0,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
+				ModelKey:  `{"bucket":"bucket1","disk_size_bytes":60,"storage_key":"myStorage"}`,
 			}
 
-			// Assert s.LoadModel calls the s3 Download and then the model runtime LoadModel rpc
-			mockDownloader.EXPECT().ListObjectsUnderPrefix("bucket1", tt.inputModelPath).Return(tt.cloudStorageFiles, nil).Times(1)
-			mockDownloader.EXPECT().DownloadWithIterator(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			// Assert s.LoadModel calls the puller and then the model runtime LoadModel rpc
+			mockPullManager.EXPECT().Pull(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 			mockClient.EXPECT().LoadModel(gomock.Any(), gomock.Eq(expectedRequestRewrite)).Return(nil, nil).Times(1)
-			// mockClient.EXPECT().UnloadModel(gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()

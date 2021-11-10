@@ -14,20 +14,20 @@
 package puller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
-	"time"
 
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc/status"
 
-	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
+	"github.com/kserve/modelmesh-runtime-adapter/pullman"
+	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/s3"
 )
 
 const jsonAttrModelKeyStorageKey = "storage_key"
@@ -38,11 +38,15 @@ const jsonAttrStorageParams = "storage_params"
 
 // Puller represents the GRPC server and its configuration
 type Puller struct {
-	PullerConfig              *PullerConfiguration
-	Log                       logr.Logger
-	NewS3DownloaderFromConfig func(*StorageConfiguration, int, logr.Logger) (S3Downloader, error)
-	s3DownloaderCache         map[string]S3Downloader
-	mutex                     sync.RWMutex
+	PullerConfig *PullerConfiguration
+	Log          logr.Logger
+	PullManager  PullerInterface
+}
+
+// PullerInterface is the interface for `pullman`
+//  useful to mock for testing
+type PullerInterface interface {
+	Pull(context.Context, pullman.PullCommand) error
 }
 
 // NewPuller creates a new Puller instance and initializes it with configuration from the environment
@@ -60,12 +64,9 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 	s := new(Puller)
 	s.Log = log
 	s.PullerConfig = config
-	s.NewS3DownloaderFromConfig = NewS3Downloader
-	s.s3DownloaderCache = make(map[string]S3Downloader)
+	s.PullManager = pullman.NewPullManager(log)
 
 	log.Info("Initializing Puller", "Dir", s.PullerConfig.RootModelDir)
-
-	s.startCleanCacheTicker(s.PullerConfig.CacheCleanPeriod)
 
 	return s
 }
@@ -78,7 +79,6 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 // - rewrite ModelKey["schema_path"] to a local filesystem path
 // - add the size of the model on disk to ModelKey["disk_size_bytes"]
 func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
-	// parse json
 	var modelKey map[string]interface{}
 	if parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey); parseErr != nil {
 		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON: %s", req.ModelKey, parseErr)
@@ -94,47 +94,84 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 		return nil, fmt.Errorf("Predictor Storage field missing")
 	}
 
-	//  get storage config
 	storageConfig, err := s.PullerConfig.GetStorageConfiguration(storageKey, s.Log)
 	if err != nil {
 		return nil, err
 	}
 
-	//  get storage params
-	storageParams, ok := modelKey[jsonAttrStorageParams].(map[string]interface{})
-	if !ok {
-		// backwards compatability: if storage_params does not exist
-		bucketName, ok := modelKey[jsonAttrModelKeyBucket].(string)
-		if !ok {
-			if modelKey[jsonAttrModelKeyBucket] != nil {
-				return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelKeyBucket, modelKey[jsonAttrModelKeyBucket])
-			}
+	// override storage config with per-request parameters
+	//  check "storage_params" first, but also check the top-level "bucket" key if
+	//  "storage_params" doesn't exist for backwards compatibility
+	if storageParams, ok := modelKey[jsonAttrStorageParams].(map[string]interface{}); ok {
+		if bucketName, ok1 := storageParams[jsonAttrModelKeyBucket]; ok1 {
+			storageConfig.Set("bucket", bucketName)
 		}
-		storageParams = make(map[string]interface{})
-		storageParams[jsonAttrModelKeyBucket] = bucketName
-		modelKey[jsonAttrStorageParams] = storageParams
+	} else if bucketName, ok := modelKey[jsonAttrModelKeyBucket]; ok {
+		// return error if key exists but it is not a string
+		if _, ok1 := bucketName.(string); !ok1 {
+			return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelKeyBucket, modelKey[jsonAttrModelKeyBucket])
+		} else {
+			storageConfig.Set("bucket", bucketName)
+		}
 	}
 
-	// download the model
-	localPath, pullerErr := s.DownloadFromCOS(req.ModelId, req.ModelPath, schemaPath, storageKey, storageConfig, storageParams)
+	modelDir, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
+	if joinErr != nil {
+		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %v", s.PullerConfig.RootModelDir, req.ModelId, joinErr)
+	}
+
+	// build and execute the pull command
+
+	// name the local files based on the last element of the paths
+	// TODO: should have some sanitization for filenames
+	modelPathFilename := filepath.Base(req.ModelPath)
+	schemaPathFilename := filepath.Base(schemaPath)
+	if modelPathFilename == schemaPathFilename {
+		schemaPathFilename = "_schema.json"
+	}
+
+	targets := []pullman.Target{
+		{
+			RemotePath: req.ModelPath,
+			LocalPath:  modelPathFilename,
+		},
+	}
+	if schemaPath != "" {
+		schemaTarget := pullman.Target{
+			RemotePath: schemaPath,
+			LocalPath:  schemaPathFilename,
+		}
+		targets = append(targets, schemaTarget)
+	}
+
+	pullCommand := pullman.PullCommand{
+		RepositoryConfig: storageConfig,
+		Directory:        modelDir,
+		Targets:          targets,
+	}
+	pullerErr := s.PullManager.Pull(context.TODO(), pullCommand)
 	if pullerErr != nil {
 		return nil, status.Errorf(status.Code(pullerErr), "Failed to pull model from storage due to error: %s", pullerErr)
 	}
 
-	// update the model path
-	req.ModelPath = localPath
+	// update model path to an absolute path in the local filesystem
+	modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
+	if joinErr != nil {
+		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
+	}
+	req.ModelPath = modelFullPath
 
-	// update the model key to add the schema path
+	// if it was included, update schema path to an absolute path in the local filesystem
 	if schemaPath != "" {
-		schemaFullPath, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId, modelschema.ModelSchemaFile)
+		schemaFullPath, joinErr := util.SecureJoin(modelDir, schemaPathFilename)
 		if joinErr != nil {
-			return nil, fmt.Errorf("Error joining paths '%s', '%s', and '%s': %w", s.PullerConfig.RootModelDir, req.ModelId, modelschema.ModelSchemaFile, joinErr)
+			return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, schemaPathFilename, joinErr)
 		}
 		modelKey[jsonAttrModelSchemaPath] = schemaFullPath
 	}
 
 	// update the model key to add the disk size
-	if size, err1 := getModelDiskSize(localPath); err1 != nil {
+	if size, err1 := getModelDiskSize(modelFullPath); err1 != nil {
 		s.Log.Info("Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey, "error", err1)
 	} else {
 		modelKey[jsonAttrModelKeyDiskSizeBytes] = size
@@ -148,39 +185,6 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	req.ModelKey = string(modelKeyBytes)
 
 	return req, nil
-}
-
-func (s *Puller) startCleanCacheTicker(d time.Duration) {
-	// NewTicker panics if passed a non-positive duration
-	// this also gives a way to disable the cache cleaning
-	if d <= 0 {
-		return
-	}
-	ticker := time.NewTicker(d)
-	go func() {
-		for range ticker.C {
-			s.CleanCache()
-		}
-	}()
-}
-
-func (s *Puller) CleanCache() {
-	s.Log.Info("Running s3 downloader cache cleanup")
-	for storageKey := range s.s3DownloaderCache {
-		var err error
-		configPath, err := util.SecureJoin(s.PullerConfig.StorageConfigurationDir, storageKey)
-		if err != nil {
-			s.Log.Error(err, "Error deleting downloader from cache, nothing was removed", "storage_key", storageKey)
-			return
-		}
-		_, err = os.Stat(configPath)
-		if os.IsNotExist(err) {
-			s.mutex.Lock()
-			s.Log.Info("Deleting downloader from cache", "storage_key", storageKey)
-			delete(s.s3DownloaderCache, storageKey)
-			s.mutex.Unlock()
-		}
-	}
 }
 
 func getModelDiskSize(modelPath string) (int64, error) {

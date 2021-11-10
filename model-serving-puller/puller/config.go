@@ -18,20 +18,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/go-logr/logr"
 
 	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
+	"github.com/kserve/modelmesh-runtime-adapter/pullman"
 )
 
 // PullerConfiguration stores configuration variables for the puller server
 type PullerConfiguration struct {
 	RootModelDir            string // Root directory to store models
 	StorageConfigurationDir string
-	S3DownloadConcurrency   int
-	CacheCleanPeriod        time.Duration
 }
 
 // StorageConfiguration models the json credentials read from a storage secret
@@ -50,20 +48,15 @@ func GetPullerConfigFromEnv(log logr.Logger) (*PullerConfiguration, error) {
 	pullerConfig := new(PullerConfiguration)
 	pullerConfig.RootModelDir = GetEnvString("ROOT_MODEL_DIR", "/models")
 	pullerConfig.StorageConfigurationDir = GetEnvString("STORAGE_CONFIG_DIR", "/storage-config")
-	pullerConfig.S3DownloadConcurrency = GetEnvInt("S3_DOWNLOAD_CONCURRENCY", 10, log)
-
-	v := GetEnvString("PULLER_CACHE_CLEAN_PERIOD", "24h")
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		return pullerConfig, fmt.Errorf("Failed to parse duration from environment variable with content [%s]: %w", v, err)
-	}
-	pullerConfig.CacheCleanPeriod = d
 
 	return pullerConfig, nil
 }
 
-// GetStorageConfiguration returns a StorageConfiguration read from the mounted secret at the give key
-func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, log logr.Logger) (*StorageConfiguration, error) {
+// GetStorageConfiguration returns configuration read from the mounted secret at the given key
+func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, log logr.Logger) (*pullman.RepositoryConfig, error) {
+	// TODO: cache the storage configs in memory and watch for changes
+	// instead of reading from disk on each call
+
 	configPath, err := util.SecureJoin(config.StorageConfigurationDir, storageKey)
 	if err != nil {
 		log.Error(err, "Error joining paths", "directory", config.StorageConfigurationDir, "key", storageKey)
@@ -81,9 +74,16 @@ func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, lo
 	if err != nil {
 		return nil, fmt.Errorf("Could not read storage configuration from %s: %v", configPath, err)
 	}
-	var storageConfig StorageConfiguration
+	var storageConfig pullman.RepositoryConfig
 	if err = json.Unmarshal(bytes, &storageConfig); err != nil {
 		return nil, fmt.Errorf("Could not parse storage configuration json from %s: %v", configPath, err)
+	}
+
+	// copy fields where PullMan uses a different key for s3
+	if storageConfig.GetType() == "s3" {
+		if b, exists := storageConfig.GetString("default_bucket"); exists {
+			storageConfig.Set("bucket", b)
+		}
 	}
 
 	return &storageConfig, nil
