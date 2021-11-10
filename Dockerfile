@@ -17,8 +17,8 @@
 ###############################################################################
 FROM  registry.access.redhat.com/ubi8/ubi-minimal:8.4 AS develop
 
-ARG GOLANG_VERSION=1.16.6
-ARG PROTOC_VERSION=3.14.0
+ARG GOLANG_VERSION=1.17.3
+ARG PROTOC_VERSION=3.19.1
 
 USER root
 
