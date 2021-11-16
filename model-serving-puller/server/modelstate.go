@@ -156,8 +156,7 @@ func (m *modelStateManager) execute() {
 }
 
 func (d *modelData) execute() {
-	req, ok := <-d.requests
-	for ; ok; req, ok = <-d.requests {
+	for req := range d.requests {
 		var res interface{}
 		var err error
 		switch request := req.grpcRequest.(type) {
