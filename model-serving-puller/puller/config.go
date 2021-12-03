@@ -39,8 +39,11 @@ type StorageConfiguration struct {
 	SecretAccessKey string `json:"secret_access_key"`
 	EndpointURL     string `json:"endpoint_url"`
 	Region          string `json:"region"`
-	DefaultBucket   string `json:"default_bucket"`
-	Certificate     string `json:"certificate"`
+	Bucket          string `json:"bucket"`
+	// Deprecated: for backward compatibility DefaultBucket is still populated,
+	// but new code should use Bucket instead.
+	DefaultBucket string `json:"default_bucket"`
+	Certificate   string `json:"certificate"`
 }
 
 // GetPullerConfigFromEnv creates a new PullerConfiguration populated from environment variables
@@ -81,8 +84,13 @@ func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, lo
 
 	// copy fields where PullMan uses a different key for s3
 	if storageConfig.GetType() == "s3" {
-		if b, exists := storageConfig.GetString("default_bucket"); exists {
-			storageConfig.Set("bucket", b)
+		if default_bucket, exists := storageConfig.GetString("default_bucket"); exists {
+			// if both `bucket` and `default_bucket` exist, we're ignoring `default_bucket`
+			if bucket, exists := storageConfig.GetString("bucket"); exists {
+				log.Info("Both bucket and default_bucket params were provided in S3 storage config, ignoring default_bucket", "bucket", bucket, "default_bucket", default_bucket)
+			} else {
+				storageConfig.Set("bucket", default_bucket)
+			}
 		}
 	}
 
