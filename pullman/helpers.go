@@ -15,6 +15,7 @@ package pullman
 
 import (
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 )
@@ -41,4 +42,18 @@ func OpenFile(path string) (*os.File, error) {
 		return nil, fmt.Errorf("os error creating file: %w", err)
 	}
 	return file, nil
+}
+
+// HashStrings generates a hash from the concatenation of the passed strings
+// Provides a common way for providers to implement GetKey in the case that some
+// configuration's values are considered secret. Use the hash as part of the key
+// instead
+func HashStrings(strings ...string) string {
+
+	h := fnv.New64a()
+	for _, s := range strings {
+		h.Write([]byte(s))
+	}
+
+	return fmt.Sprintf("%#x", h.Sum64())
 }

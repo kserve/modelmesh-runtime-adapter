@@ -169,3 +169,44 @@ func Test_Download_MultipleTargets(t *testing.T) {
 	err := s3rc.Pull(context.Background(), inputPullCommand)
 	assert.NoError(t, err)
 }
+
+func Test_GetKey(t *testing.T) {
+	provider := s3Provider{}
+
+	createTestConfig := func() *pullman.RepositoryConfig {
+		config := pullman.NewRepositoryConfig("s3")
+		config.Set(configAccessKeyID, "access key")
+		config.Set(configSecretAccessKey, "secert key")
+		config.Set(configEndpoint, "https://s3.example.service")
+		config.Set(configRegion, "region")
+		config.Set(configBucket, "my_bucket")
+		config.Set(configCertificate, "<certificate data>")
+		return config
+	}
+
+	// should return the same result given the same config
+	t.Run("shouldMatchForSameConfig", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+
+	// changing the endpoint should change the key
+	t.Run("shouldChangeForEndpoint", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+		config2.Set(configEndpoint, "https://s3.different.service")
+
+		assert.NotEqual(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+
+	// changing the bucket should NOT change the key
+	t.Run("shouldNotChangeForBucket", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+		config2.Set(configBucket, "another_bucket")
+
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+}
