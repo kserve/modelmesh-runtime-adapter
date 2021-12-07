@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"hash/maphash"
 	"net/http"
 	"net/url"
 	"path"
@@ -66,12 +65,7 @@ func (p httpProvider) GetKey(config pullman.Config) string {
 	clientCert, _ := pullman.GetString(config, configClientCertificate)
 	clientKey, _ := pullman.GetString(config, configClientKey)
 
-	var h maphash.Hash
-	_, _ = h.WriteString(cert)
-	_, _ = h.WriteString(clientCert)
-	_, _ = h.WriteString(clientKey)
-
-	return fmt.Sprintf("%#x", h.Sum64())
+	return pullman.HashStrings(cert, clientCert, clientKey)
 }
 
 func (p httpProvider) NewRepository(config pullman.Config, log logr.Logger) (pullman.RepositoryClient, error) {
@@ -139,8 +133,7 @@ func (r *httpRepository) Pull(ctx context.Context, pc pullman.PullCommand) error
 
 	// header is optional
 	var header http.Header
-	pcHeaders, ok := pullman.GetString(pc.RepositoryConfig, configHeaders)
-	if ok {
+	if pcHeaders, ok := pc.RepositoryConfig.Get(configHeaders); ok {
 		mm, errH := parseStringMultiMap(pcHeaders)
 		if errH != nil {
 			return fmt.Errorf("could not parse '%v' as HTTP headers: %v", pcHeaders, errH)

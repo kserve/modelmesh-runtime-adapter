@@ -17,7 +17,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/maphash"
 	"path"
 	"strings"
 
@@ -62,22 +61,15 @@ var _ pullman.StorageProvider = (*s3Provider)(nil)
 
 // Only changes to the bucket can be handled by a single client
 func (p s3Provider) GetKey(config pullman.Config) string {
-
+	// hash the values of all configurations that go into creating the client
 	// no need to validate the config here
-	endpoint, _ := pullman.GetString(config, configEndpoint)
-	region, _ := pullman.GetString(config, configRegion)
-
-	// hash some of the configurations
 	accessKeyID, _ := pullman.GetString(config, configAccessKeyID)
 	secretAccessKey, _ := pullman.GetString(config, configSecretAccessKey)
+	endpoint, _ := pullman.GetString(config, configEndpoint)
+	region, _ := pullman.GetString(config, configRegion)
 	certificate, _ := pullman.GetString(config, configCertificate)
 
-	var h maphash.Hash
-	_, _ = h.WriteString(accessKeyID)
-	_, _ = h.WriteString(secretAccessKey)
-	_, _ = h.WriteString(certificate)
-
-	return fmt.Sprintf("%s|%s|%#x", endpoint, region, h.Sum64())
+	return pullman.HashStrings(endpoint, region, accessKeyID, secretAccessKey, certificate)
 }
 
 func (p s3Provider) NewRepository(config pullman.Config, log logr.Logger) (pullman.RepositoryClient, error) {

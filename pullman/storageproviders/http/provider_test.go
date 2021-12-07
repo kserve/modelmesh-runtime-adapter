@@ -115,3 +115,43 @@ func Test_Download_SimpleFile(t *testing.T) {
 	err := testRepo.Pull(context.Background(), inputPullCommand)
 	assert.NoError(t, err)
 }
+
+func Test_GetKey(t *testing.T) {
+	provider := httpProvider{}
+
+	createTestConfig := func() *pullman.RepositoryConfig {
+		config := pullman.NewRepositoryConfig("http")
+		config.Set(configURL, "http://some.url")
+		config.Set(configHeaders, map[string]string{"header": "value"})
+		config.Set(configCertificate, "<certificate>")
+		config.Set(configClientCertificate, "<client_certificate>")
+		config.Set(configClientKey, "<client_key>")
+		return config
+	}
+
+	// should return the same result given the same config
+	t.Run("shouldMatchForSameConfig", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+
+	// changing the certificate should change the key
+	t.Run("shouldChangeForCertificate", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+		config2.Set(configCertificate, "<different certificate data>")
+
+		assert.NotEqual(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+
+	// changing the headers should NOT change the key
+	t.Run("shouldNotChangeForHeaders", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+		config2.Set(configHeaders, map[string]string{"header": "anothervalue;"})
+
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+}
