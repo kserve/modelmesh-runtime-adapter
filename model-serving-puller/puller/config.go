@@ -23,7 +23,6 @@ import (
 
 	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
-	"github.com/kserve/modelmesh-runtime-adapter/pullman"
 )
 
 // PullerConfiguration stores configuration variables for the puller server
@@ -56,7 +55,7 @@ func GetPullerConfigFromEnv(log logr.Logger) (*PullerConfiguration, error) {
 }
 
 // GetStorageConfiguration returns configuration read from the mounted secret at the given key
-func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, log logr.Logger) (*pullman.RepositoryConfig, error) {
+func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, log logr.Logger) (map[string]interface{}, error) {
 	// TODO: cache the storage configs in memory and watch for changes
 	// instead of reading from disk on each call
 
@@ -77,22 +76,22 @@ func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, lo
 	if err != nil {
 		return nil, fmt.Errorf("Could not read storage configuration from %s: %v", configPath, err)
 	}
-	var storageConfig pullman.RepositoryConfig
+	var storageConfig map[string]interface{}
 	if err = json.Unmarshal(bytes, &storageConfig); err != nil {
 		return nil, fmt.Errorf("Could not parse storage configuration json from %s: %v", configPath, err)
 	}
 
 	// copy fields where PullMan uses a different key for s3
-	if storageConfig.GetType() == "s3" {
-		if default_bucket, exists := storageConfig.GetString("default_bucket"); exists {
+	if storageConfig["type"] == "s3" {
+		if default_bucket, exists := storageConfig["default_bucket"]; exists {
 			// if both `bucket` and `default_bucket` exist, we're ignoring `default_bucket`
-			if bucket, exists := storageConfig.GetString("bucket"); exists {
+			if bucket, exists := storageConfig["bucket"]; exists {
 				log.Info("Both bucket and default_bucket params were provided in S3 storage config, ignoring default_bucket", "bucket", bucket, "default_bucket", default_bucket)
 			} else {
-				storageConfig.Set("bucket", default_bucket)
+				storageConfig["bucket"] = default_bucket
 			}
 		}
 	}
 
-	return &storageConfig, nil
+	return storageConfig, nil
 }

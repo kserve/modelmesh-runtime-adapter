@@ -320,7 +320,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucket(t *testing.T) {
 		ModelId:   "singlefile",
 		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
 		ModelType: "tensorflow",
-		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{}}`,
+		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage"}`,
 	}
 
 	expectedConfig, err := readStorageConfig("myStorage")
@@ -386,6 +386,121 @@ func Test_ProcessLoadModelRequest_SuccessNoBucketNoStorageParams(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func Test_ProcessLoadModelRequest_SuccessStorageTypeOnly(t *testing.T) {
+	p, mockPuller := newPullerWithMock(t)
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_params": {"type": "generic"}}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"disk_size_bytes":60,"storage_params":{"type":"generic"}}`,
+	}
+
+	expectedConfig := pullman.NewRepositoryConfig("generic", nil)
+
+	expectedPullCommand := pullman.PullCommand{
+		RepositoryConfig: expectedConfig,
+		Directory:        filepath.Join(p.PullerConfig.RootModelDir, "singlefile"),
+		Targets: []pullman.Target{
+			{
+				RemotePath: "model.zip",
+				LocalPath:  "model.zip",
+			},
+		},
+	}
+
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_DefaultStorageKey(t *testing.T) {
+	p, mockPuller := newPullerWithMock(t)
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_params": {"type": "test-default-type"}}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"disk_size_bytes":60,"storage_params":{"type":"test-default-type"}}`,
+	}
+
+	expectedConfig, err := readStorageConfig("_test-default-type_serviceaccount_secrets")
+	assert.NoError(t, err)
+
+	expectedPullCommand := pullman.PullCommand{
+		RepositoryConfig: expectedConfig,
+		Directory:        filepath.Join(p.PullerConfig.RootModelDir, "singlefile"),
+		Targets: []pullman.Target{
+			{
+				RemotePath: "model.zip",
+				LocalPath:  "model.zip",
+			},
+		},
+	}
+
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
+func Test_ProcessLoadModelRequest_StorageParamsOverrides(t *testing.T) {
+	p, mockPuller := newPullerWithMock(t)
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{"storage_key": "genericParameters", "storage_params": {"key": "req_value", "struct.s2_key": "req_s2_value"}}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"disk_size_bytes":60,"storage_key":"genericParameters","storage_params":{"key":"req_value","struct.s2_key":"req_s2_value"}}`,
+	}
+
+	expectedConfig, err := readStorageConfig("genericParameters")
+	assert.NoError(t, err)
+	expectedConfig.Set("key", "req_value")
+	expectedConfig.Set("struct", map[string]string{"s1_key": "sc_s1_value", "s2_key": "req_s2_value"})
+
+	expectedPullCommand := pullman.PullCommand{
+		RepositoryConfig: expectedConfig,
+		Directory:        filepath.Join(p.PullerConfig.RootModelDir, "singlefile"),
+		Targets: []pullman.Target{
+			{
+				RemotePath: "model.zip",
+				LocalPath:  "model.zip",
+			},
+		},
+	}
+
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+}
+
 func Test_ProcessLoadModelRequest_FailInvalidModelKey(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
@@ -393,13 +508,12 @@ func Test_ProcessLoadModelRequest_FailInvalidModelKey(t *testing.T) {
 		ModelType: "tensorflow",
 		ModelKey:  `{}{"storage_params":{"bucket":"bucket1"}, "storage_key": "myStorage"}`,
 	}
-	expectedError := fmt.Sprintf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON", request.ModelKey)
 
 	p, _ := newPullerWithMock(t)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Nil(t, returnRequest)
-	assert.Contains(t, err.Error(), expectedError)
+	assert.Contains(t, err.Error(), "Invalid modelKey in LoadModelRequest")
 }
 
 func Test_ProcessLoadModelRequest_FailInvalidSchemaPath(t *testing.T) {
@@ -409,16 +523,16 @@ func Test_ProcessLoadModelRequest_FailInvalidSchemaPath(t *testing.T) {
 		ModelType: "tensorflow",
 		ModelKey:  `{"storage_params":{"bucket":"bucket1"}, "storage_key": "myStorage", "schema_path": 2}`,
 	}
-	expectedError := "Invalid schemaPath in LoadModelRequest, 'schema_path' attribute must have a string value. Found value 2"
 
 	p, _ := newPullerWithMock(t)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Nil(t, returnRequest)
-	assert.EqualError(t, err, expectedError)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid modelKey in LoadModelRequest")
 }
 
-func Test_ProcessLoadModelRequest_FailMissingStorageKey(t *testing.T) {
+func Test_ProcessLoadModelRequest_FailMissingStorageKeyAndType(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: "model.zip",
