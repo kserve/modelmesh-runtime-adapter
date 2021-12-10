@@ -15,6 +15,7 @@ package gcsprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -31,9 +32,22 @@ type gcsClientFactory struct{}
 // gcsClientFactory implements gcsDownloaderFactory
 var _ gcsDownloaderFactory = (*gcsClientFactory)(nil)
 
-func (f gcsClientFactory) newDownloader(log logr.Logger) (gcsDownloader, error) {
+func (f gcsClientFactory) newDownloader(log logr.Logger, credentials map[string]string) (gcsDownloader, error) {
 	ctx := context.Background()
-	cl, err := storage.NewClient(ctx, option.WithoutAuthentication())
+	var cl *storage.Client
+	var err error
+
+	if len(credentials) > 0 {
+		credJson, marshalErr := json.Marshal(credentials)
+		if marshalErr != nil {
+			return nil, fmt.Errorf("unable to marshal json credentials: %w", marshalErr)
+		}
+		cl, err = storage.NewClient(ctx, option.WithCredentialsJSON(credJson))
+	} else {
+		fmt.Println("creds are nil")
+		cl, err = storage.NewClient(ctx, option.WithoutAuthentication())
+	}
+
 	if err != nil {
 		return nil, err
 	}

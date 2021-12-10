@@ -15,9 +15,6 @@ package gcsprovider
 
 import (
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -30,12 +27,20 @@ import (
 
 const (
 	configBucket = "bucket"
+
+	// Google expects the field "type" to be set to "service_account" for authentication.
+	configType      = "type"
+	configTypeValue = "service_account"
+
+	configPrivateKey  = "private_key"
+	configClientEmail = "client_email"
+	configTokenUri    = "token_uri"
 )
 
 // gcsDownloaderFactory is the interface used create GCS downloaders
 // useful to mock for testing
 type gcsDownloaderFactory interface {
-	newDownloader(log logr.Logger) (gcsDownloader, error)
+	newDownloader(log logr.Logger, credentials map[string]string) (gcsDownloader, error)
 }
 
 // gcsDownloader is the interface used to download resources from GCS
@@ -53,13 +58,42 @@ type gcsProvider struct {
 var _ pullman.StorageProvider = (*gcsProvider)(nil)
 
 func (p gcsProvider) GetKey(config pullman.Config) string {
-	b, _ := json.Marshal(config)
-	hsha1 := sha1.Sum(b)
-	return hex.EncodeToString(hsha1[:5])
+	// hash the values of all configurations that go into creating the client
+	// no need to validate the config here
+	privateKey, _ := pullman.GetString(config, configPrivateKey)
+	clientEmail, _ := pullman.GetString(config, configClientEmail)
+	tokenUri, _ := pullman.GetString(config, configTokenUri)
+
+	return pullman.HashStrings(privateKey, clientEmail, tokenUri)
 }
 
 func (p gcsProvider) NewRepository(config pullman.Config, log logr.Logger) (pullman.RepositoryClient, error) {
-	cl, err := p.gcsDownloaderFactory.newDownloader(log)
+
+	privateKey, _ := pullman.GetString(config, configPrivateKey)
+	clientEmail, _ := pullman.GetString(config, configClientEmail)
+
+	var creds map[string]string
+
+	// Check if one of private key or client email was specified but not the other.
+	if (privateKey == "") != (clientEmail == "") {
+		return nil, errors.New("both private key and client email must be specified for authentication")
+	}
+
+	if privateKey != "" && clientEmail != "" {
+		creds = map[string]string{
+			configType:        configTypeValue,
+			configPrivateKey:  privateKey,
+			configClientEmail: clientEmail,
+		}
+
+		// Only add tokenURI if explicitly specified.
+		tokenUri, _ := pullman.GetString(config, configTokenUri)
+		if tokenUri != "" {
+			creds[configTokenUri] = tokenUri
+		}
+	}
+
+	cl, err := p.gcsDownloaderFactory.newDownloader(log, creds)
 	if err != nil {
 		return nil, err
 	}

@@ -39,6 +39,54 @@ func newGCSRepositoryClientWithMock(t *testing.T) (*gcsRepositoryClient, *Mockgc
 	return &gcsrc, mdf
 }
 
+func Test_NewRepositoryWithCredentials(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+
+	mdf := NewMockgcsDownloaderFactory(mockCtrl)
+
+	g := gcsProvider{
+		gcsDownloaderFactory: mdf,
+	}
+	c := pullman.NewRepositoryConfig("gs")
+	log := zap.New()
+
+	privateKey := "private key"
+	clientEmail := "client@email.com"
+	c.Set("private_key", privateKey)
+	c.Set("client_email", clientEmail)
+
+	// Test that credentials are passed to newDownloader if specified.
+	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Eq(map[string]string{
+		"private_key": privateKey, "client_email": clientEmail, "type": "service_account"})).Times(1)
+
+	g.NewRepository(c, log)
+
+	tokenUri := "http://foo.bar"
+	c.Set("token_uri", tokenUri)
+
+	// Test that optional token_uri field is passed to newDownloader if specified.
+	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Eq(map[string]string{
+		"private_key": privateKey, "client_email": clientEmail, "type": "service_account", "token_uri": tokenUri})).Times(1)
+
+	g.NewRepository(c, log)
+
+}
+
+func Test_NewRepositoryNoCredentials(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+
+	mdf := NewMockgcsDownloaderFactory(mockCtrl)
+
+	g := gcsProvider{
+		gcsDownloaderFactory: mdf,
+	}
+	c := pullman.NewRepositoryConfig("gs")
+	log := zap.New()
+	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Nil()).Times(1)
+
+	g.NewRepository(c, log)
+}
+
 func Test_Download_SimpleDirectory(t *testing.T) {
 	gcsRc, mdf := newGCSRepositoryClientWithMock(t)
 
@@ -169,4 +217,41 @@ func Test_Download_MultipleTargets(t *testing.T) {
 
 	err := gcsRc.Pull(context.Background(), inputPullCommand)
 	assert.NoError(t, err)
+}
+
+func Test_GetKey(t *testing.T) {
+	provider := gcsProvider{}
+
+	createTestConfig := func() *pullman.RepositoryConfig {
+		config := pullman.NewRepositoryConfig("s3")
+		config.Set(configPrivateKey, "secret key")
+		config.Set(configClientEmail, "user@email.com")
+		return config
+	}
+
+	// should return the same result given the same config
+	t.Run("shouldMatchForSameConfig", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+
+	// changing the tokenUri should change the key
+	t.Run("shouldChangeForTokenUri", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+		config2.Set(configTokenUri, "https://s3.different.service")
+
+		assert.NotEqual(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
+
+	// changing the bucket should NOT change the key
+	t.Run("shouldNotChangeForBucket", func(t *testing.T) {
+		config1 := createTestConfig()
+		config2 := createTestConfig()
+		config2.Set(configBucket, "another_bucket")
+
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
+	})
 }
