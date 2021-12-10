@@ -82,7 +82,7 @@ func Test_ProcessLoadModelRequest_Success_SingleFileModel(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3")
+	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
 	expectedConfig.Set("access_key_id", "")
 	expectedConfig.Set("secret_access_key", "")
 	expectedConfig.Set("endpoint_url", "")
@@ -125,7 +125,7 @@ func Test_ProcessLoadModelRequest_Success_MultiFileModel(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3")
+	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
 	expectedConfig.Set("access_key_id", "")
 	expectedConfig.Set("secret_access_key", "")
 	expectedConfig.Set("endpoint_url", "")
@@ -170,7 +170,7 @@ func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
 		ModelKey:  fmt.Sprintf(`{"disk_size_bytes":0,"schema_path":"%s","storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`, expectedSchemaPath),
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3")
+	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
 	expectedConfig.Set("access_key_id", "")
 	expectedConfig.Set("secret_access_key", "")
 	expectedConfig.Set("endpoint_url", "")
@@ -217,7 +217,7 @@ func Test_ProcessLoadModelRequest_SuccessWithBucket(t *testing.T) {
 		ModelKey:  `{"bucket":"bucket1","disk_size_bytes":60,"storage_key":"myStorage"}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3")
+	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
 	expectedConfig.Set("access_key_id", "")
 	expectedConfig.Set("secret_access_key", "")
 	expectedConfig.Set("endpoint_url", "")
@@ -260,7 +260,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucket(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{}}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3")
+	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
 	expectedConfig.Set("access_key_id", "")
 	expectedConfig.Set("secret_access_key", "")
 	expectedConfig.Set("endpoint_url", "")
@@ -303,7 +303,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucketNoStorageParams(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage"}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3")
+	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
 	expectedConfig.Set("access_key_id", "")
 	expectedConfig.Set("secret_access_key", "")
 	expectedConfig.Set("endpoint_url", "")

@@ -52,9 +52,14 @@ type RepositoryConfig struct {
 // RepositoryConfig implements Config
 var _ Config = (*RepositoryConfig)(nil)
 
-func NewRepositoryConfig(storageType string) *RepositoryConfig {
+func NewRepositoryConfig(storageType string, config map[string]interface{}) *RepositoryConfig {
+	if config == nil {
+		config = make(map[string]interface{})
+	}
+	// storageType takes priority
+	config[storageTypeKey] = storageType
 	return &RepositoryConfig{
-		config:      map[string]interface{}{storageTypeKey: storageType},
+		config:      config,
 		storageType: storageType,
 	}
 }

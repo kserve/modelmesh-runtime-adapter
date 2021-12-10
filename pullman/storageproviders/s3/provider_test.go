@@ -42,7 +42,7 @@ func Test_Download_SimpleDirectory(t *testing.T) {
 	s3rc, mdf := newS3RepositoryClientWithMock(t)
 
 	bucket := "bucket"
-	c := pullman.NewRepositoryConfig("s3")
+	c := pullman.NewRepositoryConfig("s3", nil)
 	c.Set("bucket", bucket)
 
 	downloadDir := filepath.Join("test", "output")
@@ -82,7 +82,7 @@ func Test_Download_MultipleTargets(t *testing.T) {
 	s3rc, mdf := newS3RepositoryClientWithMock(t)
 
 	bucket := "bucket"
-	c := pullman.NewRepositoryConfig("s3")
+	c := pullman.NewRepositoryConfig("s3", nil)
 	c.Set("bucket", bucket)
 
 	downloadDir := filepath.Join("test", "output")
@@ -174,7 +174,7 @@ func Test_GetKey(t *testing.T) {
 	provider := s3Provider{}
 
 	createTestConfig := func() *pullman.RepositoryConfig {
-		config := pullman.NewRepositoryConfig("s3")
+		config := pullman.NewRepositoryConfig("s3", nil)
 		config.Set(configAccessKeyID, "access key")
 		config.Set(configSecretAccessKey, "secert key")
 		config.Set(configEndpoint, "https://s3.example.service")
