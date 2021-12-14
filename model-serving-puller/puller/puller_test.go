@@ -14,6 +14,7 @@
 package puller
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -41,6 +42,56 @@ var (
 		DefaultBucket:   "",
 		Certificate:     "random-cert"}
 )
+
+// custom GoMock matcher for a PullCommand
+type pullCommandMatcher struct {
+	expected *pullman.PullCommand
+}
+
+func (pcm pullCommandMatcher) Matches(pci interface{}) bool {
+	pc := pci.(pullman.PullCommand)
+	if pc.Directory != pcm.expected.Directory {
+		return false
+	}
+
+	if !gomock.Eq(pcm.expected.Targets).Matches(pc.Targets) {
+		return false
+	}
+
+	expectedConfigJSON, err := json.Marshal(pcm.expected.RepositoryConfig)
+	if err != nil {
+		return false
+	}
+
+	gotConfigJSON, err := json.Marshal(pc.RepositoryConfig)
+	if err != nil {
+		return false
+	}
+
+	if string(expectedConfigJSON) == string(gotConfigJSON) {
+		return true
+	}
+
+	return false
+}
+
+func (pcm pullCommandMatcher) String() string {
+	return describePullCommand(pcm.expected)
+}
+
+func describePullCommand(pc *pullman.PullCommand) string {
+	return fmt.Sprintf("PullCommand\n\tDirectory: %s\n\tTargets: %v\n\tConfig: %v", pc.Directory, pc.Targets, pc.RepositoryConfig)
+}
+
+func eqPullCommand(pc *pullman.PullCommand) gomock.Matcher {
+	return gomock.GotFormatterAdapter(
+		gomock.GotFormatterFunc(func(pci interface{}) string {
+			pc, _ := pci.(pullman.PullCommand)
+			return describePullCommand(&pc)
+		}),
+		pullCommandMatcher{expected: pc},
+	)
+}
 
 func newPullerWithMock(t *testing.T) (*Puller, *mocks.MockPullerInterface) {
 	log := zap.New()
@@ -101,7 +152,7 @@ func Test_ProcessLoadModelRequest_Success_SingleFileModel(t *testing.T) {
 		},
 	}
 
-	mockPuller.EXPECT().Pull(gomock.Any(), gomock.Eq(expectedPullCommand)).Return(nil).Times(1)
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
@@ -144,7 +195,7 @@ func Test_ProcessLoadModelRequest_Success_MultiFileModel(t *testing.T) {
 		},
 	}
 
-	mockPuller.EXPECT().Pull(gomock.Any(), gomock.Eq(expectedPullCommand)).Return(nil).Times(1)
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
@@ -193,7 +244,7 @@ func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
 		},
 	}
 
-	mockPuller.EXPECT().Pull(gomock.Any(), gomock.Eq(expectedPullCommand)).Return(nil).Times(1)
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
@@ -236,7 +287,7 @@ func Test_ProcessLoadModelRequest_SuccessWithBucket(t *testing.T) {
 		},
 	}
 
-	mockPuller.EXPECT().Pull(gomock.Any(), gomock.Eq(expectedPullCommand)).Return(nil).Times(1)
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
@@ -279,7 +330,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucket(t *testing.T) {
 		},
 	}
 
-	mockPuller.EXPECT().Pull(gomock.Any(), gomock.Eq(expectedPullCommand)).Return(nil).Times(1)
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
@@ -322,7 +373,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucketNoStorageParams(t *testing.T) {
 		},
 	}
 
-	mockPuller.EXPECT().Pull(gomock.Any(), gomock.Eq(expectedPullCommand)).Return(nil).Times(1)
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
 	returnRequest, err := p.ProcessLoadModelRequest(request)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
