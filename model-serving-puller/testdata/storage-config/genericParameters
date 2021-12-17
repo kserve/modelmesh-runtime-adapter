@@ -1,0 +1,8 @@
+{
+  "type": "generic",
+  "key": "sc_value",
+  "struct": {
+    "s1_key": "sc_s1_value",
+    "s2_key": "sc_s2_value"
+  }
+}
