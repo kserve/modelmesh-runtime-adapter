@@ -16,6 +16,7 @@ package puller
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 
@@ -93,6 +94,29 @@ func eqPullCommand(pc *pullman.PullCommand) gomock.Matcher {
 	)
 }
 
+// helper to create a RepositoryConfig from the testdata storage config dir
+func readStorageConfig(key string) (*pullman.RepositoryConfig, error) {
+
+	j, err := ioutil.ReadFile(filepath.Join(StorageConfigDir, key))
+	if err != nil {
+		return nil, err
+	}
+
+	var rcMap map[string]interface{}
+	if err = json.Unmarshal(j, &rcMap); err != nil {
+		return nil, err
+	}
+
+	var storageType string
+	if t, ok := rcMap["type"].(string); !ok {
+		return nil, fmt.Errorf(`Storage config must have a "type" field with string value`)
+	} else {
+		storageType = t
+	}
+
+	return pullman.NewRepositoryConfig(storageType, rcMap), nil
+}
+
 func newPullerWithMock(t *testing.T) (*Puller, *mocks.MockPullerInterface) {
 	log := zap.New()
 
@@ -133,11 +157,8 @@ func Test_ProcessLoadModelRequest_Success_SingleFileModel(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
-	expectedConfig.Set("access_key_id", "")
-	expectedConfig.Set("secret_access_key", "")
-	expectedConfig.Set("endpoint_url", "")
-	expectedConfig.Set("region", "")
+	expectedConfig, err := readStorageConfig("myStorage")
+	assert.NoError(t, err)
 	expectedConfig.Set("default_bucket", "default") // from myStorage
 	expectedConfig.Set("bucket", "bucket1")         // from storage_params
 
@@ -176,11 +197,8 @@ func Test_ProcessLoadModelRequest_Success_MultiFileModel(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
-	expectedConfig.Set("access_key_id", "")
-	expectedConfig.Set("secret_access_key", "")
-	expectedConfig.Set("endpoint_url", "")
-	expectedConfig.Set("region", "")
+	expectedConfig, err := readStorageConfig("myStorage")
+	assert.NoError(t, err)
 	expectedConfig.Set("default_bucket", "default") // from myStorage
 	expectedConfig.Set("bucket", "bucket1")         // from storage_params
 
@@ -221,11 +239,8 @@ func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
 		ModelKey:  fmt.Sprintf(`{"disk_size_bytes":0,"schema_path":"%s","storage_key":"myStorage","storage_params":{"bucket":"bucket1"}}`, expectedSchemaPath),
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
-	expectedConfig.Set("access_key_id", "")
-	expectedConfig.Set("secret_access_key", "")
-	expectedConfig.Set("endpoint_url", "")
-	expectedConfig.Set("region", "")
+	expectedConfig, err := readStorageConfig("myStorage")
+	assert.NoError(t, err)
 	expectedConfig.Set("default_bucket", "default") // from myStorage
 	expectedConfig.Set("bucket", "bucket1")
 
@@ -268,11 +283,8 @@ func Test_ProcessLoadModelRequest_SuccessWithBucket(t *testing.T) {
 		ModelKey:  `{"bucket":"bucket1","disk_size_bytes":60,"storage_key":"myStorage"}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
-	expectedConfig.Set("access_key_id", "")
-	expectedConfig.Set("secret_access_key", "")
-	expectedConfig.Set("endpoint_url", "")
-	expectedConfig.Set("region", "")
+	expectedConfig, err := readStorageConfig("myStorage")
+	assert.NoError(t, err)
 	expectedConfig.Set("default_bucket", "default") // from myStorage
 	expectedConfig.Set("bucket", "bucket1")         // from storage_params
 
@@ -311,11 +323,8 @@ func Test_ProcessLoadModelRequest_SuccessNoBucket(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage","storage_params":{}}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
-	expectedConfig.Set("access_key_id", "")
-	expectedConfig.Set("secret_access_key", "")
-	expectedConfig.Set("endpoint_url", "")
-	expectedConfig.Set("region", "")
+	expectedConfig, err := readStorageConfig("myStorage")
+	assert.NoError(t, err)
 	expectedConfig.Set("default_bucket", "default") // from myStorage
 	expectedConfig.Set("bucket", "default")         // from myStorage
 
@@ -354,11 +363,8 @@ func Test_ProcessLoadModelRequest_SuccessNoBucketNoStorageParams(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_key":"myStorage"}`,
 	}
 
-	expectedConfig := pullman.NewRepositoryConfig("s3", nil)
-	expectedConfig.Set("access_key_id", "")
-	expectedConfig.Set("secret_access_key", "")
-	expectedConfig.Set("endpoint_url", "")
-	expectedConfig.Set("region", "")
+	expectedConfig, err := readStorageConfig("myStorage")
+	assert.NoError(t, err)
 	expectedConfig.Set("default_bucket", "default") // from myStorage
 	expectedConfig.Set("bucket", "default")         // from myStorage
 
