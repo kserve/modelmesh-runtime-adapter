@@ -26,12 +26,12 @@ func Test_Dotpath(t *testing.T) {
 		overrides map[string]string // field overrides in a map of dotpaths to values
 		want      string            // JSON string representing the output map
 	}{
-		"change_key_value": {
+		"change_value": {
 			input:     `{"key": "value", "another_key": "another value"}`,
 			overrides: map[string]string{"key": "simple"},
 			want:      `{"key": "simple", "another_key": "another value"}`,
 		},
-		"create_value": {
+		"create_field": {
 			input:     `{}`,
 			overrides: map[string]string{"key": "create_me"},
 			want:      `{"key": "create_me"}`,
@@ -44,7 +44,7 @@ func Test_Dotpath(t *testing.T) {
 			},
 			want: `{"key": "value", "nested":{"object":{"key": "nested value", "another": "another one"}}}`,
 		},
-		"create_value_in_nested_object": {
+		"create_field_in_nested_object": {
 			input: `{"struct": {"param": "param_value"}}`,
 			overrides: map[string]string{
 				"struct.key": "create_me",
@@ -57,7 +57,7 @@ func Test_Dotpath(t *testing.T) {
 				"struct": "new_value",
 			},
 		},
-		"error_overwrite_array": {
+		"error_no_overwrite_array": {
 			input: `{"array": ["key"], "some_other_key": "value"}`,
 			overrides: map[string]string{
 				"array.key": "value",
