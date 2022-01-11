@@ -51,8 +51,7 @@ func set(params map[string]interface{}, dotpath string, value string) error {
 		return nil
 	}
 
-	var obj interface{}
-	obj = params
+	var obj interface{} = params
 	pathSoFar := fields[0]
 	for i, field := range fields {
 		var m map[string]interface{}
@@ -68,8 +67,8 @@ func set(params map[string]interface{}, dotpath string, value string) error {
 				m[field] = value
 
 			} else if obj, ok = m[field]; !ok {
-				m[field] = map[string]interface{}{}
-				obj = m[field]
+				obj = map[string]interface{}{}
+				m[field] = obj
 			}
 		} else {
 			return fmt.Errorf("expected a map at '%s'", pathSoFar)

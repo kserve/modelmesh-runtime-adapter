@@ -86,7 +86,7 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
 	var modelKey ModelKeyInfo
 	if parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey); parseErr != nil {
-		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. Error processing JSON '%s': %s", req.ModelKey, parseErr)
+		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. Error processing JSON '%s': %w", req.ModelKey, parseErr)
 	}
 
 	var storageConfig map[string]interface{}
