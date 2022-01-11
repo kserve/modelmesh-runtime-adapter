@@ -15,7 +15,7 @@ package puller
 
 import (
 	"fmt"
-	"regexp"
+	"strings"
 )
 
 // Implements a simple "dotpath" style for setting values within JSON compatible configuration structs
@@ -33,15 +33,11 @@ func ApplyParameterOverrides(params map[string]interface{}, overrides map[string
 	return nil
 }
 
-var splitRegex = regexp.MustCompile(`\.`)
-
-// Separate path into segments (split on `.`)
 func fieldsFromDotpath(dotpath string) []string {
-	return splitRegex.Split(dotpath, -1)
+	return strings.Split(dotpath, ".")
 }
 
 func set(params map[string]interface{}, dotpath string, value string) error {
-
 	if params == nil {
 		return fmt.Errorf("got nil map, unable to set value")
 	}

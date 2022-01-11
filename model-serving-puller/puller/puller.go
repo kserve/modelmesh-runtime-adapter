@@ -102,15 +102,13 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 		defaultStorageKey := fmt.Sprintf("_%s_serviceaccount_secrets", storageType)
 
 		var err error
-		storageConfig, err = s.PullerConfig.GetStorageConfiguration(defaultStorageKey, s.Log)
-		if err != nil {
+		if storageConfig, err = s.PullerConfig.GetStorageConfiguration(defaultStorageKey, s.Log); err != nil {
 			// do not error here, try to load from the parameters only
 			storageConfig = map[string]interface{}{}
 		}
 	} else {
 		var err error
-		storageConfig, err = s.PullerConfig.GetStorageConfiguration(*modelKey.StorageKey, s.Log)
-		if err != nil {
+		if storageConfig, err = s.PullerConfig.GetStorageConfiguration(*modelKey.StorageKey, s.Log); err != nil {
 			// if key was specified, but we could not find it, that is an error
 			return nil, fmt.Errorf("Did not find storage config for key %s: %w", *modelKey.StorageKey, err)
 		}
@@ -118,6 +116,7 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 
 	// DEPRECATED: allow top-level bucket key for backwards compatibility
 	if modelKey.Bucket != "" {
+		s.Log.Info(`Warning: use of ModelKey["bucket"] is deprecated, use ModelKey["storage_params"] instead`)
 		storageConfig["bucket"] = modelKey.Bucket
 	}
 
@@ -126,7 +125,6 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 		return nil, fmt.Errorf("Unable to merge storage parameters from the storage config and the Predictor Storage field: %w", err)
 	}
 
-	var storageType string
 	// if we still don't know the storage type, we cannot download the model, so return an error
 	storageType, ok := storageConfig[parameterKeyType].(string)
 	if !ok {
