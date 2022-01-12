@@ -430,8 +430,8 @@ func Test_ProcessLoadModelRequest_DefaultStorageKey(t *testing.T) {
 	err := ioutil.WriteFile(defaultConfigFile, []byte(`{"type": "typeless-default"}`), 0555)
 	assert.NoError(t, err)
 	defer func() {
-		err := os.Remove(defaultConfigFile)
-		assert.NoError(t, err)
+		errd := os.Remove(defaultConfigFile)
+		assert.NoError(t, errd)
 	}()
 
 	p, mockPuller := newPullerWithMock(t)
