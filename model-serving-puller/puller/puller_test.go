@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -424,6 +425,54 @@ func Test_ProcessLoadModelRequest_SuccessStorageTypeOnly(t *testing.T) {
 }
 
 func Test_ProcessLoadModelRequest_DefaultStorageKey(t *testing.T) {
+	// create a typeless default storage config file for this test
+	defaultConfigFile := filepath.Join(StorageConfigDir, "default")
+	err := ioutil.WriteFile(defaultConfigFile, []byte(`{"type": "typeless-default"}`), 0555)
+	assert.NoError(t, err)
+	defer func() {
+		err := os.Remove(defaultConfigFile)
+		assert.NoError(t, err)
+	}()
+
+	p, mockPuller := newPullerWithMock(t)
+
+	request := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: "model.zip",
+		ModelType: "tensorflow",
+		ModelKey:  `{}`,
+	}
+
+	expectedRequestRewrite := &mmesh.LoadModelRequest{
+		ModelId:   "singlefile",
+		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
+		ModelType: "tensorflow",
+		ModelKey:  `{"disk_size_bytes":60}`,
+	}
+
+	expectedConfig, err := readStorageConfig("default")
+	assert.NoError(t, err)
+
+	expectedPullCommand := pullman.PullCommand{
+		RepositoryConfig: expectedConfig,
+		Directory:        filepath.Join(p.PullerConfig.RootModelDir, "singlefile"),
+		Targets: []pullman.Target{
+			{
+				RemotePath: "model.zip",
+				LocalPath:  "model.zip",
+			},
+		},
+	}
+
+	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
+
+	returnRequest, err := p.ProcessLoadModelRequest(request)
+	assert.Equal(t, expectedRequestRewrite, returnRequest)
+	assert.Nil(t, err)
+
+}
+
+func Test_ProcessLoadModelRequest_DefaultStorageKeyTyped(t *testing.T) {
 	p, mockPuller := newPullerWithMock(t)
 
 	request := &mmesh.LoadModelRequest{
@@ -440,7 +489,7 @@ func Test_ProcessLoadModelRequest_DefaultStorageKey(t *testing.T) {
 		ModelKey:  `{"disk_size_bytes":60,"storage_params":{"type":"test-default-type"}}`,
 	}
 
-	expectedConfig, err := readStorageConfig("_test-default-type_serviceaccount_secrets")
+	expectedConfig, err := readStorageConfig("default_test-default-type")
 	assert.NoError(t, err)
 
 	expectedPullCommand := pullman.PullCommand{

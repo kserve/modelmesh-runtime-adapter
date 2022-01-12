@@ -30,7 +30,10 @@ import (
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/s3"
 )
 
-const parameterKeyType = "type"
+const (
+	parameterKeyType  = "type"
+	defaultStorageKey = "default"
+)
 
 // JSON passed in ModelInfo.Key field of registration requests
 type ModelKeyInfo struct {
@@ -90,19 +93,18 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	}
 
 	var storageConfig map[string]interface{}
-	// if storageKey is unspecified, check for the existence of a default storage key in the storage config
 	if modelKey.StorageKey == nil {
-		// the default storage key is based on the storage type, so the
-		// type must exist in the parameters
-		storageType, ok := modelKey.StorageParams[parameterKeyType]
-		if !ok {
-			return nil, fmt.Errorf("Predictor Storage field missing")
+		// if storageKey is unspecified, check for a default storage key in the storage config
+		storageType := modelKey.StorageParams[parameterKeyType]
+		var keyToCheck string
+		if storageType == "" {
+			keyToCheck = defaultStorageKey
+		} else {
+			keyToCheck = fmt.Sprintf("%s_%s", defaultStorageKey, storageType)
 		}
-		// the value for the default key should be populated from secrets associated with the Controller's ServiceAccount
-		defaultStorageKey := fmt.Sprintf("_%s_serviceaccount_secrets", storageType)
 
 		var err error
-		if storageConfig, err = s.PullerConfig.GetStorageConfiguration(defaultStorageKey, s.Log); err != nil {
+		if storageConfig, err = s.PullerConfig.GetStorageConfiguration(keyToCheck, s.Log); err != nil {
 			// do not error here, try to load from the parameters only
 			storageConfig = map[string]interface{}{}
 		}
