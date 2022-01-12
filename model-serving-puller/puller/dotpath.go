@@ -47,29 +47,24 @@ func set(params map[string]interface{}, dotpath string, value string) error {
 		return nil
 	}
 
-	var cursor interface{} = params
 	for i, field := range fields[:len(fields)-1] {
-		if obj, ok := cursor.(map[string]interface{}); !ok {
-			return fmt.Errorf("expected a map at '%s'", strings.Join(fields[:i], "."))
-		} else if cursor, ok = obj[field]; !ok {
-			cursor = map[string]interface{}{}
-			obj[field] = cursor
+		if obj, ok := params[field]; !ok {
+			next := map[string]interface{}{}
+			params[field] = next
+			params = next
+		} else if params, ok = obj.(map[string]interface{}); !ok {
+			return fmt.Errorf("expected an object at '%s'", strings.Join(fields[:i], "."))
 		}
 	}
 
-	// handle the last field
-	lastObj, ok := cursor.(map[string]interface{})
-	if !ok {
-		return fmt.Errorf("expected a map at '%s'", strings.Join(fields, "."))
-	}
 	lastField := fields[len(fields)-1]
 	// return an error if overwriting an existing value that is not a string
-	if v, ok := lastObj[lastField]; ok {
+	if v, ok := params[lastField]; ok {
 		if _, ok = v.(string); !ok {
-			return fmt.Errorf("expected a string at path '%s', but got %v", strings.Join(fields, "."), lastObj[lastField])
+			return fmt.Errorf("expected a string at '%s', but got %v", strings.Join(fields, "."), params[lastField])
 		}
 	}
-	lastObj[lastField] = value
+	params[lastField] = value
 
 	return nil
 }
