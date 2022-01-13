@@ -18,37 +18,37 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/golang/mock/gomock"
 	"github.com/kserve/modelmesh-runtime-adapter/pullman"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func newGCSRepositoryClientWithMock(t *testing.T) (*gcsRepositoryClient, *MockgcsDownloader) {
+func newGCSProviderWithMocks(t *testing.T) (gcsProvider, *MockgcsDownloaderFactory, logr.Logger) {
 	mockCtrl := gomock.NewController(t)
-
-	mdf := NewMockgcsDownloader(mockCtrl)
-
-	log := zap.New()
-
-	gcsrc := gcsRepositoryClient{
-		gcsclient: mdf,
-		log:       log,
-	}
-
-	return &gcsrc, mdf
-}
-
-func Test_NewRepositoryWithCredentials(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-
 	mdf := NewMockgcsDownloaderFactory(mockCtrl)
-
 	g := gcsProvider{
 		gcsDownloaderFactory: mdf,
 	}
-	c := pullman.NewRepositoryConfig("gs")
 	log := zap.New()
+	return g, mdf, log
+}
+
+func newGCSRepositoryClientWithMock(t *testing.T) (*gcsRepositoryClient, *MockgcsDownloader) {
+	mockCtrl := gomock.NewController(t)
+	md := NewMockgcsDownloader(mockCtrl)
+	log := zap.New()
+	gcsrc := gcsRepositoryClient{
+		gcsclient: md,
+		log:       log,
+	}
+	return &gcsrc, md
+}
+
+func Test_NewRepositoryWithCredentials(t *testing.T) {
+	g, mdf, log := newGCSProviderWithMocks(t)
+	c := pullman.NewRepositoryConfig("gs")
 
 	privateKey := "private key"
 	clientEmail := "client@email.com"
@@ -59,7 +59,8 @@ func Test_NewRepositoryWithCredentials(t *testing.T) {
 	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Eq(map[string]string{
 		"private_key": privateKey, "client_email": clientEmail, "type": "service_account"})).Times(1)
 
-	g.NewRepository(c, log)
+	_, err := g.NewRepository(c, log)
+	assert.NoError(t, err)
 
 	tokenUri := "http://foo.bar"
 	c.Set("token_uri", tokenUri)
@@ -68,23 +69,17 @@ func Test_NewRepositoryWithCredentials(t *testing.T) {
 	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Eq(map[string]string{
 		"private_key": privateKey, "client_email": clientEmail, "type": "service_account", "token_uri": tokenUri})).Times(1)
 
-	g.NewRepository(c, log)
-
+	_, err = g.NewRepository(c, log)
+	assert.NoError(t, err)
 }
 
 func Test_NewRepositoryNoCredentials(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-
-	mdf := NewMockgcsDownloaderFactory(mockCtrl)
-
-	g := gcsProvider{
-		gcsDownloaderFactory: mdf,
-	}
+	g, mdf, log := newGCSProviderWithMocks(t)
 	c := pullman.NewRepositoryConfig("gs")
-	log := zap.New()
 	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Nil()).Times(1)
 
-	g.NewRepository(c, log)
+	_, err := g.NewRepository(c, log)
+	assert.NoError(t, err)
 }
 
 func Test_Download_SimpleDirectory(t *testing.T) {
@@ -223,7 +218,7 @@ func Test_GetKey(t *testing.T) {
 	provider := gcsProvider{}
 
 	createTestConfig := func() *pullman.RepositoryConfig {
-		config := pullman.NewRepositoryConfig("s3")
+		config := pullman.NewRepositoryConfig("gs")
 		config.Set(configPrivateKey, "secret key")
 		config.Set(configClientEmail, "user@email.com")
 		return config
@@ -237,11 +232,11 @@ func Test_GetKey(t *testing.T) {
 		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
 	})
 
-	// changing the tokenUri should change the key
+	// changing the token_uri should change the key
 	t.Run("shouldChangeForTokenUri", func(t *testing.T) {
 		config1 := createTestConfig()
 		config2 := createTestConfig()
-		config2.Set(configTokenUri, "https://s3.different.service")
+		config2.Set(configTokenUri, "https://oauth2.googleapis.com/token2")
 
 		assert.NotEqual(t, provider.GetKey(config1), provider.GetKey(config2))
 	})

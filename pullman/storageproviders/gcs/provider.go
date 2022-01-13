@@ -26,15 +26,14 @@ import (
 )
 
 const (
-	configBucket = "bucket"
-
-	// Google expects the field "type" to be set to "service_account" for authentication.
-	configType      = "type"
-	configTypeValue = "service_account"
-
+	configBucket      = "bucket"
 	configPrivateKey  = "private_key"
 	configClientEmail = "client_email"
 	configTokenUri    = "token_uri"
+
+	// only the "service_account" authentication type for GCS is supported
+	authTypeKey   = "type"
+	authTypeValue = "service_account"
 )
 
 // gcsDownloaderFactory is the interface used create GCS downloaders
@@ -72,16 +71,15 @@ func (p gcsProvider) NewRepository(config pullman.Config, log logr.Logger) (pull
 	privateKey, _ := pullman.GetString(config, configPrivateKey)
 	clientEmail, _ := pullman.GetString(config, configClientEmail)
 
-	var creds map[string]string
-
 	// Check if one of private key or client email was specified but not the other.
 	if (privateKey == "") != (clientEmail == "") {
 		return nil, errors.New("both private key and client email must be specified for authentication")
 	}
 
+	var creds map[string]string
 	if privateKey != "" && clientEmail != "" {
 		creds = map[string]string{
-			configType:        configTypeValue,
+			authTypeKey:       authTypeValue,
 			configPrivateKey:  privateKey,
 			configClientEmail: clientEmail,
 		}

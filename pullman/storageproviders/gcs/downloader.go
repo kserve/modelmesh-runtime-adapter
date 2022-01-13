@@ -17,7 +17,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -44,7 +44,6 @@ func (f gcsClientFactory) newDownloader(log logr.Logger, credentials map[string]
 		}
 		cl, err = storage.NewClient(ctx, option.WithCredentialsJSON(credJson))
 	} else {
-		fmt.Println("creds are nil")
 		cl, err = storage.NewClient(ctx, option.WithoutAuthentication())
 	}
 
@@ -103,16 +102,9 @@ func (d *gcsImplDownloader) downloadBatch(ctx context.Context, bucket string, ta
 		}
 		defer reader.Close()
 
-		data, err := ioutil.ReadAll(reader)
-		if err != nil {
-			return fmt.Errorf("failed to read object(%s) in bucket(%s): %v", target.RemotePath, bucket, err)
-		}
-		_, err = file.Write(data)
-		defer file.Close()
-		if err != nil {
+		if _, err = io.Copy(file, reader); err != nil {
 			return fmt.Errorf("failed to write data to file(%s): from object(%s) in bucket(%s): %v",
-				file.Name(), target.RemotePath, bucket, err,
-			)
+				file.Name(), target.RemotePath, bucket, err)
 		}
 	}
 
