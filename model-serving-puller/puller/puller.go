@@ -130,7 +130,6 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	// if we still don't know the storage type, we cannot download the model, so return an error
 	storageType, ok := storageConfig[parameterKeyType].(string)
 	if !ok {
-		// return nil, fmt.Errorf("Unable to determine storage type. Either StorageKey must be set or StorageParameters must contain the 'type' parameter")
 		return nil, fmt.Errorf("Predictor Storage field missing")
 	}
 
