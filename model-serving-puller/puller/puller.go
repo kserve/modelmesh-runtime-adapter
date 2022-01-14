@@ -30,11 +30,19 @@ import (
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/s3"
 )
 
-const jsonAttrModelKeyStorageKey = "storage_key"
-const jsonAttrModelKeyBucket = "bucket"
-const jsonAttrModelKeyDiskSizeBytes = "disk_size_bytes"
-const jsonAttrModelSchemaPath = "schema_path"
-const jsonAttrStorageParams = "storage_params"
+const (
+	parameterKeyType  = "type"
+	defaultStorageKey = "default"
+)
+
+// JSON passed in ModelInfo.Key field of registration requests
+type ModelKeyInfo struct {
+	Bucket        string            `json:"bucket,omitempty"`
+	DiskSizeBytes int64             `json:"disk_size_bytes"`
+	SchemaPath    *string           `json:"schema_path,omitempty"`
+	StorageKey    *string           `json:"storage_key,omitempty"`
+	StorageParams map[string]string `json:"storage_params,omitempty"`
+}
 
 // Puller represents the GRPC server and its configuration
 type Puller struct {
@@ -79,45 +87,50 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 // - rewrite ModelKey["schema_path"] to a local filesystem path
 // - add the size of the model on disk to ModelKey["disk_size_bytes"]
 func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
-	var modelKey map[string]interface{}
+	var modelKey ModelKeyInfo
 	if parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey); parseErr != nil {
-		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. ModelKey value '%s' is not valid JSON: %s", req.ModelKey, parseErr)
+		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. Error processing JSON '%s': %w", req.ModelKey, parseErr)
 	}
-	schemaPath, ok := modelKey[jsonAttrModelSchemaPath].(string)
-	if !ok {
-		if modelKey[jsonAttrModelSchemaPath] != nil {
-			return nil, fmt.Errorf("Invalid schemaPath in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelSchemaPath, modelKey[jsonAttrModelSchemaPath])
+
+	var storageConfig map[string]interface{}
+	if modelKey.StorageKey == nil {
+		// if storageKey is unspecified, check for a default storage key in the storage config
+		storageType := modelKey.StorageParams[parameterKeyType]
+		var keyToCheck string
+		if storageType == "" {
+			keyToCheck = defaultStorageKey
+		} else {
+			keyToCheck = fmt.Sprintf("%s_%s", defaultStorageKey, storageType)
+		}
+
+		var err error
+		if storageConfig, err = s.PullerConfig.GetStorageConfiguration(keyToCheck, s.Log); err != nil {
+			// do not error here, try to load from the parameters only
+			storageConfig = map[string]interface{}{}
+		}
+	} else {
+		var err error
+		if storageConfig, err = s.PullerConfig.GetStorageConfiguration(*modelKey.StorageKey, s.Log); err != nil {
+			// if key was specified, but we could not find it, that is an error
+			return nil, fmt.Errorf("Did not find storage config for key %s: %w", *modelKey.StorageKey, err)
 		}
 	}
-	storageKey, ok := modelKey[jsonAttrModelKeyStorageKey].(string)
+
+	// DEPRECATED: allow top-level bucket key for backwards compatibility
+	if modelKey.Bucket != "" {
+		s.Log.Info(`Warning: use of ModelKey["bucket"] is deprecated, use ModelKey["storage_params"] instead`)
+		storageConfig["bucket"] = modelKey.Bucket
+	}
+
+	// override the storage configs with per-request storage parameters
+	if err := ApplyParameterOverrides(storageConfig, modelKey.StorageParams); err != nil {
+		return nil, fmt.Errorf("Unable to merge storage parameters from the storage config and the Predictor Storage field: %w", err)
+	}
+
+	// if we still don't know the storage type, we cannot download the model, so return an error
+	storageType, ok := storageConfig[parameterKeyType].(string)
 	if !ok {
 		return nil, fmt.Errorf("Predictor Storage field missing")
-	}
-
-	storageConfig, err := s.PullerConfig.GetStorageConfiguration(storageKey, s.Log)
-	if err != nil {
-		return nil, err
-	}
-
-	// override storage config with per-request parameters
-	//  check "storage_params" first, but also check the top-level "bucket" key if
-	//  "storage_params" doesn't exist for backwards compatibility
-	if storageParams, ok := modelKey[jsonAttrStorageParams].(map[string]interface{}); ok {
-		if bucketName, ok1 := storageParams[jsonAttrModelKeyBucket]; ok1 {
-			storageConfig.Set("bucket", bucketName)
-		}
-	} else if bucketName, ok := modelKey[jsonAttrModelKeyBucket]; ok {
-		// return error if key exists but it is not a string
-		if _, ok1 := bucketName.(string); !ok1 {
-			return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest, '%s' attribute must have a string value. Found value %v", jsonAttrModelKeyBucket, modelKey[jsonAttrModelKeyBucket])
-		} else {
-			storageConfig.Set("bucket", bucketName)
-		}
-	}
-
-	modelDir, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
-	if joinErr != nil {
-		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %v", s.PullerConfig.RootModelDir, req.ModelId, joinErr)
 	}
 
 	// build and execute the pull command
@@ -125,18 +138,23 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	// name the local files based on the last element of the paths
 	// TODO: should have some sanitization for filenames
 	modelPathFilename := filepath.Base(req.ModelPath)
-	schemaPathFilename := filepath.Base(schemaPath)
-	if modelPathFilename == schemaPathFilename {
-		schemaPathFilename = "_schema.json"
-	}
-
 	targets := []pullman.Target{
 		{
 			RemotePath: req.ModelPath,
 			LocalPath:  modelPathFilename,
 		},
 	}
-	if schemaPath != "" {
+
+	// if included, add the schema to the pull
+	var schemaPathFilename string
+	if modelKey.SchemaPath != nil {
+		schemaPath := *modelKey.SchemaPath
+		schemaPathFilename = filepath.Base(schemaPath)
+		// if the names match, generate an internal name
+		if modelPathFilename == schemaPathFilename {
+			schemaPathFilename = "_schema.json"
+		}
+
 		schemaTarget := pullman.Target{
 			RemotePath: schemaPath,
 			LocalPath:  schemaPathFilename,
@@ -144,8 +162,13 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 		targets = append(targets, schemaTarget)
 	}
 
+	modelDir, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
+	if joinErr != nil {
+		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %v", s.PullerConfig.RootModelDir, req.ModelId, joinErr)
+	}
+
 	pullCommand := pullman.PullCommand{
-		RepositoryConfig: storageConfig,
+		RepositoryConfig: pullman.NewRepositoryConfig(storageType, storageConfig),
 		Directory:        modelDir,
 		Targets:          targets,
 	}
@@ -162,19 +185,19 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	req.ModelPath = modelFullPath
 
 	// if it was included, update schema path to an absolute path in the local filesystem
-	if schemaPath != "" {
+	if modelKey.SchemaPath != nil {
 		schemaFullPath, joinErr := util.SecureJoin(modelDir, schemaPathFilename)
 		if joinErr != nil {
 			return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, schemaPathFilename, joinErr)
 		}
-		modelKey[jsonAttrModelSchemaPath] = schemaFullPath
+		modelKey.SchemaPath = &schemaFullPath
 	}
 
 	// update the model key to add the disk size
 	if size, err1 := getModelDiskSize(modelFullPath); err1 != nil {
 		s.Log.Info("Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey, "error", err1)
 	} else {
-		modelKey[jsonAttrModelKeyDiskSizeBytes] = size
+		modelKey.DiskSizeBytes = size
 	}
 
 	// rewrite the ModelKey JSON with any updates that have been made

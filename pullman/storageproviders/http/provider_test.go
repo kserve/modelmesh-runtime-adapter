@@ -92,7 +92,7 @@ func Test_Download_SimpleFile(t *testing.T) {
 	_, _, testRepo, mockClient, _ := newTestMocks(t)
 
 	testURL := "http://someurl:8080"
-	c := pullman.NewRepositoryConfig("http")
+	c := pullman.NewRepositoryConfig("http", nil)
 	c.Set("url", testURL)
 
 	downloadDir := filepath.Join("test", "output")
@@ -120,7 +120,7 @@ func Test_GetKey(t *testing.T) {
 	provider := httpProvider{}
 
 	createTestConfig := func() *pullman.RepositoryConfig {
-		config := pullman.NewRepositoryConfig("http")
+		config := pullman.NewRepositoryConfig("http", nil)
 		config.Set(configURL, "http://some.url")
 		config.Set(configHeaders, map[string]string{"header": "value"})
 		config.Set(configCertificate, "<certificate>")

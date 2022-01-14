@@ -49,7 +49,7 @@ func Test_UseTwoClients_WithCompatibleConfigs(t *testing.T) {
 	ckey := ""
 	msp.RegisterMockClient(ckey, mrc)
 
-	mrcConfig := NewRepositoryConfig(mockProviderType)
+	mrcConfig := NewRepositoryConfig(mockProviderType, nil)
 	mrcConfig.Set(mockConfigKey, ckey)
 
 	{
@@ -90,13 +90,13 @@ func Test_UseTwoClients_WithIncompatibleConfigs(t *testing.T) {
 	mrc1 := NewMockRepositoryClient(ctrl)
 	key1 := "first key"
 	msp.RegisterMockClient(key1, mrc1)
-	mrcConfig1 := NewRepositoryConfig(mockProviderType)
+	mrcConfig1 := NewRepositoryConfig(mockProviderType, nil)
 	mrcConfig1.Set(mockConfigKey, key1)
 
 	mrc2 := NewMockRepositoryClient(ctrl)
 	key2 := "second key"
 	msp.RegisterMockClient(key2, mrc2)
-	mrcConfig2 := NewRepositoryConfig(mockProviderType)
+	mrcConfig2 := NewRepositoryConfig(mockProviderType, nil)
 	mrcConfig2.Set(mockConfigKey, key2)
 
 	{
@@ -134,7 +134,7 @@ func Test_Errors_InvalidConfig(t *testing.T) {
 	mrc := NewMockRepositoryClient(ctrl)
 	key := ""
 	msp.RegisterMockClient(key, mrc)
-	mrcConfig := NewRepositoryConfig(mockProviderType)
+	mrcConfig := NewRepositoryConfig(mockProviderType, nil)
 	errString := "mock error for an invalid configuration"
 	mrcConfig.Set(mockConfigError, errors.New(errString))
 
