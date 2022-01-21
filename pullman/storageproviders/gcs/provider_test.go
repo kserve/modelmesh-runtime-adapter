@@ -48,7 +48,7 @@ func newGCSRepositoryClientWithMock(t *testing.T) (*gcsRepositoryClient, *Mockgc
 
 func Test_NewRepositoryWithCredentials(t *testing.T) {
 	g, mdf, log := newGCSProviderWithMocks(t)
-	c := pullman.NewRepositoryConfig("gs")
+	c := pullman.NewRepositoryConfig("gs", nil)
 
 	privateKey := "private key"
 	clientEmail := "client@email.com"
@@ -75,7 +75,7 @@ func Test_NewRepositoryWithCredentials(t *testing.T) {
 
 func Test_NewRepositoryNoCredentials(t *testing.T) {
 	g, mdf, log := newGCSProviderWithMocks(t)
-	c := pullman.NewRepositoryConfig("gs")
+	c := pullman.NewRepositoryConfig("gs", nil)
 	mdf.EXPECT().newDownloader(gomock.Any(), gomock.Nil()).Times(1)
 
 	_, err := g.NewRepository(c, log)
@@ -86,7 +86,7 @@ func Test_Download_SimpleDirectory(t *testing.T) {
 	gcsRc, mdf := newGCSRepositoryClientWithMock(t)
 
 	bucket := "bucket"
-	c := pullman.NewRepositoryConfig("gs")
+	c := pullman.NewRepositoryConfig("gs", nil)
 	c.Set("bucket", bucket)
 
 	downloadDir := filepath.Join("test", "output")
@@ -126,7 +126,7 @@ func Test_Download_MultipleTargets(t *testing.T) {
 	gcsRc, mdf := newGCSRepositoryClientWithMock(t)
 
 	bucket := "bucket"
-	c := pullman.NewRepositoryConfig("gs")
+	c := pullman.NewRepositoryConfig("gs", nil)
 	c.Set("bucket", bucket)
 
 	downloadDir := filepath.Join("test", "output")
@@ -218,7 +218,7 @@ func Test_GetKey(t *testing.T) {
 	provider := gcsProvider{}
 
 	createTestConfig := func() *pullman.RepositoryConfig {
-		config := pullman.NewRepositoryConfig("gs")
+		config := pullman.NewRepositoryConfig("gs", nil)
 		config.Set(configPrivateKey, "secret key")
 		config.Set(configClientEmail, "user@email.com")
 		return config

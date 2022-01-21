@@ -32,8 +32,9 @@ const (
 	configTokenUri    = "token_uri"
 
 	// only the "service_account" authentication type for GCS is supported
-	authTypeKey   = "type"
-	authTypeValue = "service_account"
+	authTypeKey         = "type"
+	authTypeValue       = "service_account"
+	downloadConcurrency = 10
 )
 
 // gcsDownloaderFactory is the interface used create GCS downloaders

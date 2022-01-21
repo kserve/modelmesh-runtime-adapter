@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/go-logr/logr"
@@ -60,6 +61,10 @@ func (f gcsClientFactory) newDownloader(log logr.Logger, credentials map[string]
 type gcsImplDownloader struct {
 	client *storage.Client
 	log    logr.Logger
+
+	wg  sync.WaitGroup
+	mu  sync.Mutex
+	err error
 }
 
 func (d *gcsImplDownloader) listObjects(ctx context.Context, bucket string, prefix string) ([]string, error) {
@@ -86,29 +91,68 @@ func (d *gcsImplDownloader) listObjects(ctx context.Context, bucket string, pref
 }
 
 func (d *gcsImplDownloader) downloadBatch(ctx context.Context, bucket string, targets []pullman.Target) error {
-
+	ch := make(chan pullman.Target, len(targets))
 	for _, target := range targets {
+		ch <- target
+	}
+
+	d.wg.Add(downloadConcurrency)
+	for i := 0; i < downloadConcurrency; i++ {
+		go func() {
+			defer d.wg.Done()
+			if err := d.downloadFileFromChannel(ctx, bucket, ch); err != nil {
+				d.setError(err)
+			}
+		}()
+	}
+
+	close(ch)
+	d.wg.Wait()
+
+	return d.err
+}
+
+func (d *gcsImplDownloader) downloadFileFromChannel(ctx context.Context, bucket string, ch chan pullman.Target) error {
+	for {
+		target, ok := <-ch
+		if !ok {
+			break
+		}
+
+		if d.getError() != nil {
+			// Empty the rest of the channel if there is an error.
+			continue
+		}
+
 		file, err := pullman.OpenFile(target.LocalPath)
 		if err != nil {
 			return fmt.Errorf("unable to open local file '%s' for writing: %w", target.LocalPath, err)
 		}
 		defer file.Close()
-
 		d.log.V(1).Info("downloading object", "path", target.RemotePath, "filename", target.LocalPath)
-
 		reader, err := d.client.Bucket(bucket).Object(target.RemotePath).NewReader(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create reader for object(%s) in bucket(%s): %v", target.RemotePath, bucket, err)
 		}
 		defer reader.Close()
-
 		if _, err = io.Copy(file, reader); err != nil {
 			return fmt.Errorf("failed to write data to file(%s): from object(%s) in bucket(%s): %v",
 				file.Name(), target.RemotePath, bucket, err)
 		}
 	}
-
 	return nil
+}
+
+func (d *gcsImplDownloader) getError() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.err
+}
+
+func (d *gcsImplDownloader) setError(err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.err = err
 }
 
 func (d *gcsImplDownloader) shouldIgnoreObject(object *storage.ObjectAttrs, prefix string) bool {
