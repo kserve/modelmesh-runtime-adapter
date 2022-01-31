@@ -32,9 +32,9 @@ const (
 	configTokenUri    = "token_uri"
 
 	// only the "service_account" authentication type for GCS is supported
-	authTypeKey         = "type"
-	authTypeValue       = "service_account"
-	downloadConcurrency = 10
+	authTypeKey            = "type"
+	authTypeValue          = "service_account"
+	maxDownloadConcurrency = 4
 )
 
 // gcsDownloaderFactory is the interface used create GCS downloaders
@@ -159,9 +159,8 @@ func (r *gcsRepositoryClient) Pull(ctx context.Context, pc pullman.PullCommand) 
 		}
 	}
 
-	downloadErr := r.gcsclient.downloadBatch(ctx, bucket, resolvedTargets)
-	if downloadErr != nil {
-		return fmt.Errorf("unable to download objects in bucket '%s': %w", bucket, downloadErr)
+	if err := r.gcsclient.downloadBatch(ctx, bucket, resolvedTargets); err != nil {
+		return fmt.Errorf("unable to download objects in bucket '%s': %w", bucket, err)
 	}
 
 	return nil
@@ -172,5 +171,5 @@ func init() {
 	p := gcsProvider{
 		gcsDownloaderFactory: gcsClientFactory{},
 	}
-	pullman.RegisterProvider("gs", p)
+	pullman.RegisterProvider("gcs", p)
 }

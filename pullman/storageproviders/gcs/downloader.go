@@ -33,6 +33,9 @@ type gcsClientFactory struct{}
 // gcsClientFactory implements gcsDownloaderFactory
 var _ gcsDownloaderFactory = (*gcsClientFactory)(nil)
 
+// gcsImplDownloader implements gcsDownloader
+var _ gcsDownloader = (*gcsImplDownloader)(nil)
+
 func (f gcsClientFactory) newDownloader(log logr.Logger, credentials map[string]string) (gcsDownloader, error) {
 	ctx := context.Background()
 	var cl *storage.Client
@@ -76,7 +79,7 @@ func (d *gcsImplDownloader) listObjects(ctx context.Context, bucket string, pref
 	for {
 		obj, err := it.Next()
 		if err == iterator.Done {
-			break
+			return objectPaths, nil
 		}
 		if err != nil {
 			return nil, fmt.Errorf("GCS listObjects: unable to list bucket %q: %v", bucket, err)
@@ -86,24 +89,28 @@ func (d *gcsImplDownloader) listObjects(ctx context.Context, bucket string, pref
 			objectPaths = append(objectPaths, obj.Name)
 		}
 	}
-	return objectPaths, nil
-
 }
 
 func (d *gcsImplDownloader) downloadBatch(ctx context.Context, bucket string, targets []pullman.Target) error {
-	ch := make(chan pullman.Target, len(targets))
-	for _, target := range targets {
-		ch <- target
+	ch := make(chan pullman.Target)
+
+	workerCount := maxDownloadConcurrency
+	if len(targets) < workerCount {
+		workerCount = len(targets)
 	}
 
-	d.wg.Add(downloadConcurrency)
-	for i := 0; i < downloadConcurrency; i++ {
+	d.wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
 		go func() {
 			defer d.wg.Done()
-			if err := d.downloadFileFromChannel(ctx, bucket, ch); err != nil {
+			if err := d.downloadFilesFromChannel(ctx, bucket, ch); err != nil {
 				d.setError(err)
 			}
 		}()
+	}
+
+	for _, target := range targets {
+		ch <- target
 	}
 
 	close(ch)
@@ -112,7 +119,7 @@ func (d *gcsImplDownloader) downloadBatch(ctx context.Context, bucket string, ta
 	return d.err
 }
 
-func (d *gcsImplDownloader) downloadFileFromChannel(ctx context.Context, bucket string, ch chan pullman.Target) error {
+func (d *gcsImplDownloader) downloadFilesFromChannel(ctx context.Context, bucket string, ch <-chan pullman.Target) error {
 	for {
 		target, ok := <-ch
 		if !ok {
