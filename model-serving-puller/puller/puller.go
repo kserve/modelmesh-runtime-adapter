@@ -27,6 +27,8 @@ import (
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"github.com/kserve/modelmesh-runtime-adapter/pullman"
+	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/gcs"
+	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/http"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/s3"
 )
 
