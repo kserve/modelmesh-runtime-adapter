@@ -39,6 +39,7 @@ const (
 
 // JSON passed in ModelInfo.Key field of registration requests
 type ModelKeyInfo struct {
+	ModelType     interface{}       `json:"model_type,omitempty"`
 	Bucket        string            `json:"bucket,omitempty"`
 	DiskSizeBytes int64             `json:"disk_size_bytes"`
 	SchemaPath    *string           `json:"schema_path,omitempty"`
@@ -119,8 +120,8 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 	}
 
 	// DEPRECATED: allow top-level bucket key for backwards compatibility
-	if modelKey.Bucket != "" {
-		s.Log.Info(`Warning: use of ModelKey["bucket"] is deprecated, use ModelKey["storage_params"] instead`)
+	if modelKey.Bucket != "" && storageConfig["bucket"] != nil {
+		s.Log.Info(`Warning: use of ModelKey["bucket"] is deprecated, use ModelKey["storage_params"]["bucket"] instead`)
 		storageConfig["bucket"] = modelKey.Bucket
 	}
 
@@ -197,15 +198,20 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 
 	// update the model key to add the disk size
 	if size, err1 := getModelDiskSize(modelFullPath); err1 != nil {
-		s.Log.Info("Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey, "error", err1)
+		s.Log.Error(nil, "Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey, "error", err1)
 	} else {
 		modelKey.DiskSizeBytes = size
 	}
 
+	// Clear storage parameters from the processed modelKey
+	modelKey.StorageKey = nil
+	modelKey.StorageParams = nil
+	modelKey.Bucket = ""
+
 	// rewrite the ModelKey JSON with any updates that have been made
 	modelKeyBytes, err := json.Marshal(modelKey)
 	if err != nil {
-		return nil, fmt.Errorf("Error serializing ModelKey back to JSON: %w", err)
+		return nil, fmt.Errorf("error serializing ModelKey back to JSON: %w", err)
 	}
 	req.ModelKey = string(modelKeyBytes)
 
