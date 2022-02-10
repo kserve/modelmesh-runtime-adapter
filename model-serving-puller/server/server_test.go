@@ -83,15 +83,15 @@ func TestLoadModel(t *testing.T) {
 			request := &mmesh.LoadModelRequest{
 				ModelId:   tt.modelID,
 				ModelPath: tt.inputModelPath,
-				ModelType: "tensorflow",
-				ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1"}`,
+				ModelType: "mt:tensorflow",
+				ModelKey:  `{"model_type": {"name": "tensorflow"}, "storage_key": "myStorage", "bucket": "bucket1"}`,
 			}
 
 			expectedRequestRewrite := &mmesh.LoadModelRequest{
 				ModelId:   tt.modelID,
 				ModelPath: filepath.Join(s.puller.PullerConfig.RootModelDir, tt.modelID, filepath.Base(tt.inputModelPath)),
-				ModelType: "tensorflow",
-				ModelKey:  `{"bucket":"bucket1","disk_size_bytes":60,"storage_key":"myStorage"}`,
+				ModelType: "mt:tensorflow",
+				ModelKey:  `{"model_type":{"name":"tensorflow"},"disk_size_bytes":60}`,
 			}
 
 			// Assert s.LoadModel calls the puller and then the model runtime LoadModel rpc
