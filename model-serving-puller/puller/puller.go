@@ -39,6 +39,7 @@ const (
 
 // JSON passed in ModelInfo.Key field of registration requests
 type ModelKeyInfo struct {
+	// Pass through model_type as-is (it's actually a json object hence interface{} type)
 	ModelType     interface{}       `json:"model_type,omitempty"`
 	Bucket        string            `json:"bucket,omitempty"`
 	DiskSizeBytes int64             `json:"disk_size_bytes"`
@@ -198,7 +199,7 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 
 	// update the model key to add the disk size
 	if size, err1 := getModelDiskSize(modelFullPath); err1 != nil {
-		s.Log.Error(nil, "Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey, "error", err1)
+		s.Log.Error(err1, "Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey)
 	} else {
 		modelKey.DiskSizeBytes = size
 	}

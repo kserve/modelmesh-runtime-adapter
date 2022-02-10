@@ -227,7 +227,7 @@ func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "testmodel",
 		ModelPath: "model.zip",
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"storage_key": "myStorage", "storage_params":{"bucket":"bucket1"}, "schema_path": "my_schema", "model_type": {"name": "tensorflow"}}`,
 	}
 
@@ -236,7 +236,7 @@ func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
 	expectedRequestRewrite := &mmesh.LoadModelRequest{
 		ModelId:   "testmodel",
 		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "testmodel", "model.zip"),
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  fmt.Sprintf(`{"model_type":{"name":"tensorflow"},"disk_size_bytes":0,"schema_path":"%s"}`, expectedSchemaPath),
 	}
 
@@ -313,14 +313,14 @@ func Test_ProcessLoadModelRequest_SuccessNoBucket(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: "model.zip",
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"storage_params":{}, "storage_key": "myStorage", "model_type": {"name": "tensorflow"}}`,
 	}
 
 	expectedRequestRewrite := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"model_type":{"name":"tensorflow"},"disk_size_bytes":60}`,
 	}
 
@@ -393,14 +393,14 @@ func Test_ProcessLoadModelRequest_SuccessStorageTypeOnly(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: "model.zip",
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"storage_params": {"type": "generic"}, "model_type": {"name": "tensorflow"}}`,
 	}
 
 	expectedRequestRewrite := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"model_type":{"name":"tensorflow"},"disk_size_bytes":60}`,
 	}
 
@@ -477,14 +477,14 @@ func Test_ProcessLoadModelRequest_DefaultStorageKeyTyped(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: "model.zip",
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"storage_params": {"type": "test-default-type"},"model_type":{"name": "tensorflow"}}`,
 	}
 
 	expectedRequestRewrite := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: filepath.Join(p.PullerConfig.RootModelDir, "singlefile", "model.zip"),
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"model_type":{"name":"tensorflow"},"disk_size_bytes":60}`,
 	}
 
@@ -553,7 +553,7 @@ func Test_ProcessLoadModelRequest_FailInvalidModelKey(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: "model.zip",
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{}{"model_type":{"name": "tensorflow"}}`,
 	}
 
@@ -584,7 +584,7 @@ func Test_ProcessLoadModelRequest_FailMissingStorageKeyAndType(t *testing.T) {
 	request := &mmesh.LoadModelRequest{
 		ModelId:   "singlefile",
 		ModelPath: "model.zip",
-		ModelType: "rt:tensorflow",
+		ModelType: "rt:triton",
 		ModelKey:  `{"model_type": {"name": "tensorflow"}}`,
 	}
 	expectedError := "Predictor Storage field missing"
