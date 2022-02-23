@@ -151,26 +151,26 @@ func (mm *OvmsModelManager) reloadConfig(ctx context.Context) error {
 	return nil
 }
 
-func (mm *OvmsModelManager) LoadModel(ctx context.Context, req *mmesh.LoadModelRequest) error {
+func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, modelId string) error {
 	mm.mux.Lock()
 	defer mm.mux.Unlock()
 
 	// BasePath must be a directory
 	var basePath string
-	if fileInfo, err := os.Stat(req.ModelPath); err == nil {
+	if fileInfo, err := os.Stat(modelPath); err == nil {
 		if fileInfo.IsDir() {
-			basePath = req.ModelPath
+			basePath = modelPath
 		} else {
-			basePath = filepath.Dir(req.ModelPath)
+			basePath = filepath.Dir(modelPath)
 		}
 	} else {
 		return fmt.Errorf("Could not stat file at the model_path: %w", err)
 
 	}
 
-	mm.loadedModelsMap[req.ModelId] = OvmsMultiModelConfigListEntry{
+	mm.loadedModelsMap[modelId] = OvmsMultiModelConfigListEntry{
 		Config: OvmsMultiModelModelConfig{
-			Name:     req.ModelId,
+			Name:     modelId,
 			BasePath: basePath,
 		},
 	}
@@ -242,7 +242,13 @@ func (s *OpenvinoAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %s", err)
 	}
 
-	loadErr := s.ModelManager.LoadModel(ctx, req)
+	adaptedModelPath, err := util.SecureJoin(s.AdapterConfig.RootModelDir, ovmsModelSubdir, req.ModelId)
+	if err != nil {
+		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "ovmsModelSubdir", ovmsModelSubdir, "modelID", req.ModelId)
+		return nil, err
+	}
+
+	loadErr := s.ModelManager.LoadModel(ctx, adaptedModelPath, req.ModelId)
 	if loadErr != nil {
 		log.Error(loadErr, "Openvino failed to load model")
 		return nil, status.Errorf(status.Code(loadErr), "Failed to load Model due to Openvino runtime error: %s", loadErr)
