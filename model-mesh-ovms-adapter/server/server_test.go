@@ -15,8 +15,10 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,15 +36,15 @@ import (
 )
 
 const testModelSizeMultiplier = 1.35
-const testOpenvinoContainerMemReqBytes = 6 * 1024 * 1024 * 1024 // 6GB
+const testOvmsContainerMemReqBytes = 6 * 1024 * 1024 * 1024 // 6GB
 const testAdapterPort = 8085
 
 var log = zap.New(zap.UseDevMode(true))
 var testdataDir = abs("testdata")
 var generatedTestdataDir = filepath.Join(testdataDir, "generated")
-var openvinoModelsDir = filepath.Join(generatedTestdataDir, openvinoModelSubdir)
+var ovmsModelsDir = filepath.Join(generatedTestdataDir, ovmsModelSubdir)
 
-var testModelConfigFile = filepath.Join(testdataDir, "model_config_list.json")
+var testModelConfigFile = filepath.Join(generatedTestdataDir, "model_config_list.json")
 
 func abs(path string) string {
 	a, err := filepath.Abs(path)
@@ -65,9 +67,12 @@ func StartProcess(args ...string) (p *os.Process, err error) {
 	return nil, err
 }
 
-var openvinoAdapter = flag.String("OpenvinoAdapter", "../main", "Executable for Openvino Adapter")
+var ovmsAdapter = flag.String("OvmsAdapter", "../main", "Executable for Openvino Model Server Adapter")
 
 func TestAdapter(t *testing.T) {
+	// ensure test dir exists
+	os.MkdirAll(generatedTestdataDir, 0755)
+
 	// Start the mock OVMS HTTP server
 	mockOVMS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "{}")
@@ -75,17 +80,17 @@ func TestAdapter(t *testing.T) {
 	defer mockOVMS.Close()
 
 	// Start the OVMS Adapter
-	os.Setenv(openvinoContainerMemReqBytes, fmt.Sprintf("%d", testOpenvinoContainerMemReqBytes))
+	os.Setenv(openvinoContainerMemReqBytes, fmt.Sprintf("%d", testOvmsContainerMemReqBytes))
 	os.Setenv(modelSizeMultiplier, fmt.Sprintf("%f", testModelSizeMultiplier))
 	os.Setenv(adapterPort, fmt.Sprintf("%d", testAdapterPort))
 	os.Setenv(runtimePort, strings.Split(mockOVMS.URL, ":")[2])
 	os.Setenv(modelConfigFile, testModelConfigFile)
 	os.Setenv(rootModelDir, testdataDir)
 
-	adapterProc, err := StartProcess(*openvinoAdapter)
+	adapterProc, err := StartProcess(*ovmsAdapter)
 
 	if err != nil {
-		t.Fatalf("Failed to start to Openvino Adapter:%s, error %v", *openvinoAdapter, err)
+		t.Fatalf("Failed to start to OVMS Adapter:%s, error %v", *ovmsAdapter, err)
 	}
 	go adapterProc.Wait()
 	defer adapterProc.Kill()
@@ -106,54 +111,62 @@ func TestAdapter(t *testing.T) {
 	mmeshCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp1, err := c.RuntimeStatus(mmeshCtx, &mmesh.RuntimeStatusRequest{})
+	statusResp, err := c.RuntimeStatus(mmeshCtx, &mmesh.RuntimeStatusRequest{})
 	if err != nil {
 		t.Fatalf("Failed to call MMesh: %v", err)
 	}
-	expectedCapacity := testOpenvinoContainerMemReqBytes - defaultOpenvinoMemBufferBytes
-	if resp1.CapacityInBytes != uint64(expectedCapacity) {
-		t.Errorf("Expected response's CapacityInBytes to be %d but found %d", expectedCapacity, resp1.CapacityInBytes)
+	expectedCapacity := testOvmsContainerMemReqBytes - defaultOpenvinoMemBufferBytes
+	if statusResp.CapacityInBytes != uint64(expectedCapacity) {
+		t.Errorf("Expected response's CapacityInBytes to be %d but found %d", expectedCapacity, statusResp.CapacityInBytes)
 	}
 
-	t.Logf("runtime status: %v", resp1)
+	t.Logf("runtime status: %v", statusResp)
 
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp2, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
-		ModelId:   "tfmnist",
+	openvinoModelId := "openvino-ir"
+	openvinoLoadResp, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
+		ModelId:   openvinoModelId,
 		ModelType: "rt:openvino",
-		ModelPath: filepath.Join(testdataDir, "tfmnist"),
-		ModelKey:  `{"model_type": "onnx"}`,
+		ModelPath: filepath.Join(testdataDir, "models", openvinoModelId),
+		ModelKey:  `{"model_type": "openvino"}`,
 	})
 
 	if err != nil {
 		t.Fatalf("Failed to call MMesh: %v", err)
 	}
-	if resp2.SizeInBytes != defaultModelSizeInBytes {
-		t.Errorf("Expected SizeInBytes to be the default %d but actual value was %d", defaultModelSizeInBytes, resp2.SizeInBytes)
+	if openvinoLoadResp.SizeInBytes != defaultModelSizeInBytes {
+		t.Errorf("Expected SizeInBytes to be the default %d but actual value was %d", defaultModelSizeInBytes, openvinoLoadResp.SizeInBytes)
 	}
 
-	modelDir := filepath.Join(testdataDir, openvinoModelSubdir, "tfmnist", "1", "model.onnx")
-	if exists, existsErr := util.FileExists(modelDir); !exists {
+	openvinoModelDir := filepath.Join(testdataDir, ovmsModelSubdir, openvinoModelId)
+	opnvinoModelFile := filepath.Join(openvinoModelDir, "1", "mapping-config.json")
+	if exists, existsErr := util.FileExists(opnvinoModelFile); !exists {
 		if existsErr != nil {
-			t.Errorf("Expected model dir %s to exists but got an error checking: %v", modelDir, existsErr)
+			t.Errorf("Expected model file %s to exists but got an error checking: %v", opnvinoModelFile, existsErr)
 		} else {
-			t.Errorf("Expected model dir %s to exist but it doesn't.", modelDir)
+			t.Errorf("Expected model file %s to exist but it doesn't.", opnvinoModelFile)
 		}
 	}
 
-	t.Logf("runtime status: Model loaded, %v", resp2)
+	if err := checkEntryExistsInModelConfig(openvinoModelId, openvinoModelDir); err != nil {
+		t.Errorf("checkEntryExistsInModelConfig: %v", err)
+	}
+
+	t.Logf("runtime status: Model loaded, %v", openvinoLoadResp)
 
 	// LoadModel with disk size and model type in model key
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp3, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
-		ModelId:   "tfmnist",
-		ModelPath: filepath.Join(testdataDir, "tfmnist"),
+	onnxModelId := "onnx-mnist"
+	onnxLoadResp, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
+		ModelId: onnxModelId,
+		// direct-to-file model path
+		ModelPath: filepath.Join(testdataDir, "models", onnxModelId, "mnist.onnx"),
 		ModelType: "invalid", // this will be ignored
-		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "disk_size_bytes": 54321, "model_type": {"name": "tensorflow", "version": "1.5"}}`,
+		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "disk_size_bytes": 54321, "model_type": {"name": "onnx", "version": "x.x"}}`,
 	})
 
 	if err != nil {
@@ -161,18 +174,27 @@ func TestAdapter(t *testing.T) {
 	}
 	expectedSizeFloat := 54321 * testModelSizeMultiplier
 	expectedSize := uint64(expectedSizeFloat)
-	if resp3.SizeInBytes != expectedSize {
-		t.Errorf("Expected SizeInBytes to be %d but actual value was %d", expectedSize, resp3.SizeInBytes)
+	if onnxLoadResp.SizeInBytes != expectedSize {
+		t.Errorf("Expected SizeInBytes to be %d but actual value was %d", expectedSize, onnxLoadResp.SizeInBytes)
 	}
 
-	t.Logf("runtime status: Model loaded, %v", resp3)
+	onnxModelDir := filepath.Join(testdataDir, ovmsModelSubdir, onnxModelId)
+	if err := checkEntryExistsInModelConfig(onnxModelId, onnxModelDir); err != nil {
+		t.Errorf("checkEntryExistsInModelConfig: %v", err)
+	}
+	// the previously loaded model should also still exist
+	if err := checkEntryExistsInModelConfig(openvinoModelId, openvinoModelDir); err != nil {
+		t.Errorf("checkEntryExistsInModelConfig: %v", err)
+	}
+
+	t.Logf("runtime status: Model loaded, %v", onnxLoadResp)
 
 	// UnloadModel
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	resp4, err := c.UnloadModel(mmeshCtx, &mmesh.UnloadModelRequest{
-		ModelId: "tfmnist",
+		ModelId: onnxModelId,
 	})
 
 	if err != nil {
@@ -181,11 +203,35 @@ func TestAdapter(t *testing.T) {
 
 	t.Logf("runtime status: Model unloaded, %v", resp4)
 
-	modelDir = filepath.Join(testdataDir, openvinoModelSubdir, "tfmnist")
-	exists, err := util.FileExists(modelDir)
-	if err != nil {
-		t.Errorf("Expected model dir %s to not exist but got an error checking: %v", modelDir, err)
-	} else if exists {
-		t.Errorf("Expected model dir %s to not exist but it does.", modelDir)
+	// the previously loaded model should also still exist
+	if err := checkEntryExistsInModelConfig(openvinoModelId, openvinoModelDir); err != nil {
+		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
+}
+
+func checkEntryExistsInModelConfig(modelid string, path string) error {
+	configBytes, err := ioutil.ReadFile(testModelConfigFile)
+	if err != nil {
+		return fmt.Errorf("Unable to read config file: %w", err)
+	}
+
+	var config OvmsMultiModelRepositoryConfig
+	if err := json.Unmarshal(configBytes, &config); err != nil {
+		return fmt.Errorf("Unable to read config file: %w", err)
+	}
+
+	entryFound := false
+	for _, entry := range config.ModelConfigList {
+		if entry.Config.Name == modelid &&
+			entry.Config.BasePath == path {
+			entryFound = true
+			break
+		}
+	}
+
+	if !entryFound {
+		return fmt.Errorf("Could not find model '%s' in config '%s'", modelid, string(configBytes))
+	}
+
+	return nil
 }
