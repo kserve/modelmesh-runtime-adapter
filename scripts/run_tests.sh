@@ -17,6 +17,7 @@ set -e
 
 ## declare an array variable
 declare -a subpackages=("model-mesh-mlserver-adapter"
+                        "model-mesh-ovms-adapter"
                         "model-mesh-triton-adapter"
                         "model-serving-puller"
                         "pullman")
