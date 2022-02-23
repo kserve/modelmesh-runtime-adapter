@@ -31,17 +31,17 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 	// convert to lower case and remove anything after the :
 	modelType = strings.ToLower(strings.Split(modelType, ":")[0])
 
-	openvinoModelIDDir, err := util.SecureJoin(rootModelDir, openvinoModelSubdir, modelID)
+	ovmsModelIDDir, err := util.SecureJoin(rootModelDir, ovmsModelSubdir, modelID)
 	if err != nil {
-		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "openvinoModelSubdir", openvinoModelSubdir, "modelID", modelID)
+		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "ovmsModelSubdir", ovmsModelSubdir, "modelID", modelID)
 		return err
 	}
 	// clean up and then create directory where the rewritten model repo will live
-	if removeErr := os.RemoveAll(openvinoModelIDDir); removeErr != nil {
-		log.Info("Ignoring error trying to remove dir", "Directory", openvinoModelIDDir, "Error", removeErr)
+	if removeErr := os.RemoveAll(ovmsModelIDDir); removeErr != nil {
+		log.Info("Ignoring error trying to remove dir", "Directory", ovmsModelIDDir, "Error", removeErr)
 	}
-	if mkdirErr := os.MkdirAll(openvinoModelIDDir, 0755); mkdirErr != nil {
-		return fmt.Errorf("Error creating directories for path %s: %w", openvinoModelIDDir, mkdirErr)
+	if mkdirErr := os.MkdirAll(ovmsModelIDDir, 0755); mkdirErr != nil {
+		return fmt.Errorf("Error creating directories for path %s: %w", ovmsModelIDDir, mkdirErr)
 	}
 
 	modelPathInfo, err := os.Stat(modelPath)
@@ -51,13 +51,13 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 
 	if !modelPathInfo.IsDir() {
 		// simple case if ModelPath points to a file, assume ONNX formatted model
-		err = createOpenvinoModelRepositoryFromPath(modelPath, "1", schemaPath, modelType, openvinoModelIDDir, log)
+		err = createOvmsModelRepositoryFromPath(modelPath, "1", schemaPath, modelType, ovmsModelIDDir, log)
 	} else {
 		files, err1 := ioutil.ReadDir(modelPath)
 		if err1 != nil {
 			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err1)
 		}
-		err = createOpenvinoModelRepositoryFromDirectory(files, modelPath, schemaPath, modelType, openvinoModelIDDir, log)
+		err = createOvmsModelRepositoryFromDirectory(files, modelPath, schemaPath, modelType, ovmsModelIDDir, log)
 	}
 	if err != nil {
 		return fmt.Errorf("Error processing model/schema files for model %s: %w", modelID, err)
@@ -66,9 +66,9 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 	return nil
 }
 
-// Creates the openvino model structure /models/_openvino_models/model-id/1/<model files>
+// Creates the ovms model structure /models/_ovms_models/model-id/1/<model files>
 // Within this path there will be a symlink back to the original /models/model-id directory tree.
-func createOpenvinoModelRepositoryFromDirectory(files []os.FileInfo, modelPath, schemaPath, modelType, openvinoModelIDDir string, log logr.Logger) error {
+func createOvmsModelRepositoryFromDirectory(files []os.FileInfo, modelPath, schemaPath, modelType, ovmsModelIDDir string, log logr.Logger) error {
 	var err error
 
 	// allow the directory to contain version directories
@@ -88,10 +88,10 @@ func createOpenvinoModelRepositoryFromDirectory(files []os.FileInfo, modelPath, 
 		versionNumber = "1"
 	}
 
-	return createOpenvinoModelRepositoryFromPath(modelPath, versionNumber, schemaPath, modelType, openvinoModelIDDir, log)
+	return createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, modelType, ovmsModelIDDir, log)
 }
 
-func createOpenvinoModelRepositoryFromPath(modelPath, versionNumber, schemaPath, modelType, openvinoModelIDDir string, log logr.Logger) error {
+func createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, modelType, ovmsModelIDDir string, log logr.Logger) error {
 	var err error
 
 	modelPathInfo, err := os.Stat(modelPath)
@@ -108,7 +108,7 @@ func createOpenvinoModelRepositoryFromPath(modelPath, versionNumber, schemaPath,
 			return fmt.Errorf("Error joining link path: %w", err)
 		}
 	}
-	if linkPath, err = util.SecureJoin(openvinoModelIDDir, linkPath); err != nil {
+	if linkPath, err = util.SecureJoin(ovmsModelIDDir, linkPath); err != nil {
 		return fmt.Errorf("Error joining link path: %w", err)
 	}
 

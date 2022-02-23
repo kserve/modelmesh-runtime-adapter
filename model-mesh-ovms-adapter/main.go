@@ -35,21 +35,19 @@ func main() {
 	}
 	log.Info("Starting OpenVINO Adapter Server", "adapter_config", adapterConfig)
 
-	TAServer := server.NewOpenVinoAdapterServer(adapterConfig.OpenVinoPort, adapterConfig, log)
+	server := server.NewOvmsAdapterServer(adapterConfig.OvmsPort, adapterConfig, log)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", adapterConfig.Port))
 	if err != nil {
 		log.Error(err, "*** Adapter failed to listen port")
 		os.Exit(1)
 	}
+	log.Info("Adapter will run at port", "port", adapterConfig.Port, "OpenVINO port", adapterConfig.OvmsPort)
 
-	log.Info("Adapter will run at port", "port", adapterConfig.Port, "OpenVINO port", adapterConfig.OpenVinoPort)
-
-	var opts []grpc.ServerOption
-
+	grpcServer := grpc.NewServer()
+	mmesh.RegisterModelRuntimeServer(grpcServer, server)
 	log.Info("Adapter gRPC Server Registered...")
-	grpcServer := grpc.NewServer(opts...)
-	mmesh.RegisterModelRuntimeServer(grpcServer, TAServer)
+
 	err = grpcServer.Serve(lis)
 
 	if err != nil {

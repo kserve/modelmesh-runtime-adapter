@@ -80,7 +80,7 @@ func TestAdapter(t *testing.T) {
 	defer mockOVMS.Close()
 
 	// Start the OVMS Adapter
-	os.Setenv(openvinoContainerMemReqBytes, fmt.Sprintf("%d", testOvmsContainerMemReqBytes))
+	os.Setenv(ovmsContainerMemReqBytes, fmt.Sprintf("%d", testOvmsContainerMemReqBytes))
 	os.Setenv(modelSizeMultiplier, fmt.Sprintf("%f", testModelSizeMultiplier))
 	os.Setenv(adapterPort, fmt.Sprintf("%d", testAdapterPort))
 	os.Setenv(runtimePort, strings.Split(mockOVMS.URL, ":")[2])
@@ -115,7 +115,7 @@ func TestAdapter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to call MMesh: %v", err)
 	}
-	expectedCapacity := testOvmsContainerMemReqBytes - defaultOpenvinoMemBufferBytes
+	expectedCapacity := testOvmsContainerMemReqBytes - defaultOvmsMemBufferBytes
 	if statusResp.CapacityInBytes != uint64(expectedCapacity) {
 		t.Errorf("Expected response's CapacityInBytes to be %d but found %d", expectedCapacity, statusResp.CapacityInBytes)
 	}

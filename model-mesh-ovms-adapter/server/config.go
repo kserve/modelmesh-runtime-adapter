@@ -22,41 +22,41 @@ import (
 )
 
 const (
-	adapterPort                         string = "ADAPTER_PORT"
-	defaultAdapterPort                         = 8085
-	runtimePort                         string = "RUNTIME_PORT"
-	defaultRuntimePort                         = 8001
-	openvinoContainerMemReqBytes        string = "CONTAINER_MEM_REQ_BYTES"
-	defaultOpenvinoContainerMemReqBytes        = -1
-	openvinoMemBufferBytes              string = "MEM_BUFFER_BYTES"
-	defaultOpenvinoMemBufferBytes              = 256 * 1024 * 1024 // 256MB
-	maxLoadingConcurrency               string = "LOADING_CONCURRENCY"
-	defaultMaxLoadingConcurrency               = 1
-	maxLoadingTimeoutMs                 string = "LOADTIME_TIMEOUT"
-	defaultMaxLoadingTimeoutMs                 = 30000
-	defaultModelSize                    string = "DEFAULT_MODELSIZE"
-	defaultModelSizeInBytes                    = 1000000
-	modelSizeMultiplier                 string = "MODELSIZE_MULTIPLIER"
-	defaultModelSizeMultiplier                 = 1.25
-	runtimeVersion                      string = "RUNTIME_VERSION"
-	defaultRuntimeVersion                      = "TODO"
-	limitPerModelConcurrency            string = "LIMIT_PER_MODEL_CONCURRENCY"
-	defaultLimitPerModelConcurrency            = 0 // 0 means don't limit request concurrency
-	rootModelDir                        string = "ROOT_MODEL_DIR"
-	defaultRootModelDir                        = "/models"
-	modelConfigFile                     string = "MODEL_CONFIG_FILE"
-	defaultModelConfigFile                     = "/models/model_config_list.json"
-	useEmbeddedPuller                   string = "USE_EMBEDDED_PULLER"
-	defaultUseEmbeddedPuller                   = false
+	adapterPort                     string = "ADAPTER_PORT"
+	defaultAdapterPort                     = 8085
+	runtimePort                     string = "RUNTIME_PORT"
+	defaultRuntimePort                     = 8001
+	ovmsContainerMemReqBytes        string = "CONTAINER_MEM_REQ_BYTES"
+	defaultOvmsContainerMemReqBytes        = -1
+	ovmsMemBufferBytes              string = "MEM_BUFFER_BYTES"
+	defaultOvmsMemBufferBytes              = 256 * 1024 * 1024 // 256MB
+	maxLoadingConcurrency           string = "LOADING_CONCURRENCY"
+	defaultMaxLoadingConcurrency           = 1
+	maxLoadingTimeoutMs             string = "LOADTIME_TIMEOUT"
+	defaultMaxLoadingTimeoutMs             = 30000
+	defaultModelSize                string = "DEFAULT_MODELSIZE"
+	defaultModelSizeInBytes                = 1000000
+	modelSizeMultiplier             string = "MODELSIZE_MULTIPLIER"
+	defaultModelSizeMultiplier             = 1.25
+	runtimeVersion                  string = "RUNTIME_VERSION"
+	defaultRuntimeVersion                  = "TODO"
+	limitPerModelConcurrency        string = "LIMIT_PER_MODEL_CONCURRENCY"
+	defaultLimitPerModelConcurrency        = 0 // 0 means don't limit request concurrency
+	rootModelDir                    string = "ROOT_MODEL_DIR"
+	defaultRootModelDir                    = "/models"
+	modelConfigFile                 string = "MODEL_CONFIG_FILE"
+	defaultModelConfigFile                 = "/models/model_config_list.json"
+	useEmbeddedPuller               string = "USE_EMBEDDED_PULLER"
+	defaultUseEmbeddedPuller               = false
 )
 
 func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, error) {
 	adapterConfig := new(AdapterConfiguration)
 	adapterConfig.Port = GetEnvInt(adapterPort, defaultAdapterPort, log)
-	adapterConfig.OpenVinoPort = GetEnvInt(runtimePort, defaultRuntimePort, log)
-	adapterConfig.OpenvinoContainerMemReqBytes = GetEnvInt(openvinoContainerMemReqBytes, defaultOpenvinoContainerMemReqBytes, log)
-	adapterConfig.OpenvinoMemBufferBytes = GetEnvInt(openvinoMemBufferBytes, defaultOpenvinoMemBufferBytes, log)
-	adapterConfig.CapacityInBytes = adapterConfig.OpenvinoContainerMemReqBytes - adapterConfig.OpenvinoMemBufferBytes
+	adapterConfig.OvmsPort = GetEnvInt(runtimePort, defaultRuntimePort, log)
+	adapterConfig.OvmsContainerMemReqBytes = GetEnvInt(ovmsContainerMemReqBytes, defaultOvmsContainerMemReqBytes, log)
+	adapterConfig.OvmsMemBufferBytes = GetEnvInt(ovmsMemBufferBytes, defaultOvmsMemBufferBytes, log)
+	adapterConfig.CapacityInBytes = adapterConfig.OvmsContainerMemReqBytes - adapterConfig.OvmsMemBufferBytes
 	adapterConfig.MaxLoadingConcurrency = GetEnvInt(maxLoadingConcurrency, defaultMaxLoadingConcurrency, log)
 	adapterConfig.ModelLoadingTimeoutMS = GetEnvInt(maxLoadingTimeoutMs, defaultMaxLoadingTimeoutMs, log)
 	adapterConfig.DefaultModelSizeInBytes = GetEnvInt(defaultModelSize, defaultModelSizeInBytes, log)
@@ -67,8 +67,8 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.ModelConfigFile = GetEnvString(modelConfigFile, defaultModelConfigFile)
 	adapterConfig.UseEmbeddedPuller = GetEnvBool(useEmbeddedPuller, defaultUseEmbeddedPuller, log)
 
-	if adapterConfig.OpenvinoContainerMemReqBytes < 0 {
-		return adapterConfig, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", openvinoContainerMemReqBytes, adapterConfig.OpenvinoContainerMemReqBytes)
+	if adapterConfig.OvmsContainerMemReqBytes < 0 {
+		return adapterConfig, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", ovmsContainerMemReqBytes, adapterConfig.OvmsContainerMemReqBytes)
 	}
 	if adapterConfig.ModelSizeMultiplier <= 0 {
 		return adapterConfig, fmt.Errorf("%s environment variable must be greater than 0, found value %v", modelSizeMultiplier, adapterConfig.ModelSizeMultiplier)

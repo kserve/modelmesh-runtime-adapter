@@ -35,23 +35,23 @@ import (
 )
 
 type AdapterConfiguration struct {
-	Port                         int
-	OpenVinoPort                 int
-	OpenvinoContainerMemReqBytes int
-	OpenvinoMemBufferBytes       int
-	CapacityInBytes              int
-	MaxLoadingConcurrency        int
-	ModelLoadingTimeoutMS        int
-	DefaultModelSizeInBytes      int
-	ModelSizeMultiplier          float64
-	RuntimeVersion               string
-	LimitModelConcurrency        int // 0 means no limit (default)
-	RootModelDir                 string
-	ModelConfigFile              string
-	UseEmbeddedPuller            bool
+	Port                     int
+	OvmsPort                 int
+	OvmsContainerMemReqBytes int
+	OvmsMemBufferBytes       int
+	CapacityInBytes          int
+	MaxLoadingConcurrency    int
+	ModelLoadingTimeoutMS    int
+	DefaultModelSizeInBytes  int
+	ModelSizeMultiplier      float64
+	RuntimeVersion           string
+	LimitModelConcurrency    int // 0 means no limit (default)
+	RootModelDir             string
+	ModelConfigFile          string
+	UseEmbeddedPuller        bool
 }
 
-type OpenvinoAdapterServer struct {
+type OvmsAdapterServer struct {
 	ModelManager  *OvmsModelManager
 	Puller        *puller.Puller
 	AdapterConfig *AdapterConfiguration
@@ -196,7 +196,7 @@ func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, mod
 	return nil
 }
 
-func (mm *OvmsModelManager) UnoadModel(ctx context.Context, modelId string) error {
+func (mm *OvmsModelManager) UnloadModel(ctx context.Context, modelId string) error {
 	mm.mux.Lock()
 	defer mm.mux.Unlock()
 
@@ -209,14 +209,14 @@ func (mm *OvmsModelManager) UnoadModel(ctx context.Context, modelId string) erro
 	return nil
 }
 
-func NewOpenVinoAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *OpenvinoAdapterServer {
-	log = log.WithName("Openvino Adapter Server")
-	log.Info("Connecting to Openvino...", "port", runtimePort)
+func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *OvmsAdapterServer {
+	log = log.WithName("Openvino Model Server Adapter Server")
+	log.Info("Connecting to Openvino Model Server...", "port", runtimePort)
 
-	s := new(OpenvinoAdapterServer)
+	s := new(OvmsAdapterServer)
 	s.Log = log
 	s.AdapterConfig = config
-	s.ModelManager = NewOvmsModelManager(fmt.Sprintf("http://localhost:%d", config.OpenVinoPort), config.ModelConfigFile, log)
+	s.ModelManager = NewOvmsModelManager(fmt.Sprintf("http://localhost:%d", config.OvmsPort), config.ModelConfigFile, log)
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// puller is configured from its own env vars
@@ -224,12 +224,12 @@ func NewOpenVinoAdapterServer(runtimePort int, config *AdapterConfiguration, log
 	}
 
 	// TODO: send simple request to test connection at boot
-	// log.Info("Openvino Runtime connected!")
+	// log.Info("OVMS Runtime connected!")
 
 	return s
 }
 
-func (s *OpenvinoAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelResponse, error) {
+func (s *OvmsAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelResponse, error) {
 	log := s.Log.WithName("Load Model").WithValues("model_id", req.ModelId)
 	modelType := util.GetModelType(req, log)
 	log.Info("Using model type", "model_type", modelType)
@@ -264,13 +264,13 @@ func (s *OpenvinoAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 
 	loadErr := s.ModelManager.LoadModel(ctx, adaptedModelPath, req.ModelId)
 	if loadErr != nil {
-		log.Error(loadErr, "Openvino failed to load model")
-		return nil, status.Errorf(status.Code(loadErr), "Failed to load Model due to Openvino runtime error: %s", loadErr)
+		log.Error(loadErr, "OVMS failed to load model")
+		return nil, status.Errorf(status.Code(loadErr), "Failed to load Model due to OVMS runtime error: %s", loadErr)
 	}
 
 	size := util.CalcMemCapacity(req.ModelKey, s.AdapterConfig.DefaultModelSizeInBytes, s.AdapterConfig.ModelSizeMultiplier, log)
 
-	log.Info("Openvino model loaded")
+	log.Info("OVMS model loaded")
 
 	return &mmesh.LoadModelResponse{
 		SizeInBytes:    size,
@@ -278,28 +278,28 @@ func (s *OpenvinoAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 	}, nil
 }
 
-func (s *OpenvinoAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
-	unloadErr := s.ModelManager.UnoadModel(ctx, req.ModelId)
+func (s *OvmsAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
+	unloadErr := s.ModelManager.UnloadModel(ctx, req.ModelId)
 	if unloadErr != nil {
-		// check if we got a gRPC error as a response that indicates that Openvino
+		// check if we got a gRPC error as a response that indicates that OVMS
 		// does not have the model registered. In that case we still want to proceed
 		// with removing the model files.
 		if grpcStatus, ok := status.FromError(unloadErr); ok && grpcStatus.Code() == codes.NotFound {
-			s.Log.Info("Unload request for model not found in Openvino", "error", unloadErr, "model_id", req.ModelId)
+			s.Log.Info("Unload request for model not found in OVMS", "error", unloadErr, "model_id", req.ModelId)
 		} else {
-			s.Log.Error(unloadErr, "Failed to unload model from Openvino", "model_id", req.ModelId)
-			return nil, status.Errorf(status.Code(unloadErr), "Failed to unload model from Openvino")
+			s.Log.Error(unloadErr, "Failed to unload model from OVMS", "model_id", req.ModelId)
+			return nil, status.Errorf(status.Code(unloadErr), "Failed to unload model from OVMS")
 		}
 	}
 
-	openvinoModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, openvinoModelSubdir, req.ModelId)
+	ovmsModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, ovmsModelSubdir, req.ModelId)
 	if err != nil {
-		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "openvinoModelSubdir", openvinoModelSubdir, "modelId", req.ModelId)
+		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "ovmsModelSubdir", ovmsModelSubdir, "modelId", req.ModelId)
 		return nil, err
 	}
-	err = os.RemoveAll(openvinoModelIDDir)
+	err = os.RemoveAll(ovmsModelIDDir)
 	if err != nil {
-		return nil, status.Errorf(status.Code(err), "Error while deleting the %s dir: %v", openvinoModelIDDir, err)
+		return nil, status.Errorf(status.Code(err), "Error while deleting the %s dir: %v", ovmsModelIDDir, err)
 	}
 
 	if s.AdapterConfig.UseEmbeddedPuller {
@@ -314,24 +314,24 @@ func (s *OpenvinoAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unlo
 }
 
 //TODO: this implementation need to be reworked
-func (s *OpenvinoAdapterServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
+func (s *OvmsAdapterServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
 	size := s.AdapterConfig.DefaultModelSizeInBytes
 	return &mmesh.PredictModelSizeResponse{SizeInBytes: uint64(size)}, nil
 }
 
-func (s *OpenvinoAdapterServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
+func (s *OvmsAdapterServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
 	size := s.AdapterConfig.DefaultModelSizeInBytes // TODO find out size
 
 	return &mmesh.ModelSizeResponse{SizeInBytes: uint64(size)}, nil
 }
 
-func (s *OpenvinoAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
+func (s *OvmsAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
 	log := s.Log
 	runtimeStatus := new(mmesh.RuntimeStatusResponse)
 
-	_, openvinoErr := s.ModelManager.GetConfig(ctx)
-	if openvinoErr != nil {
-		log.Info("Failed to ping OVMS", "error", openvinoErr)
+	_, ovmsErr := s.ModelManager.GetConfig(ctx)
+	if ovmsErr != nil {
+		log.Info("Failed to ping OVMS", "error", ovmsErr)
 		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		return runtimeStatus, nil
 	}
@@ -340,7 +340,7 @@ func (s *OpenvinoAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 	unloadErr := s.ModelManager.UnloadAll()
 	if unloadErr != nil {
 		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
-		log.Info("Unloading all OpenVINO models failed", "error", unloadErr)
+		log.Info("Unloading all OVMS models failed", "error", unloadErr)
 		return runtimeStatus, nil
 	}
 
@@ -352,7 +352,7 @@ func (s *OpenvinoAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 	runtimeStatus.RuntimeVersion = s.AdapterConfig.RuntimeVersion
 	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency > 0
 
-	// OpenVINO only supports the Predict API currently
+	// OVMS only supports the Predict API currently
 	path_1_1 := []uint32{1, 1} // PredictRequest[model_spec][name]
 	mis := make(map[string]*mmesh.RuntimeStatusResponse_MethodInfo)
 	mis["tensorflow.serving.PredictionService/Predict"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path_1_1}

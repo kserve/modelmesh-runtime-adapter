@@ -43,7 +43,7 @@ func (tt adaptModelLayoutTestCase) getSourceDir() string {
 }
 
 func (tt adaptModelLayoutTestCase) getTargetDir() string {
-	return filepath.Join(openvinoModelsDir, tt.ModelID)
+	return filepath.Join(ovmsModelsDir, tt.ModelID)
 }
 
 func (tt adaptModelLayoutTestCase) generateSourceDirectory(t *testing.T) {
@@ -122,8 +122,7 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 
 func TestAdaptModelLayoutForRuntime_Multiple(t *testing.T) {
 	// cleanup the entire generated testdata dir now instead of before each
-	// test case so we make sure the function works with existing models in
-	// the openvino dir
+	// test case so we make sure the function works with existing models
 	err := os.RemoveAll(generatedTestdataDir)
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
