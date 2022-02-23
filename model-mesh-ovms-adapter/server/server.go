@@ -61,17 +61,19 @@ type OpenvinoAdapterServer struct {
 type OvmsModelManager struct {
 	address             string
 	modelConfigFilename string
+	log                 logr.Logger
 
 	loadedModelsMap map[string]OvmsMultiModelConfigListEntry
 	client          *http.Client
 	mux             sync.Mutex
 }
 
-func NewOvmsModelManager(address string, configFilename string) *OvmsModelManager {
+func NewOvmsModelManager(address string, configFilename string, log logr.Logger) *OvmsModelManager {
 
 	ovmsMM := &OvmsModelManager{
 		address:             address,
 		modelConfigFilename: configFilename,
+		log:                 log,
 		// TODO: On boot, should construct Multi-Model config from on-disk files in case the adapter crashes
 		loadedModelsMap: map[string]OvmsMultiModelConfigListEntry{},
 		client: &http.Client{
@@ -84,7 +86,12 @@ func NewOvmsModelManager(address string, configFilename string) *OvmsModelManage
 		},
 	}
 
-	// write the config out on boot since OVMS needs it to exist
+	// write the config out on boot because OVMS needs it to exist
+	if _, err := os.Stat(configFilename); os.IsNotExist(err) {
+		if err = ovmsMM.writeConfig(); err != nil {
+			log.Error(err, "Unable to write out empty config file")
+		}
+	}
 
 	return ovmsMM
 }
@@ -110,12 +117,7 @@ func (mm *OvmsModelManager) GetConfig(ctx context.Context) (interface{}, error) 
 
 	return nil, nil
 }
-
-// reloadConfig triggers OVMS to reload
-// An error is returned if:
-// - the config fails the schema check
-// - if ANY of the configured models fail to load
-func (mm *OvmsModelManager) reloadConfig(ctx context.Context) error {
+func (mm *OvmsModelManager) writeConfig() error {
 	// NB: assumes mutex is locked!
 
 	// Build the model reposritory config to be written out
@@ -136,6 +138,18 @@ func (mm *OvmsModelManager) reloadConfig(ctx context.Context) error {
 	if err = ioutil.WriteFile(mm.modelConfigFilename, modelRepositoryConfigJSON, 0644); err != nil {
 		return fmt.Errorf("Error writing config file: %w", err)
 	}
+
+	return nil
+}
+
+// reloadConfig triggers OVMS to reload
+// An error is returned if:
+// - the config fails the schema check
+// - if ANY of the configured models fail to load
+func (mm *OvmsModelManager) reloadConfig(ctx context.Context) error {
+	// NB: assumes mutex is locked!
+
+	mm.writeConfig()
 
 	// Send config reload request to OVMS
 	resp, err := mm.client.Post(fmt.Sprintf("%s/v1/config/reload", mm.address), "", nil)
@@ -202,7 +216,7 @@ func NewOpenVinoAdapterServer(runtimePort int, config *AdapterConfiguration, log
 	s := new(OpenvinoAdapterServer)
 	s.Log = log
 	s.AdapterConfig = config
-	s.ModelManager = NewOvmsModelManager(fmt.Sprintf("http://localhost:%d", config.OpenVinoPort), config.ModelConfigFile)
+	s.ModelManager = NewOvmsModelManager(fmt.Sprintf("http://localhost:%d", config.OpenVinoPort), config.ModelConfigFile, log)
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// puller is configured from its own env vars
