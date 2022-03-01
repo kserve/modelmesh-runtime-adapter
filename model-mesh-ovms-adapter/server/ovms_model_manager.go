@@ -16,6 +16,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -40,12 +41,29 @@ type OvmsModelManager struct {
 
 func NewOvmsModelManager(address string, configFilename string, log logr.Logger) *OvmsModelManager {
 
+	// load initial config from disk, if it exists
+	// this handles the case where the adapter container crashes
+	multiModelConfig := map[string]OvmsMultiModelConfigListEntry{}
+	if configBytes, err := os.ReadFile(configFilename); err != nil && !errors.Is(err, os.ErrNotExist) {
+		// if there is any error in initialization from an existing file, just continue with an empty config
+		log.Error(err, "WARNING: could not initialize model config from file, will contine with empty config", "filename", configFilename)
+	} else {
+		var modelRepositoryConfig OvmsMultiModelRepositoryConfig
+		if err := json.Unmarshal(configBytes, &modelRepositoryConfig); err != nil {
+			log.Error(err, "WARNING: could not parse model repository JSON, will contine with empty config", "filename", configFilename)
+		} else {
+			multiModelConfig = make(map[string]OvmsMultiModelConfigListEntry, len(modelRepositoryConfig.ModelConfigList))
+			for _, mc := range modelRepositoryConfig.ModelConfigList {
+				multiModelConfig[mc.Config.Name] = mc
+			}
+		}
+	}
+
 	ovmsMM := &OvmsModelManager{
 		address:             address,
 		modelConfigFilename: configFilename,
 		log:                 log,
-		// TODO: On boot, should construct Multi-Model config from on-disk files in case the adapter crashes
-		loadedModelsMap: map[string]OvmsMultiModelConfigListEntry{},
+		loadedModelsMap:     multiModelConfig,
 		client: &http.Client{
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
