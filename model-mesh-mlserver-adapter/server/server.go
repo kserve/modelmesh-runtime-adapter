@@ -39,7 +39,6 @@ import (
 
 const (
 	mlserverServiceName              string = "inference.GRPCInferenceService"
-	diskSizeBytesJSONKey             string = "disk_size_bytes"
 	mlserverModelSubdir              string = "_mlserver_models"
 	mlserverRepositoryConfigFilename string = "model-settings.json"
 )

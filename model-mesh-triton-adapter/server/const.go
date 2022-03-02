@@ -15,7 +15,6 @@ package server
 
 const (
 	tritonServiceName              string = "inference.GRPCInferenceService"
-	diskSizeBytesJSONKey           string = "disk_size_bytes"
 	modelTypeJSONKey               string = "model_type"
 	tritonModelSubdir              string = "_triton_models"
 	tritonRepositoryConfigFilename string = "config.pbtxt"
