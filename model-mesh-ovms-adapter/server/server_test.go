@@ -39,6 +39,9 @@ const testModelSizeMultiplier = 1.35
 const testOvmsContainerMemReqBytes = 6 * 1024 * 1024 * 1024 // 6GB
 const testAdapterPort = 8085
 
+const testOnnxModelId = "onnx-mnist"
+const testOpenvinoModelId = "openvino-ir"
+
 var log = zap.New(zap.UseDevMode(true))
 var testdataDir = abs("testdata")
 var generatedTestdataDir = filepath.Join(testdataDir, "generated")
@@ -74,8 +77,30 @@ func TestAdapter(t *testing.T) {
 	os.MkdirAll(generatedTestdataDir, 0755)
 
 	// Start the mock OVMS HTTP server
+
+	//  create a mock model status response to return on all calls
+	mockResponse := OvmsConfigResponse{
+		// onnx
+		testOnnxModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+
+		// openvino_ir
+		testOpenvinoModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+	}
+	mockResponseBytes, err := json.Marshal(mockResponse)
+	if err != nil {
+		t.Fatalf("Failed to serialize mock JSON: %v", err)
+	}
+
 	mockOVMS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "{}")
+		fmt.Fprintln(w, string(mockResponseBytes))
 	}))
 	defer mockOVMS.Close()
 
@@ -95,9 +120,7 @@ func TestAdapter(t *testing.T) {
 	go adapterProc.Wait()
 	defer adapterProc.Kill()
 
-	time.Sleep(5 * time.Second)
-
-	mmeshClientCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	mmeshClientCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	conn, err := grpc.DialContext(mmeshClientCtx, fmt.Sprintf("localhost:%d", testAdapterPort), grpc.WithBlock(), grpc.WithInsecure())
@@ -125,11 +148,10 @@ func TestAdapter(t *testing.T) {
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	openvinoModelId := "openvino-ir"
 	openvinoLoadResp, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
-		ModelId:   openvinoModelId,
+		ModelId:   testOpenvinoModelId,
 		ModelType: "rt:openvino",
-		ModelPath: filepath.Join(testdataDir, "models", openvinoModelId),
+		ModelPath: filepath.Join(testdataDir, "models", testOpenvinoModelId),
 		ModelKey:  `{"model_type": "openvino"}`,
 	})
 
@@ -140,7 +162,7 @@ func TestAdapter(t *testing.T) {
 		t.Errorf("Expected SizeInBytes to be the default %d but actual value was %d", defaultModelSizeInBytes, openvinoLoadResp.SizeInBytes)
 	}
 
-	openvinoModelDir := filepath.Join(testdataDir, ovmsModelSubdir, openvinoModelId)
+	openvinoModelDir := filepath.Join(testdataDir, ovmsModelSubdir, testOpenvinoModelId)
 	opnvinoModelFile := filepath.Join(openvinoModelDir, "1", "mapping-config.json")
 	if exists, existsErr := util.FileExists(opnvinoModelFile); !exists {
 		if existsErr != nil {
@@ -150,7 +172,7 @@ func TestAdapter(t *testing.T) {
 		}
 	}
 
-	if err := checkEntryExistsInModelConfig(openvinoModelId, openvinoModelDir); err != nil {
+	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 
@@ -160,11 +182,10 @@ func TestAdapter(t *testing.T) {
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	onnxModelId := "onnx-mnist"
 	onnxLoadResp, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
-		ModelId: onnxModelId,
+		ModelId: testOnnxModelId,
 		// direct-to-file model path
-		ModelPath: filepath.Join(testdataDir, "models", onnxModelId, "mnist.onnx"),
+		ModelPath: filepath.Join(testdataDir, "models", testOnnxModelId, "mnist.onnx"),
 		ModelType: "invalid", // this will be ignored
 		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "disk_size_bytes": 54321, "model_type": {"name": "onnx", "version": "x.x"}}`,
 	})
@@ -178,12 +199,12 @@ func TestAdapter(t *testing.T) {
 		t.Errorf("Expected SizeInBytes to be %d but actual value was %d", expectedSize, onnxLoadResp.SizeInBytes)
 	}
 
-	onnxModelDir := filepath.Join(testdataDir, ovmsModelSubdir, onnxModelId)
-	if err := checkEntryExistsInModelConfig(onnxModelId, onnxModelDir); err != nil {
+	onnxModelDir := filepath.Join(testdataDir, ovmsModelSubdir, testOnnxModelId)
+	if err := checkEntryExistsInModelConfig(testOnnxModelId, onnxModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 	// the previously loaded model should also still exist
-	if err := checkEntryExistsInModelConfig(openvinoModelId, openvinoModelDir); err != nil {
+	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 
@@ -194,7 +215,7 @@ func TestAdapter(t *testing.T) {
 	defer cancel()
 
 	resp4, err := c.UnloadModel(mmeshCtx, &mmesh.UnloadModelRequest{
-		ModelId: onnxModelId,
+		ModelId: testOnnxModelId,
 	})
 
 	if err != nil {
@@ -204,7 +225,7 @@ func TestAdapter(t *testing.T) {
 	t.Logf("runtime status: Model unloaded, %v", resp4)
 
 	// the previously loaded model should also still exist
-	if err := checkEntryExistsInModelConfig(openvinoModelId, openvinoModelDir); err != nil {
+	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 }
