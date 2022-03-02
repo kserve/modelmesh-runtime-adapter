@@ -48,7 +48,7 @@ type OvmsMultiModelConfigListEntry struct {
 	Config OvmsMultiModelModelConfig `json:"config"`
 }
 
-// Types defininig the REST response containing the model config
+// Types defining the REST response containing the model config
 //
 // EXAMPLE:
 // {
@@ -65,6 +65,9 @@ type OvmsMultiModelConfigListEntry struct {
 //     ]
 //   }
 // }
+//
+// Possible states and error codes are defined in:
+//    https://github.com/openvinotoolkit/model_server/blob/211b6b759796a5afaf3c9e115f98b4ee890f02e2/src/modelversionstatus.hpp
 
 type OvmsConfigResponse map[string]OvmsModelStatusResponse
 

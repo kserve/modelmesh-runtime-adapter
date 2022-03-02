@@ -107,7 +107,7 @@ func (s *OvmsAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelR
 	loadErr := s.ModelManager.LoadModel(ctx, adaptedModelPath, req.ModelId)
 	if loadErr != nil {
 		log.Error(loadErr, "OVMS failed to load model")
-		return nil, status.Errorf(status.Code(loadErr), "Failed to load Model due to OVMS runtime error: %s", loadErr)
+		return nil, status.Errorf(status.Code(loadErr), "Failed to load model due to error: %s", loadErr)
 	}
 
 	size := util.CalcMemCapacity(req.ModelKey, s.AdapterConfig.DefaultModelSizeInBytes, s.AdapterConfig.ModelSizeMultiplier, log)
@@ -171,7 +171,7 @@ func (s *OvmsAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runtim
 	log := s.Log
 	runtimeStatus := new(mmesh.RuntimeStatusResponse)
 
-	_, ovmsErr := s.ModelManager.GetConfig(ctx)
+	ovmsErr := s.ModelManager.GetConfig(ctx)
 	if ovmsErr != nil {
 		log.Info("Failed to ping OVMS", "error", ovmsErr)
 		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
@@ -179,7 +179,7 @@ func (s *OvmsAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runtim
 	}
 
 	// Reset OVMS, unloading any existing models
-	unloadErr := s.ModelManager.UnloadAll()
+	unloadErr := s.ModelManager.UnloadAll(ctx)
 	if unloadErr != nil {
 		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		log.Info("Unloading all OVMS models failed", "error", unloadErr)
