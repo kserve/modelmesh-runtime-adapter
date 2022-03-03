@@ -81,7 +81,8 @@ func createOvmsModelRepositoryFromDirectory(files []os.FileInfo, modelPath, sche
 			return err
 		}
 
-		if files, err = ioutil.ReadDir(modelPath); err != nil {
+		// TODO: `if files, err = ...`
+		if _, err = ioutil.ReadDir(modelPath); err != nil {
 			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err)
 		}
 	} else {

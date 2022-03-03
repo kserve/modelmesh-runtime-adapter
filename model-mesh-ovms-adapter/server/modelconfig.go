@@ -84,3 +84,7 @@ type OvmsModelVersionStatus struct {
 	State   string          `json:"state"` // TODO: can be an enum?
 	Status  OvmsModelStatus `json:"status"`
 }
+
+type OvmsConfigReloadError struct {
+	Error string `json:"error"`
+}

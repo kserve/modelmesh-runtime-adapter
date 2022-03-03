@@ -334,9 +334,11 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 		return nil
 	}
 
+	mm.log.Info("Call to /v1/config/reload returned a non-200 status", "code", resp.StatusCode)
+
 	// Config reload failed, try to figure out why
 	//   OVMS REST response documentation: https://github.com/openvinotoolkit/model_server/blob/main/docs/model_server_rest_api.md#config-reload-api-
-	var errorResponse struct{ errorDescription string }
+	var errorResponse OvmsConfigReloadError
 	if err = json.Unmarshal(body, &errorResponse); err != nil {
 		return fmt.Errorf("Error parsing model config error response: %w", err)
 	}
@@ -344,7 +346,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	// Handle an error loading one or more of the models
 	// The response will not include the model statuses, but we can query
 	// for the config separately to get details on the failing models
-	if strings.HasPrefix(errorResponse.errorDescription, "Reloading models versions failed") {
+	if strings.HasPrefix(errorResponse.Error, "Reloading models versions failed") {
 		if err2 := mm.getConfig(ctx); err2 != nil {
 			return err2
 		}
@@ -354,5 +356,5 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 		return nil
 	}
 
-	return fmt.Errorf("Unhandled error reloading config: %w", err)
+	return fmt.Errorf("Unhandled error reloading config: %v", errorResponse)
 }

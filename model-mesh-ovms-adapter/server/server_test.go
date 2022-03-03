@@ -175,7 +175,7 @@ func TestAdapter(t *testing.T) {
 		}
 	}
 
-	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
+	if err = checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 
@@ -203,11 +203,11 @@ func TestAdapter(t *testing.T) {
 	}
 
 	onnxModelDir := filepath.Join(testdataDir, ovmsModelSubdir, testOnnxModelId)
-	if err := checkEntryExistsInModelConfig(testOnnxModelId, onnxModelDir); err != nil {
+	if err = checkEntryExistsInModelConfig(testOnnxModelId, onnxModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 	// the previously loaded model should also still exist
-	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
+	if err = checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
 
