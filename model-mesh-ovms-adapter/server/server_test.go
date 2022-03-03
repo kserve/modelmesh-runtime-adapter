@@ -39,13 +39,16 @@ const testModelSizeMultiplier = 1.35
 const testOvmsContainerMemReqBytes = 6 * 1024 * 1024 * 1024 // 6GB
 const testAdapterPort = 8085
 
-const testOnnxModelId = "onnx-mnist"
-const testOpenvinoModelId = "openvino-ir"
-
 var log = zap.New(zap.UseDevMode(true))
 var testdataDir = abs("testdata")
 var generatedTestdataDir = filepath.Join(testdataDir, "generated")
 var ovmsModelsDir = filepath.Join(generatedTestdataDir, ovmsModelSubdir)
+
+const testOnnxModelId = "onnx-mnist"
+const testOpenvinoModelId = "openvino-ir"
+
+var testOnnxModelPath = filepath.Join(testdataDir, "models", testOnnxModelId)
+var testOpenvinoModelPath = filepath.Join(testdataDir, "models", testOpenvinoModelId)
 
 var testModelConfigFile = filepath.Join(generatedTestdataDir, "model_config_list.json")
 
@@ -151,7 +154,7 @@ func TestAdapter(t *testing.T) {
 	openvinoLoadResp, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
 		ModelId:   testOpenvinoModelId,
 		ModelType: "rt:openvino",
-		ModelPath: filepath.Join(testdataDir, "models", testOpenvinoModelId),
+		ModelPath: testOpenvinoModelPath,
 		ModelKey:  `{"model_type": "openvino"}`,
 	})
 
@@ -185,7 +188,7 @@ func TestAdapter(t *testing.T) {
 	onnxLoadResp, err := c.LoadModel(mmeshCtx, &mmesh.LoadModelRequest{
 		ModelId: testOnnxModelId,
 		// direct-to-file model path
-		ModelPath: filepath.Join(testdataDir, "models", testOnnxModelId, "mnist.onnx"),
+		ModelPath: testOnnxModelPath,
 		ModelType: "invalid", // this will be ignored
 		ModelKey:  `{"storage_key": "myStorage", "bucket": "bucket1", "disk_size_bytes": 54321, "model_type": {"name": "onnx", "version": "x.x"}}`,
 	})

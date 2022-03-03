@@ -36,12 +36,11 @@ func NewMockOVMS() *MockOVMS {
 
 	serverMux := http.NewServeMux()
 
-	serverMux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+	serverMux.HandleFunc("/v1/config", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, m.configResponse)
 	})
 
-	serverMux.HandleFunc("/config/reload", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(m.configResponse)
+	serverMux.HandleFunc("/v1/config/reload", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, m.reloadResponse)
 	})
 
@@ -88,7 +87,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestHappyPath(t *testing.T) {
+func TestHappyPathLoadAndUnload(t *testing.T) {
 	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log)
 
 	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
@@ -100,8 +99,15 @@ func TestHappyPath(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	err := mm.LoadModel(ctx, filepath.Join(testdataDir, "models", testOpenvinoModelId), testOpenvinoModelId)
-	if err != nil {
+	if err := mm.LoadModel(ctx, filepath.Join(testdataDir, "models", testOpenvinoModelId), testOpenvinoModelId); err != nil {
 		t.Errorf("LoadModel call failed: %v", err)
+	}
+
+	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, testOpenvinoModelPath); err != nil {
+		t.Error(err)
+	}
+
+	if err := mm.UnloadModel(ctx, testOpenvinoModelId); err != nil {
+		t.Errorf("UnloadModel call failed: %v", err)
 	}
 }
