@@ -50,7 +50,7 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 	}
 
 	if !modelPathInfo.IsDir() {
-		// simple case if ModelPath points to a file, assume ONNX formatted model
+		// simple case if ModelPath points to a file
 		err = createOvmsModelRepositoryFromPath(modelPath, "1", schemaPath, modelType, ovmsModelIDDir, log)
 	} else {
 		files, err1 := ioutil.ReadDir(modelPath)
@@ -80,11 +80,6 @@ func createOvmsModelRepositoryFromDirectory(files []os.FileInfo, modelPath, sche
 			log.Error(err, "Unable to securely join", "modelPath", modelPath, "versionNumber", versionNumber)
 			return err
 		}
-
-		// TODO: `if files, err = ...`
-		if _, err = ioutil.ReadDir(modelPath); err != nil {
-			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err)
-		}
 	} else {
 		versionNumber = "1"
 	}
@@ -104,9 +99,15 @@ func createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, mod
 	if modelPathInfo.IsDir() {
 		linkPath = versionNumber
 	} else {
-		// assumes a single file modelPath is an ONNX model
-		if linkPath, err = util.SecureJoin(versionNumber, onnxModelFilename); err != nil {
-			return fmt.Errorf("Error joining link path: %w", err)
+		if modelType == "onnx" {
+			// special case to rename the file for an ONNX model
+			if linkPath, err = util.SecureJoin(versionNumber, onnxModelFilename); err != nil {
+				return fmt.Errorf("Error joining link path: %w", err)
+			}
+		} else {
+			if linkPath, err = util.SecureJoin(versionNumber, modelPathInfo.Name()); err != nil {
+				return fmt.Errorf("Error joining link path: %w", err)
+			}
 		}
 	}
 	if linkPath, err = util.SecureJoin(ovmsModelIDDir, linkPath); err != nil {
@@ -125,8 +126,6 @@ func createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, mod
 	if schemaPath == "" {
 		return nil
 	}
-
-	// TODO: handle config file here?
 
 	return nil
 }

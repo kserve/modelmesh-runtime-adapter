@@ -274,6 +274,29 @@ var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 		ExpectedLinkPath:   "1/model.onnx",
 		ExpectedLinkTarget: "model.onnx",
 	},
+	{
+		ModelID:   "onnxRename",
+		ModelType: "onnx",
+		ModelPath: "mymodel.data",
+		InputFiles: []string{
+			"mymodel.data",
+			"irrelevant",
+		},
+		ExpectedLinkPath:   "1/model.onnx",
+		ExpectedLinkTarget: "mymodel.data",
+	},
+	{
+		ModelID:   "onnxNativeLayout",
+		ModelType: "onnx",
+		ModelPath: "my_model",
+		InputFiles: []string{
+			"my_model/2/model.onnx",
+			"my_model/6/model.onnx",
+		},
+		ExpectedLinkPath:   "6",
+		ExpectedLinkTarget: "my_model/6",
+	},
+
 	// Group: OpenVINO IR format
 	{
 		ModelID:   "openvinoSimple",
@@ -286,53 +309,53 @@ var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 		ExpectedLinkPath:   "1",
 		ExpectedLinkTarget: "my_model",
 	},
+	{
+		ModelID:   "openvinoNativeLayout",
+		ModelType: "openvino",
+		ModelPath: "my_model",
+		InputFiles: []string{
+			"my_model/2/model.bin",
+			"my_model/2/model.xml",
+			"my_model/5/model.bin",
+			"my_model/5/model.xml",
+		},
+		ExpectedLinkPath:   "5",
+		ExpectedLinkTarget: "my_model/5",
+	},
 
-	// TODO: Other test cases to implement
-	// {
-	// 	ModelID:   "onnxRename",
-	// 	ModelType: "onnx",
-	// 	ModelPath: "mymodel.data",
-	// 	InputFiles: []string{
-	// 		"mymodel.data",
-	// 		"irrelevant",
-	// 	},
-	// 	ExpectedLinkPath:   "1/model.onnx",
-	// 	ExpectedLinkTarget: "mymodel.data",
-	// },
-	// {
-	// 	ModelID:   "onnxNativeLayout",
-	// 	ModelType: "onnx",
-	// 	ModelPath: "my_model",
-	// 	InputFiles: []string{
-	// 		"my_model/2/model.onnx",
-	// 		"my_model/6/model.onnx",
-	// 	},
-	// 	ExpectedLinkPath:   "6",
-	// 	ExpectedLinkTarget: "6",
-	// },
-	// // Group: OpenVINO IR format
-	// {
-	// 	ModelID:   "nativeLayout",
-	// 	ModelType: "onnx",
-	// 	ModelPath: "my_model",
-	// 	InputFiles: []string{
-	// 		"my_model/2/model.onnx",
-	// 		"my_model/6/model.onnx",
-	// 	},
-	// 	ExpectedLinkPath:   "6",
-	// 	ExpectedLinkTarget: "6",
-	// },
-	// // Group: General
-	// {
-	// 	ModelID:   "versionDir",
-	// 	ModelType: "onnx",
-	// 	ModelPath: "2",
-	// 	InputFiles: []string{
-	// 		"2/model_file_1",
-	// 		"2/model_file_2",
-	// 		"2/model_file_3",
-	// 	},
-	// 	ExpectedLinkPath:   "2",
-	// 	ExpectedLinkTarget: "2",
-	// },
+	// Group: General
+	{
+		ModelID:   "pathToFile",
+		ModelType: "general",
+		ModelPath: "my_model",
+		InputFiles: []string{
+			"my_model",
+		},
+		ExpectedLinkPath:   "1/my_model",
+		ExpectedLinkTarget: "my_model",
+	},
+	{
+		ModelID:   "pathToDir",
+		ModelType: "general",
+		ModelPath: "dir",
+		InputFiles: []string{
+			"dir/model_file_1",
+			"dir/model_file_2",
+			"dir/model_file_3",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "dir",
+	},
+	{
+		ModelID:   "versionDir",
+		ModelType: "general",
+		ModelPath: "2",
+		InputFiles: []string{
+			"2/model_file_1",
+			"2/model_file_2",
+			"2/model_file_3",
+		},
+		ExpectedLinkPath:   "1",
+		ExpectedLinkTarget: "2",
+	},
 }
