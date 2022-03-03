@@ -66,8 +66,7 @@ type OvmsMultiModelConfigListEntry struct {
 //   }
 // }
 //
-// Possible states and error codes are defined in:
-//    https://github.com/openvinotoolkit/model_server/blob/211b6b759796a5afaf3c9e115f98b4ee890f02e2/src/modelversionstatus.hpp
+// Possible states and error codes are defined in: https://github.com/openvinotoolkit/model_server/blob/211b6b759796a5afaf3c9e115f98b4ee890f02e2/src/modelversionstatus.hpp
 
 type OvmsConfigResponse map[string]OvmsModelStatusResponse
 

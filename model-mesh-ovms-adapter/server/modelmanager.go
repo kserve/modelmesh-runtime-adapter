@@ -61,7 +61,7 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 	} else {
 		var modelRepositoryConfig OvmsMultiModelRepositoryConfig
 		if err := json.Unmarshal(configBytes, &modelRepositoryConfig); err != nil {
-			log.Error(err, "WARNING: could not parse model repository JSON, will contine with empty config", "filename", configFilename)
+			log.Error(err, "WARNING: could not parse model config JSON, will contine with empty config", "filename", configFilename)
 		} else {
 			multiModelConfig = make(map[string]OvmsMultiModelConfigListEntry, len(modelRepositoryConfig.ModelConfigList))
 			for _, mc := range modelRepositoryConfig.ModelConfigList {
@@ -214,6 +214,49 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 	return nil
 }
 
+// // Main run loop for the manager's internal actor that owns the model repository config
+// func (mm *OvmsModelManager) run() {
+// 	for {
+// 		select {
+// 		case req, ok := <-mm.:
+// 			if !ok {
+// 				reqChan = nil
+// 				break // from select statement
+// 			}
+// 			var data *modelData
+// 			if d, ok := m.data[req.modelId]; ok {
+// 				data = d
+// 			} else {
+// 				data = &modelData{
+// 					m:        m.s,
+// 					refCount: 0,
+// 					requests: make(chan *request, StateManagerChannelLength),
+// 					results:  m.results,
+// 				}
+// 				m.data[req.modelId] = data
+// 				go data.execute()
+// 			}
+
+// 			data.refCount += 1
+// 			data.requests <- req
+
+// 		case result := <-m.results:
+// 			result.c <- result
+// 			if data, ok := m.data[result.modelId]; ok {
+// 				data.refCount -= 1
+
+// 				if data.refCount <= 0 {
+// 					close(data.requests)
+// 					delete(m.data, result.modelId)
+// 				}
+// 			}
+// 		}
+// 		if reqChan == nil && len(m.data) == 0 {
+// 			close(m.results)
+// 			break // exit goroutine
+
+// }
+
 func (mm *OvmsModelManager) writeConfig() error {
 	// NB: assumes mutex is locked!
 
@@ -273,7 +316,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 
 	// read the body
 	// NOTE: if the body is not read, the connection cannot be re-used, so
-	// we ready the body regardless of the status of the response
+	// we read the body regardless of the status of the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		// TODO: Error returned should be a gRPC error code?
