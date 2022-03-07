@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -36,7 +35,9 @@ type MockOVMS struct {
 
 func NewMockOVMS() *MockOVMS {
 	m := &MockOVMS{
+		configResponse:     "{}",
 		configResponseCode: http.StatusOK,
+		reloadResponse:     "{}",
 		reloadResponseCode: http.StatusOK,
 	}
 
@@ -95,19 +96,8 @@ func (m *MockOVMS) setMockConfigResponse(c OvmsConfigResponse, code int) error {
 
 var mockOVMS *MockOVMS
 
-func TestMain(m *testing.M) {
-	// create the mock OVMS server
-	mockOVMS = NewMockOVMS()
-	defer mockOVMS.Close()
-
-	os.Exit(m.Run())
-}
-
 func TestHappyPathLoadAndUnload(t *testing.T) {
 	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log)
-
-	// ensure test dir exists
-	os.MkdirAll(generatedTestdataDir, 0755)
 
 	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
 		testOpenvinoModelId: OvmsModelStatusResponse{
@@ -126,6 +116,15 @@ func TestHappyPathLoadAndUnload(t *testing.T) {
 		t.Error(err)
 	}
 
+	// update mock response for the unload
+	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
+		testOpenvinoModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "END"},
+			},
+		},
+	}, http.StatusOK)
+
 	if err := mm.UnloadModel(ctx, testOpenvinoModelId); err != nil {
 		t.Errorf("UnloadModel call failed: %v", err)
 	}
@@ -133,10 +132,6 @@ func TestHappyPathLoadAndUnload(t *testing.T) {
 
 func TestLoadFailure(t *testing.T) {
 	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log)
-
-	// ensure test dir exists
-	// yeah...?
-	os.MkdirAll(generatedTestdataDir, 0755)
 
 	mockOVMS.setMockReloadResponse(OvmsConfigReloadError{Error: "Reloading models versions failed"}, http.StatusBadRequest)
 
@@ -156,7 +151,6 @@ func TestLoadFailure(t *testing.T) {
 
 	ctx := context.Background()
 
-	// TODO: assert that this actually fails lol
 	err := mm.LoadModel(ctx, filepath.Join(testdataDir, "models", testOpenvinoModelId), testOpenvinoModelId)
 
 	if err == nil {

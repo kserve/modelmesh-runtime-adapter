@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,50 +69,42 @@ func StartProcess(args ...string) (p *os.Process, err error) {
 			return p, nil
 		}
 	}
+
 	return nil, err
 }
 
 var ovmsAdapter = flag.String("OvmsAdapter", "../main", "Executable for Openvino Model Server Adapter")
 
-func TestAdapter(t *testing.T) {
-	// ensure test dir exists
-	os.MkdirAll(generatedTestdataDir, 0755)
-
-	// Start the mock OVMS HTTP server
-
-	//  create a mock model status response to return on all calls
-	mockResponse := OvmsConfigResponse{
-		// onnx
-		testOnnxModelId: OvmsModelStatusResponse{
-			ModelVersionStatus: []OvmsModelVersionStatus{
-				{State: "AVAILABLE"},
-			},
-		},
-
-		// openvino_ir
-		testOpenvinoModelId: OvmsModelStatusResponse{
-			ModelVersionStatus: []OvmsModelVersionStatus{
-				{State: "AVAILABLE"},
-			},
-		},
+// use TestMain for set-up and tear-down
+func TestMain(m *testing.M) {
+	// remove the generated testdata dir if it exists to clean up from previous runs,
+	// but also ensure it exists for this one
+	if _, err := os.Stat(generatedTestdataDir); err == nil {
+		if err = os.RemoveAll(generatedTestdataDir); err != nil {
+			log.Error(err, "Failed to remove generated dir during test setup")
+			os.Exit(1)
+		}
 	}
-	mockResponseBytes, err := json.Marshal(mockResponse)
-	if err != nil {
-		t.Fatalf("Failed to serialize mock JSON: %v", err)
+	if err := os.MkdirAll(generatedTestdataDir, 0755); err != nil {
+		log.Error(err, "Failed to remove generated dir during test setup")
+		os.Exit(1)
 	}
 
-	mockOVMS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, string(mockResponseBytes))
-	}))
+	// create the mock OVMS server that is shared across tests (maybe it shouldn't be...)
+	mockOVMS = NewMockOVMS()
 	defer mockOVMS.Close()
 
+	os.Exit(m.Run())
+}
+
+func TestAdapter(t *testing.T) {
 	// Start the OVMS Adapter
 	os.Setenv(ovmsContainerMemReqBytes, fmt.Sprintf("%d", testOvmsContainerMemReqBytes))
 	os.Setenv(modelSizeMultiplier, fmt.Sprintf("%f", testModelSizeMultiplier))
 	os.Setenv(adapterPort, fmt.Sprintf("%d", testAdapterPort))
-	os.Setenv(runtimePort, strings.Split(mockOVMS.URL, ":")[2])
+	os.Setenv(runtimePort, strings.Split(mockOVMS.GetAddress(), ":")[2])
 	os.Setenv(modelConfigFile, testModelConfigFile)
-	os.Setenv(rootModelDir, testdataDir)
+	os.Setenv(rootModelDir, generatedTestdataDir)
 
 	adapterProc, err := StartProcess(*ovmsAdapter)
 
@@ -148,6 +139,20 @@ func TestAdapter(t *testing.T) {
 
 	t.Logf("runtime status: %v", statusResp)
 
+	// set mock response to a successful load
+	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
+		testOpenvinoModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+		testOnnxModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+	}, http.StatusOK)
+
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -165,7 +170,7 @@ func TestAdapter(t *testing.T) {
 		t.Errorf("Expected SizeInBytes to be the default %d but actual value was %d", defaultModelSizeInBytes, openvinoLoadResp.SizeInBytes)
 	}
 
-	openvinoModelDir := filepath.Join(testdataDir, ovmsModelSubdir, testOpenvinoModelId)
+	openvinoModelDir := filepath.Join(generatedTestdataDir, ovmsModelSubdir, testOpenvinoModelId)
 	opnvinoModelFile := filepath.Join(openvinoModelDir, "1", "mapping-config.json")
 	if exists, existsErr := util.FileExists(opnvinoModelFile); !exists {
 		if existsErr != nil {
@@ -202,7 +207,7 @@ func TestAdapter(t *testing.T) {
 		t.Errorf("Expected SizeInBytes to be %d but actual value was %d", expectedSize, onnxLoadResp.SizeInBytes)
 	}
 
-	onnxModelDir := filepath.Join(testdataDir, ovmsModelSubdir, testOnnxModelId)
+	onnxModelDir := filepath.Join(generatedTestdataDir, ovmsModelSubdir, testOnnxModelId)
 	if err = checkEntryExistsInModelConfig(testOnnxModelId, onnxModelDir); err != nil {
 		t.Errorf("checkEntryExistsInModelConfig: %v", err)
 	}
@@ -213,7 +218,22 @@ func TestAdapter(t *testing.T) {
 
 	t.Logf("runtime status: Model loaded, %v", onnxLoadResp)
 
-	// UnloadModel
+	// Unload the ONNX Model
+
+	// set the mocked response
+	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
+		testOpenvinoModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+		testOnnxModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "END"},
+			},
+		},
+	}, http.StatusOK)
+
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -225,7 +245,7 @@ func TestAdapter(t *testing.T) {
 		t.Fatalf("Failed to call MMesh: %v", err)
 	}
 
-	t.Logf("runtime status: Model unloaded, %v", resp4)
+	t.Logf("runtime status: Model unloaded, %s", resp4)
 
 	// the previously loaded model should also still exist
 	if err := checkEntryExistsInModelConfig(testOpenvinoModelId, openvinoModelDir); err != nil {
@@ -254,7 +274,7 @@ func checkEntryExistsInModelConfig(modelid string, path string) error {
 	}
 
 	if !entryFound {
-		return fmt.Errorf("Could not find model '%s' in config '%s'", modelid, string(configBytes))
+		return fmt.Errorf("Could not find model '%s' with path '%s' in config '%s'", modelid, path, string(configBytes))
 	}
 
 	return nil

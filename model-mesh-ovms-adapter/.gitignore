@@ -1,5 +1,5 @@
 # binaries created by test
 main
 
+server/testdata/model_config_list.json
 server/testdata/generated
-server/testdata/_ovms_models

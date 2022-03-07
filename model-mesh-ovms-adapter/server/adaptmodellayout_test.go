@@ -16,7 +16,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -123,6 +122,7 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 func TestAdaptModelLayoutForRuntime_Multiple(t *testing.T) {
 	// cleanup the entire generated testdata dir now instead of before each
 	// test case so we make sure the function works with existing models
+	// The test setup will recreate the directory
 	err := os.RemoveAll(generatedTestdataDir)
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
@@ -160,14 +160,6 @@ func TestAdaptModelLayoutForRuntime_Multiple(t *testing.T) {
 		}
 		assertLinkAndPathsExist(t, tt)
 		// assertConfigFileContents(t, tt)
-	}
-}
-
-// If running as a suite, remove the generated files
-func TestCleanupGeneratedDir(t *testing.T) {
-	err := os.RemoveAll(generatedTestdataDir)
-	if err != nil {
-		fmt.Printf("Could not remove generated model dir %s due to error %v\n", generatedTestdataDir, err)
 	}
 }
 
