@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc/codes"
@@ -65,8 +66,15 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 		s.Puller = puller.NewPuller(log)
 	}
 
-	// TODO: send simple request to test connection at boot
-	// log.Info("OVMS Runtime connected!")
+	// send simple request to test connection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := s.ModelManager.GetConfig(ctx); err != nil {
+		log.Error(err, "Adapter failed to ping OVMS")
+		os.Exit(1)
+	}
+	log.Info("OVMS Runtime connected!")
 
 	return s
 }
