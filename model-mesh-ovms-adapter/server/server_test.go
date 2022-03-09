@@ -114,6 +114,21 @@ func TestAdapter(t *testing.T) {
 	go adapterProc.Wait()
 	defer adapterProc.Kill()
 
+	// set mock response to a successful load
+	// do this before running RuntimeStatus which calls UnloadAll which triggers a reload
+	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
+		testOpenvinoModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+		testOnnxModelId: OvmsModelStatusResponse{
+			ModelVersionStatus: []OvmsModelVersionStatus{
+				{State: "AVAILABLE"},
+			},
+		},
+	}, http.StatusOK)
+
 	mmeshClientCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -136,22 +151,6 @@ func TestAdapter(t *testing.T) {
 	if statusResp.CapacityInBytes != uint64(expectedCapacity) {
 		t.Errorf("Expected response's CapacityInBytes to be %d but found %d", expectedCapacity, statusResp.CapacityInBytes)
 	}
-
-	t.Logf("runtime status: %v", statusResp)
-
-	// set mock response to a successful load
-	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
-		testOpenvinoModelId: OvmsModelStatusResponse{
-			ModelVersionStatus: []OvmsModelVersionStatus{
-				{State: "AVAILABLE"},
-			},
-		},
-		testOnnxModelId: OvmsModelStatusResponse{
-			ModelVersionStatus: []OvmsModelVersionStatus{
-				{State: "AVAILABLE"},
-			},
-		},
-	}, http.StatusOK)
 
 	mmeshCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
