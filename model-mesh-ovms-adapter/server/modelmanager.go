@@ -225,6 +225,8 @@ func (mm *OvmsModelManager) run() {
 		// period of time after a request is recieved
 		batch := make([]*request, 0, 10)
 		var stopChan <-chan time.Time = nil
+
+	runLoopSelect:
 		select {
 		case req, ok := <-mm.reqs:
 			if !ok {
@@ -239,6 +241,8 @@ func (mm *OvmsModelManager) run() {
 			if stopChan == nil {
 				stopChan = time.NewTimer(100 * time.Millisecond).C
 			}
+
+			goto runLoopSelect
 		case <-stopChan:
 			break // from select
 		}
