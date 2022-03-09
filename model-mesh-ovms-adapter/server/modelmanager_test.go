@@ -133,7 +133,7 @@ func TestHappyPathLoadAndUnload(t *testing.T) {
 func TestLoadFailure(t *testing.T) {
 	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log)
 
-	mockOVMS.setMockReloadResponse(OvmsConfigReloadError{Error: "Reloading models versions failed"}, http.StatusBadRequest)
+	mockOVMS.setMockReloadResponse(OvmsConfigErrorResponse{Error: "Reloading models versions failed"}, http.StatusBadRequest)
 
 	expectedErrorMessage := "Test model load failure"
 	mockOVMS.setMockConfigResponse(OvmsConfigResponse{

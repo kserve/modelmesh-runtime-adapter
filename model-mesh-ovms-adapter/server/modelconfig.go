@@ -85,6 +85,6 @@ type OvmsModelVersionStatus struct {
 	Status  OvmsModelStatus `json:"status"`
 }
 
-type OvmsConfigReloadError struct {
+type OvmsConfigErrorResponse struct {
 	Error string `json:"error"`
 }

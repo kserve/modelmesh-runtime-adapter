@@ -23,18 +23,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // The OVMS Model Manager follows the Actor pattern to own and manage models
 //
 // The exposed functions are thread safe; they send messages to the Actor and
-// wait for a response.
-// The Manager runs a background event loop to process requests
+// wait for a response. The Manager runs a background event loop to process
+// model updates in batches>
 type OvmsModelManager struct {
 	modelConfigFilename string
 	log                 logr.Logger
@@ -44,7 +44,7 @@ type OvmsModelManager struct {
 
 	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
 	cachedModelConfigResponse OvmsConfigResponse
-	mux                       sync.Mutex
+	reqs                      chan *request
 }
 
 func NewOvmsModelManager(address string, configFilename string, log logr.Logger) *OvmsModelManager {
@@ -71,10 +71,9 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 	}
 
 	ovmsMM := &OvmsModelManager{
-		address:             address,
-		modelConfigFilename: configFilename,
-		log:                 log,
-		loadedModelsMap:     multiModelConfig,
+		address: address,
+		// will need to be updated before being queried
+		cachedModelConfigResponse: OvmsConfigResponse{},
 		client: &http.Client{
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
@@ -83,9 +82,10 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 			},
 			Timeout: 30 * time.Second,
 		},
-
-		// will need to be updated before being queried
-		cachedModelConfigResponse: OvmsConfigResponse{},
+		log:                 log,
+		loadedModelsMap:     multiModelConfig,
+		modelConfigFilename: configFilename,
+		reqs:                make(chan *request, 25), // TODO make configurable
 	}
 
 	// write the config out on boot because OVMS needs it to exist
@@ -95,13 +95,19 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 		}
 	}
 
+	// start the actor process
+	go ovmsMM.run()
+
 	return ovmsMM
 }
 
+// TODO?
+// func (mm *OvmsModelManager) Close() {
+// 	close(mm.reqs)
+// }
+
 // "Client" API
 func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, modelId string) error {
-	mm.mux.Lock()
-	defer mm.mux.Unlock()
 
 	// BasePath must be a directory
 	var basePath string
@@ -116,68 +122,245 @@ func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, mod
 
 	}
 
-	mm.loadedModelsMap[modelId] = OvmsMultiModelConfigListEntry{
-		Config: OvmsMultiModelModelConfig{
-			Name:     modelId,
-			BasePath: basePath,
-		},
+	c := make(chan error, 1)
+	mm.reqs <- &request{
+		requestType: load,
+		modelId:     modelId,
+		basePath:    basePath,
+		c:           c,
+		ctx:         ctx,
 	}
 
-	if err := mm.updateModelConfig(ctx); err != nil {
-		return err
-	}
-
-	// check the status of the model to see if it is loaded
-	mvs, ok := mm.cachedModelConfigResponse[modelId]
-	if !ok || len(mvs.ModelVersionStatus) == 0 {
-		// this shouldn't really ever happen
-		return fmt.Errorf("OVMS model load failed, model not found in cache after the reload")
-	}
-	//  we will only ever load a single version of a model, hence [0]
-	status := mvs.ModelVersionStatus[0]
-	if status.State == "AVAILABLE" {
+	select {
+	case err := <-c:
+		if err != nil {
+			return fmt.Errorf("LoadModel failed: %w", err)
+		}
 		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("LoadModel request was cancelled")
+
 	}
-
-	return fmt.Errorf("OVMS model load failed. code: '%s' reason: '%s'", status.Status.ErrorCode, status.Status.ErrorMessage)
-
 }
 
 func (mm *OvmsModelManager) UnloadModel(ctx context.Context, modelId string) error {
-	mm.mux.Lock()
-	defer mm.mux.Unlock()
-
-	delete(mm.loadedModelsMap, modelId)
-
-	if err := mm.updateModelConfig(ctx); err != nil {
-		return err
+	c := make(chan error, 1)
+	mm.reqs <- &request{
+		requestType: unload,
+		modelId:     modelId,
+		c:           c,
+		ctx:         ctx,
 	}
 
-	return nil
+	select {
+	case err := <-c:
+		if err != nil {
+			return fmt.Errorf("UnloadModel failed: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("UnloadModel request was cancelled")
+
+	}
 }
 
 func (mm *OvmsModelManager) UnloadAll(ctx context.Context) error {
-	mm.mux.Lock()
-	defer mm.mux.Unlock()
+	c := make(chan error, 1)
+	mm.reqs <- &request{
+		requestType: unloadAll,
+		c:           c,
+		ctx:         ctx,
+	}
 
-	// reset the repo config to an empty list
-	mm.loadedModelsMap = map[string]OvmsMultiModelConfigListEntry{}
+	select {
+	case err := <-c:
+		if err != nil {
+			return fmt.Errorf("UnloadAll failed: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("UnloadAll request was cancelled")
 
-	return mm.updateModelConfig(context.Background())
+	}
 }
 
 func (mm *OvmsModelManager) GetConfig(ctx context.Context) error {
-	mm.mux.Lock()
-	defer mm.mux.Unlock()
-
 	return mm.getConfig(ctx)
 }
 
-// internal functions
+// internal
+
+type requestType int64
+
+const (
+	load requestType = iota
+	unload
+	unloadAll
+)
+
+type request struct {
+	requestType requestType
+
+	modelId  string // for load and unload
+	basePath string // for load
+
+	ctx context.Context
+	c   chan<- error
+}
+
+// Run loop for the manager's internal actor that owns the model repository config
+//
+//
+// Maintains a slice of batched requests that are in process in the reload
+//
+// Returns results from the reload operation once it completes
+// Recieves a stream of requests from its channel
+func (mm *OvmsModelManager) run() {
+	log := mm.log.WithValues("thread", "run")
+	log.Info("Starting ModelManger thread")
+	for mm.reqs != nil {
+		// read a batch of requests to process
+		// we need a criteria to determine when to stop batching
+		// requests; here we take the approach of waiting for a fixed
+		// period of time after a request is recieved
+		batch := make([]*request, 0, 10)
+		var stopChan <-chan time.Time = nil
+		select {
+		case req, ok := <-mm.reqs:
+			if !ok {
+				// shutdown the loop after processing this batch
+				mm.reqs = nil
+				break // from select
+			}
+			// add request to batch
+			batch = append(batch, req)
+
+			// set the stop timer
+			if stopChan == nil {
+				stopChan = time.NewTimer(100 * time.Millisecond).C
+			}
+		case <-stopChan:
+			break // from select
+		}
+
+		log.V(1).Info("Processing batch of requests", "numRequests", len(batch))
+
+		// update the model configuration based on the requests
+		var unloadAllRequest *request
+
+		// build a new map to track changes to the same model
+		modelUpdates := map[string]*request{}
+		for _, req := range batch {
+			// check for an unloadAll
+			if req.requestType == unloadAll {
+				unloadAllRequest = req
+				// abort any requests preceeding the unloadAll
+				for id, req := range modelUpdates {
+					completeRequest(req, codes.Aborted, "Model Server is being reset")
+					// remove the pointer from the updates map
+					delete(modelUpdates, id)
+				}
+				continue
+			}
+
+			if modelUpdates[req.modelId] != nil {
+				// abort the prior request first
+				completeRequest(req, codes.Aborted, "Concurrent request recieved for the same model")
+			}
+
+			modelUpdates[req.modelId] = req
+		}
+
+		// if the batch included an UnloadAll, reset the model config map prior adding the updates
+		if unloadAllRequest != nil {
+			mm.loadedModelsMap = map[string]OvmsMultiModelConfigListEntry{}
+		}
+
+		// process the updates
+		for id, req := range modelUpdates {
+			switch req.requestType {
+			case load:
+				mm.loadedModelsMap[id] = OvmsMultiModelConfigListEntry{
+					Config: OvmsMultiModelModelConfig{
+						Name:     req.modelId,
+						BasePath: req.basePath,
+					},
+				}
+			case unload:
+				delete(mm.loadedModelsMap, id)
+			}
+		}
+
+		// reload the config
+		ctx := context.TODO()
+		if err := mm.updateModelConfig(ctx); err != nil {
+			msg := "Failed to update model configuration with OVMS"
+			log.Error(err, msg)
+
+			// at this point, we don't know whether OVMS has
+			// reloaded or not... so complete all requests with
+			// errors
+
+			for _, req := range modelUpdates {
+				completeRequest(req, codes.Internal, msg)
+			}
+
+			if unloadAllRequest != nil {
+				completeRequest(unloadAllRequest, codes.Internal, msg)
+			}
+
+			continue // back to the start of the main loop
+		}
+
+		// complete the requests
+		for id, req := range modelUpdates {
+			var statusExists bool
+			var modelStatus OvmsModelVersionStatus
+
+			conf, statusExists := mm.cachedModelConfigResponse[id]
+			if statusExists {
+				modelStatus = conf.ModelVersionStatus[0]
+			}
+
+			switch req.requestType {
+			case load:
+				if !statusExists {
+					completeRequest(req, codes.Internal, "Expected model to load, but no status entry found")
+				} else if modelStatus.State == "AVAILABLE" {
+					completeRequest(req, codes.OK, "")
+				} else {
+					completeRequest(req, codes.InvalidArgument, fmt.Sprintf("OVMS model load failed. code: '%s' reason: '%s'", modelStatus.Status.ErrorCode, modelStatus.Status.ErrorMessage))
+				}
+			case unload:
+				if !statusExists {
+					// OVMS keeps a reference to a loaded model that is unloaded, so this case means that the model
+					// was not loaded previously. This case is unexpected, but we can proceed
+					log.Info("Processed UnloadModel for model that was never loaded", "modelId", req.modelId)
+					completeRequest(req, codes.OK, "")
+				} else if modelStatus.State == "END" {
+					completeRequest(req, codes.OK, "")
+				} else {
+					completeRequest(req, codes.Internal, fmt.Sprintf("OVMS model unload failed. state: %s", modelStatus.State))
+				}
+			}
+		}
+
+		// as long as the reload was attempted, assume that the unloadAll completed successfully
+		if unloadAllRequest != nil {
+			completeRequest(unloadAllRequest, codes.OK, "")
+		}
+
+	}
+
+	log.Info("ModelManager thread exiting")
+}
+
+func completeRequest(req *request, code codes.Code, reason string) {
+	// if code == OK, status.Error returns nil
+	req.c <- status.Error(code, reason)
+}
 
 func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
-	//NB: assumes the mutex is locked
-
 	// query the Config Status API
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/config", mm.address), http.NoBody)
 	if err != nil {
@@ -197,69 +380,32 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 	// we read the body regardless of the status of the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// TODO: Error returned should be a gRPC error code?
 		return fmt.Errorf("Error reading config status response body: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Error getting config status: %w", err)
+	// handle successful request
+	if resp.StatusCode == http.StatusOK {
+		var c OvmsConfigResponse
+		if err1 := json.Unmarshal(body, &c); err1 != nil {
+			return fmt.Errorf("Error parsing config status response: %w", err1)
+		}
+		mm.cachedModelConfigResponse = c
+
+		return nil
 	}
 
-	var c OvmsConfigResponse
-	if err := json.Unmarshal(body, &c); err != nil {
-		return fmt.Errorf("Error parsing config status response: %w", err)
+	var errorResponse OvmsConfigErrorResponse
+	if err = json.Unmarshal(body, &errorResponse); err != nil {
+		return fmt.Errorf("Error parsing model config error response: %w", err)
 	}
-	mm.cachedModelConfigResponse = c
 
-	return nil
+	errDesc := fmt.Errorf("Error response when getting the config: %s", errorResponse.Error)
+	mm.log.Error(errDesc, "Call to /v1/config returned an error", "code", resp.StatusCode)
+
+	return status.Error(codes.Internal, errDesc.Error())
 }
 
-// // Main run loop for the manager's internal actor that owns the model repository config
-// func (mm *OvmsModelManager) run() {
-// 	for {
-// 		select {
-// 		case req, ok := <-mm.:
-// 			if !ok {
-// 				reqChan = nil
-// 				break // from select statement
-// 			}
-// 			var data *modelData
-// 			if d, ok := m.data[req.modelId]; ok {
-// 				data = d
-// 			} else {
-// 				data = &modelData{
-// 					m:        m.s,
-// 					refCount: 0,
-// 					requests: make(chan *request, StateManagerChannelLength),
-// 					results:  m.results,
-// 				}
-// 				m.data[req.modelId] = data
-// 				go data.execute()
-// 			}
-
-// 			data.refCount += 1
-// 			data.requests <- req
-
-// 		case result := <-m.results:
-// 			result.c <- result
-// 			if data, ok := m.data[result.modelId]; ok {
-// 				data.refCount -= 1
-
-// 				if data.refCount <= 0 {
-// 					close(data.requests)
-// 					delete(m.data, result.modelId)
-// 				}
-// 			}
-// 		}
-// 		if reqChan == nil && len(m.data) == 0 {
-// 			close(m.results)
-// 			break // exit goroutine
-
-// }
-
 func (mm *OvmsModelManager) writeConfig() error {
-	// NB: assumes mutex is locked!
-
 	// Build the model reposritory config to be written out
 	modelRepositoryConfig := OvmsMultiModelRepositoryConfig{
 		ModelConfigList: make([]OvmsMultiModelConfigListEntry, len(mm.loadedModelsMap)),
@@ -284,11 +430,11 @@ func (mm *OvmsModelManager) writeConfig() error {
 
 // updateModelConfig updates the model configuration for OVMS
 //
-// An error is returned if the configuration reload was not confirmed
-// As part of the update, cachedModelConfigResponse is updated.
+// An error is returned if the reload was not confirmed to be completed; the
+// error will be nil even if a model load fails.
+//
+// The retruned config is saved to cachedModelConfigResponse.
 func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
-	// NB: assumes mutex is locked!
-
 	if err := mm.writeConfig(); err != nil {
 		return fmt.Errorf("Error updating model config when writing config file: %w", err)
 	}
@@ -302,7 +448,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 
 	// Handling of the response
 	// - If connection error: return the error
-	// - If timeout? Maybe should have retries
+	// - If timeout: Maybe should have retries?
 	// - If response is 201 or 200: parse and cache the model config
 	// - If other HTTP error, check error message in JSON
 	//    If model load error: query the config status API
@@ -310,7 +456,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	resp, err := mm.client.Do(req)
 	if err != nil {
 		// TODO: check if error is a timeout and handle appropriately
-		return fmt.Errorf("Protocol error reloading config: %w", err)
+		return fmt.Errorf("Communication error reloading the config: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -319,7 +465,6 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	// we read the body regardless of the status of the response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// TODO: Error returned should be a gRPC error code?
 		return fmt.Errorf("Error reading config reload response body: %w", err)
 	}
 
@@ -334,27 +479,22 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 		return nil
 	}
 
-	mm.log.Info("Call to /v1/config/reload returned a non-200 status", "code", resp.StatusCode)
-
 	// Config reload failed, try to figure out why
-	//   OVMS REST response documentation: https://github.com/openvinotoolkit/model_server/blob/main/docs/model_server_rest_api.md#config-reload-api-
-	var errorResponse OvmsConfigReloadError
+	// The response will not include the model statuses, but we can query
+	// for the config separately to get details on the failing models
+	var errorResponse OvmsConfigErrorResponse
 	if err = json.Unmarshal(body, &errorResponse); err != nil {
 		return fmt.Errorf("Error parsing model config error response: %w", err)
 	}
 
-	// Handle an error loading one or more of the models
-	// The response will not include the model statuses, but we can query
-	// for the config separately to get details on the failing models
-	if strings.HasPrefix(errorResponse.Error, "Reloading models versions failed") {
-		if err2 := mm.getConfig(ctx); err2 != nil {
-			return err2
-		}
+	mm.log.Error(fmt.Errorf("Error response when reloading the config: %s", errorResponse.Error), "Call to /v1/config/reload returned an error", "code", resp.StatusCode)
 
-		// getConfig updates cachedModelConfigResponse
-
-		return nil
+	if err = mm.getConfig(ctx); err != nil {
+		// getConfig returns a gRPC compatible error
+		return err
 	}
 
-	return fmt.Errorf("Unhandled error reloading config: %v", errorResponse)
+	// we rely on the fact that getConfig updates cachedModelConfigResponse
+
+	return nil
 }
