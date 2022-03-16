@@ -34,17 +34,16 @@ import (
 //
 // The exposed functions are thread safe; they send messages to the Actor and
 // wait for a response. The Manager runs a background event loop to process
-// model updates in batches>
+// model updates in batches
 type OvmsModelManager struct {
 	modelConfigFilename string
 	log                 logr.Logger
+	address             string
 
-	address string
-	client  *http.Client
-
-	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
 	cachedModelConfigResponse OvmsConfigResponse
-	reqs                      chan *request
+	client                    *http.Client
+	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
+	requests                  chan *request
 }
 
 func NewOvmsModelManager(address string, configFilename string, log logr.Logger) *OvmsModelManager {
@@ -54,7 +53,7 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 	multiModelConfig := map[string]OvmsMultiModelConfigListEntry{}
 	if configBytes, err := os.ReadFile(configFilename); err != nil {
 		// if there is any error in initialization from an existing file, just continue with an empty config
-		// but log if there was an error reading an exsting file
+		// but log if there was an error reading an existing file
 		if !errors.Is(err, os.ErrNotExist) {
 			log.Error(err, "WARNING: could not initialize model config from file, will contine with empty config", "filename", configFilename)
 		}
@@ -85,7 +84,7 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 		log:                 log,
 		loadedModelsMap:     multiModelConfig,
 		modelConfigFilename: configFilename,
-		reqs:                make(chan *request, 25), // TODO make configurable
+		requests:            make(chan *request, 25), // TODO make configurable
 	}
 
 	// write the config out on boot because OVMS needs it to exist
@@ -119,11 +118,10 @@ func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, mod
 		}
 	} else {
 		return fmt.Errorf("Could not stat file at the model_path: %w", err)
-
 	}
 
 	c := make(chan error, 1)
-	mm.reqs <- &request{
+	mm.requests <- &request{
 		requestType: load,
 		modelId:     modelId,
 		basePath:    basePath,
@@ -139,13 +137,12 @@ func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, mod
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("LoadModel request was cancelled")
-
 	}
 }
 
 func (mm *OvmsModelManager) UnloadModel(ctx context.Context, modelId string) error {
 	c := make(chan error, 1)
-	mm.reqs <- &request{
+	mm.requests <- &request{
 		requestType: unload,
 		modelId:     modelId,
 		c:           c,
@@ -160,13 +157,12 @@ func (mm *OvmsModelManager) UnloadModel(ctx context.Context, modelId string) err
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("UnloadModel request was cancelled")
-
 	}
 }
 
 func (mm *OvmsModelManager) UnloadAll(ctx context.Context) error {
 	c := make(chan error, 1)
-	mm.reqs <- &request{
+	mm.requests <- &request{
 		requestType: unloadAll,
 		c:           c,
 		ctx:         ctx,
@@ -180,7 +176,6 @@ func (mm *OvmsModelManager) UnloadAll(ctx context.Context) error {
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("UnloadAll request was cancelled")
-
 	}
 }
 
@@ -214,30 +209,30 @@ type request struct {
 // Maintains a slice of batched requests that are in process in the reload
 //
 // Returns results from the reload operation once it completes
-// Recieves a stream of requests from its channel
+// Receives a stream of requests from its channel
 func (mm *OvmsModelManager) run() {
 	log := mm.log.WithValues("thread", "run")
 	log.Info("Starting ModelManger thread")
-	for mm.reqs != nil {
+	for mm.requests != nil {
 		// read a batch of requests to process
 		// we need a criteria to determine when to stop batching
 		// requests; here we take the approach of waiting for a fixed
-		// period of time after a request is recieved
+		// period of time after a request is received
 		batch := make([]*request, 0, 10)
 		var stopChan <-chan time.Time = nil
 
 	runLoopSelect:
 		select {
-		case req, ok := <-mm.reqs:
+		case req, ok := <-mm.requests:
 			if !ok {
 				// shutdown the loop after processing this batch
-				mm.reqs = nil
+				mm.requests = nil
 				break // from select
 			}
 			// add request to batch
 			batch = append(batch, req)
 
-			// set the stop timer
+			// set the stop timer, if not set already
 			if stopChan == nil {
 				stopChan = time.NewTimer(100 * time.Millisecond).C
 			}
@@ -258,7 +253,7 @@ func (mm *OvmsModelManager) run() {
 			// check for an unloadAll
 			if req.requestType == unloadAll {
 				unloadAllRequest = req
-				// abort any requests preceeding the unloadAll
+				// abort any requests preceding the unloadAll
 				for id, req := range modelUpdates {
 					completeRequest(req, codes.Aborted, "Model Server is being reset")
 					// remove the pointer from the updates map
@@ -269,7 +264,7 @@ func (mm *OvmsModelManager) run() {
 
 			if modelUpdates[req.modelId] != nil {
 				// abort the prior request first
-				completeRequest(req, codes.Aborted, "Concurrent request recieved for the same model")
+				completeRequest(req, codes.Aborted, "Concurrent request received for the same model")
 			}
 
 			modelUpdates[req.modelId] = req
@@ -410,7 +405,7 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 }
 
 func (mm *OvmsModelManager) writeConfig() error {
-	// Build the model reposritory config to be written out
+	// Build the model repository config to be written out
 	modelRepositoryConfig := OvmsMultiModelRepositoryConfig{
 		ModelConfigList: make([]OvmsMultiModelConfigListEntry, len(mm.loadedModelsMap)),
 	}
@@ -437,7 +432,7 @@ func (mm *OvmsModelManager) writeConfig() error {
 // An error is returned if the reload was not confirmed to be completed; the
 // error will be nil even if a model load fails.
 //
-// The retruned config is saved to cachedModelConfigResponse.
+// The returned config is saved to cachedModelConfigResponse.
 func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	if err := mm.writeConfig(); err != nil {
 		return fmt.Errorf("Error updating model config when writing config file: %w", err)

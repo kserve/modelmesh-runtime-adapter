@@ -120,7 +120,7 @@ func (s *OvmsAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelR
 
 	size := util.CalcMemCapacity(req.ModelKey, s.AdapterConfig.DefaultModelSizeInBytes, s.AdapterConfig.ModelSizeMultiplier, log)
 
-	log.Info("OVMS model loaded")
+	log.Info("OVMS model loaded", "size", size)
 
 	return &mmesh.LoadModelResponse{
 		SizeInBytes:    size,

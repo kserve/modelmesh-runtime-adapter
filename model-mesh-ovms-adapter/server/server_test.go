@@ -170,12 +170,12 @@ func TestAdapter(t *testing.T) {
 	}
 
 	openvinoModelDir := filepath.Join(generatedTestdataDir, ovmsModelSubdir, testOpenvinoModelId)
-	opnvinoModelFile := filepath.Join(openvinoModelDir, "1", "mapping-config.json")
-	if exists, existsErr := util.FileExists(opnvinoModelFile); !exists {
+	openvinoModelFile := filepath.Join(openvinoModelDir, "1", "mapping-config.json")
+	if exists, existsErr := util.FileExists(openvinoModelFile); !exists {
 		if existsErr != nil {
-			t.Errorf("Expected model file %s to exists but got an error checking: %v", opnvinoModelFile, existsErr)
+			t.Errorf("Expected model file %s to exists but got an error checking: %v", openvinoModelFile, existsErr)
 		} else {
-			t.Errorf("Expected model file %s to exist but it doesn't.", opnvinoModelFile)
+			t.Errorf("Expected model file %s to exist but it doesn't.", openvinoModelFile)
 		}
 	}
 
