@@ -264,7 +264,7 @@ func (mm *OvmsModelManager) run() {
 
 			if modelUpdates[req.modelId] != nil {
 				// abort the prior request first
-				completeRequest(req, codes.Aborted, "Concurrent request received for the same model")
+				completeRequest(modelUpdates[req.modelId], codes.Aborted, "Concurrent request received for the same model")
 			}
 
 			modelUpdates[req.modelId] = req
