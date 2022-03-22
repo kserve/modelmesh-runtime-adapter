@@ -95,22 +95,18 @@ func createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, mod
 		return fmt.Errorf("Error calling stat on %s: %w", modelPath, err)
 	}
 
-	var linkPath string
-	if modelPathInfo.IsDir() {
-		linkPath = versionNumber
-	} else {
+	linkPathComponents := []string{ovmsModelIDDir, versionNumber}
+	if !modelPathInfo.IsDir() {
+		// special case to rename the file for an ONNX model
 		if modelType == "onnx" {
-			// special case to rename the file for an ONNX model
-			if linkPath, err = util.SecureJoin(versionNumber, onnxModelFilename); err != nil {
-				return fmt.Errorf("Error joining link path: %w", err)
-			}
+			linkPathComponents = append(linkPathComponents, onnxModelFilename)
 		} else {
-			if linkPath, err = util.SecureJoin(versionNumber, modelPathInfo.Name()); err != nil {
-				return fmt.Errorf("Error joining link path: %w", err)
-			}
+			linkPathComponents = append(linkPathComponents, modelPathInfo.Name())
 		}
 	}
-	if linkPath, err = util.SecureJoin(ovmsModelIDDir, linkPath); err != nil {
+
+	linkPath, err := util.SecureJoin(linkPathComponents...)
+	if err != nil {
 		return fmt.Errorf("Error joining link path: %w", err)
 	}
 
