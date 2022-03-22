@@ -219,7 +219,7 @@ func (mm *OvmsModelManager) run() {
 		// requests; here we take the approach of waiting for a fixed
 		// period of time after a request is received
 		batch := make([]*request, 0, 10)
-		var stopChan <-chan time.Time = nil
+		var stopChan <-chan time.Time
 
 	runLoopSelect:
 		select {
@@ -488,12 +488,6 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 
 	mm.log.Error(fmt.Errorf("Error response when reloading the config: %s", errorResponse.Error), "Call to /v1/config/reload returned an error", "code", resp.StatusCode)
 
-	if err = mm.getConfig(ctx); err != nil {
-		// getConfig returns a gRPC compatible error
-		return err
-	}
-
 	// we rely on the fact that getConfig updates cachedModelConfigResponse
-
-	return nil
+	return mm.getConfig(ctx)
 }
