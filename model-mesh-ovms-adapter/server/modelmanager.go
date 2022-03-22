@@ -120,62 +120,56 @@ func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, mod
 		return fmt.Errorf("Could not stat file at the model_path: %w", err)
 	}
 
-	c := make(chan error, 1)
-	mm.requests <- &request{
+	req := &request{
 		requestType: load,
 		modelId:     modelId,
 		basePath:    basePath,
-		c:           c,
-		ctx:         ctx,
 	}
 
-	select {
-	case err := <-c:
-		if err != nil {
-			return fmt.Errorf("LoadModel failed: %w", err)
-		}
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("LoadModel request was cancelled")
+	if err := mm.handleRequest(ctx, req); err != nil {
+		return fmt.Errorf("LoadModel errored: %w", err)
 	}
+	return nil
 }
 
 func (mm *OvmsModelManager) UnloadModel(ctx context.Context, modelId string) error {
-	c := make(chan error, 1)
-	mm.requests <- &request{
+	req := &request{
 		requestType: unload,
 		modelId:     modelId,
-		c:           c,
-		ctx:         ctx,
 	}
 
-	select {
-	case err := <-c:
-		if err != nil {
-			return fmt.Errorf("UnloadModel failed: %w", err)
-		}
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("UnloadModel request was cancelled")
+	if err := mm.handleRequest(ctx, req); err != nil {
+		return fmt.Errorf("UnloadModel errored: %w", err)
 	}
+	return nil
 }
 
 func (mm *OvmsModelManager) UnloadAll(ctx context.Context) error {
-	c := make(chan error, 1)
-	mm.requests <- &request{
+	req := &request{
 		requestType: unloadAll,
-		c:           c,
-		ctx:         ctx,
 	}
+
+	if err := mm.handleRequest(ctx, req); err != nil {
+		return fmt.Errorf("UnloadAll errored: %w", err)
+	}
+	return nil
+}
+
+func (mm *OvmsModelManager) handleRequest(ctx context.Context, r *request) error {
+	c := make(chan error, 1)
+	r.c = c
+	r.ctx = ctx
+
+	mm.requests <- r
 
 	select {
 	case err := <-c:
 		if err != nil {
-			return fmt.Errorf("UnloadAll failed: %w", err)
+			return err
 		}
 		return nil
 	case <-ctx.Done():
-		return fmt.Errorf("UnloadAll request was cancelled")
+		return fmt.Errorf("Request was cancelled")
 	}
 }
 
