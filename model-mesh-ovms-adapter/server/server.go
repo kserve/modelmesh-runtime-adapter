@@ -59,7 +59,12 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 	s := new(OvmsAdapterServer)
 	s.Log = log
 	s.AdapterConfig = config
-	s.ModelManager = NewOvmsModelManager(fmt.Sprintf("http://localhost:%d", config.OvmsPort), config.ModelConfigFile, log)
+	s.ModelManager = NewOvmsModelManager(
+		fmt.Sprintf("http://localhost:%d", config.OvmsPort),
+		config.ModelConfigFile,
+		log,
+		ModelManagerConfig{},
+	)
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// puller is configured from its own env vars

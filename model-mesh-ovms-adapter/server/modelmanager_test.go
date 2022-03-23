@@ -97,7 +97,7 @@ func (m *MockOVMS) setMockConfigResponse(c OvmsConfigResponse, code int) error {
 var mockOVMS *MockOVMS
 
 func TestHappyPathLoadAndUnload(t *testing.T) {
-	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log)
+	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log, ModelManagerConfig{})
 
 	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
 		testOpenvinoModelId: OvmsModelStatusResponse{
@@ -131,7 +131,7 @@ func TestHappyPathLoadAndUnload(t *testing.T) {
 }
 
 func TestLoadFailure(t *testing.T) {
-	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log)
+	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log, ModelManagerConfig{})
 
 	mockOVMS.setMockReloadResponse(OvmsConfigErrorResponse{Error: "Reloading models versions failed"}, http.StatusBadRequest)
 

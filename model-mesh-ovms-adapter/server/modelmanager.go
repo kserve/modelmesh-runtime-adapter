@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -39,28 +40,74 @@ type OvmsModelManager struct {
 	modelConfigFilename string
 	log                 logr.Logger
 	address             string
+	config              ModelManagerConfig
 
+	// internal
 	cachedModelConfigResponse OvmsConfigResponse
 	client                    *http.Client
 	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
 	requests                  chan *request
 }
 
-func NewOvmsModelManager(address string, configFilename string, log logr.Logger) *OvmsModelManager {
+type ModelManagerConfig struct {
+	BatchWaitTime     time.Duration
+	BatchPreallocSize uint
+
+	HttpClientMaxConns int
+	HttpClientTimeout  time.Duration
+
+	ModelConfigFilePerms fs.FileMode
+
+	RequestChannelSize int
+}
+
+var modelManagerConfigDefaults ModelManagerConfig = ModelManagerConfig{
+	BatchWaitTime:        100 * time.Millisecond,
+	BatchPreallocSize:    10,
+	HttpClientMaxConns:   100,
+	HttpClientTimeout:    30 * time.Second,
+	RequestChannelSize:   25,
+	ModelConfigFilePerms: 0644,
+}
+
+func (c *ModelManagerConfig) applyDefaults() {
+	if c.BatchWaitTime == 0 {
+		c.BatchWaitTime = modelManagerConfigDefaults.BatchWaitTime
+	}
+	if c.BatchPreallocSize == 0 {
+		c.BatchPreallocSize = modelManagerConfigDefaults.BatchPreallocSize
+	}
+	if c.HttpClientMaxConns == 0 {
+		c.HttpClientMaxConns = modelManagerConfigDefaults.HttpClientMaxConns
+	}
+	if c.HttpClientTimeout == 0 {
+		c.HttpClientTimeout = modelManagerConfigDefaults.HttpClientTimeout
+	}
+	if c.RequestChannelSize == 0 {
+		c.RequestChannelSize = modelManagerConfigDefaults.RequestChannelSize
+	}
+	if c.ModelConfigFilePerms == 0 {
+		c.ModelConfigFilePerms = modelManagerConfigDefaults.ModelConfigFilePerms
+	}
+}
+
+func NewOvmsModelManager(address string, multiModelConfigFilename string, log logr.Logger, mmConfig ModelManagerConfig) *OvmsModelManager {
+
+	mmConfig.applyDefaults()
 
 	// load initial config from disk, if it exists
 	// this handles the case where the adapter crashes
 	multiModelConfig := map[string]OvmsMultiModelConfigListEntry{}
-	if configBytes, err := os.ReadFile(configFilename); err != nil {
+	if configBytes, err := os.ReadFile(multiModelConfigFilename); err != nil {
 		// if there is any error in initialization from an existing file, just continue with an empty config
 		// but log if there was an error reading an existing file
 		if !errors.Is(err, os.ErrNotExist) {
-			log.Error(err, "WARNING: could not initialize model config from file, will contine with empty config", "filename", configFilename)
+			log.Error(err, "WARNING: could not initialize model config from file, will contine with empty config", "filename", multiModelConfigFilename)
 		}
 	} else {
 		var modelRepositoryConfig OvmsMultiModelRepositoryConfig
 		if err := json.Unmarshal(configBytes, &modelRepositoryConfig); err != nil {
-			log.Error(err, "WARNING: could not parse model config JSON, will contine with empty config", "filename", configFilename)
+			log.Error(err, "WARNING: could not parse model config JSON, will contine with empty config", "filename", multiModelConfigFilename)
 		} else {
 			multiModelConfig = make(map[string]OvmsMultiModelConfigListEntry, len(modelRepositoryConfig.ModelConfigList))
 			for _, mc := range modelRepositoryConfig.ModelConfigList {
@@ -73,22 +120,23 @@ func NewOvmsModelManager(address string, configFilename string, log logr.Logger)
 		address: address,
 		// will need to be updated before being queried
 		cachedModelConfigResponse: OvmsConfigResponse{},
+		config:                    mmConfig,
 		client: &http.Client{
 			Transport: &http.Transport{
-				MaxIdleConns:        100,
-				MaxConnsPerHost:     100,
-				MaxIdleConnsPerHost: 100,
+				MaxIdleConns:        mmConfig.HttpClientMaxConns,
+				MaxConnsPerHost:     mmConfig.HttpClientMaxConns,
+				MaxIdleConnsPerHost: mmConfig.HttpClientMaxConns,
 			},
-			Timeout: 30 * time.Second,
+			Timeout: mmConfig.HttpClientTimeout,
 		},
 		log:                 log,
 		loadedModelsMap:     multiModelConfig,
-		modelConfigFilename: configFilename,
-		requests:            make(chan *request, 25), // TODO make configurable
+		modelConfigFilename: multiModelConfigFilename,
+		requests:            make(chan *request, mmConfig.RequestChannelSize),
 	}
 
 	// write the config out on boot because OVMS needs it to exist
-	if _, err := os.Stat(configFilename); os.IsNotExist(err) {
+	if _, err := os.Stat(multiModelConfigFilename); os.IsNotExist(err) {
 		if err = ovmsMM.writeConfig(); err != nil {
 			log.Error(err, "Unable to write out empty config file")
 		}
@@ -212,7 +260,7 @@ func (mm *OvmsModelManager) run() {
 		// we need a criteria to determine when to stop batching
 		// requests; here we take the approach of waiting for a fixed
 		// period of time after a request is received
-		batch := make([]*request, 0, 10)
+		batch := make([]*request, 0, mm.config.BatchPreallocSize)
 		var stopChan <-chan time.Time
 
 	runLoopSelect:
@@ -228,7 +276,7 @@ func (mm *OvmsModelManager) run() {
 
 			// set the stop timer, if not set already
 			if stopChan == nil {
-				stopChan = time.NewTimer(100 * time.Millisecond).C
+				stopChan = time.NewTimer(mm.config.BatchWaitTime).C
 			}
 
 			goto runLoopSelect
@@ -414,7 +462,7 @@ func (mm *OvmsModelManager) writeConfig() error {
 		return fmt.Errorf("Error marshalling config file: %w", err)
 	}
 
-	if err := ioutil.WriteFile(mm.modelConfigFilename, modelRepositoryConfigJSON, 0644); err != nil {
+	if err := ioutil.WriteFile(mm.modelConfigFilename, modelRepositoryConfigJSON, mm.config.ModelConfigFilePerms); err != nil {
 		return fmt.Errorf("Error writing config file: %w", err)
 	}
 
