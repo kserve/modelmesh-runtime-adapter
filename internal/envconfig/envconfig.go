@@ -16,6 +16,7 @@ package envconfig
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-logr/logr"
 )
@@ -65,6 +66,21 @@ func GetEnvBool(key string, defaultValue bool, log logr.Logger) bool {
 		val, err := strconv.ParseBool(strVal)
 		if err != nil {
 			log.Error(err, "Environment variable must be boolean", "env_var", key, "value", strVal)
+			os.Exit(1)
+		}
+		return val
+	}
+	return defaultValue
+}
+
+// Returns the duration value of environment variable "key" or a default value
+// Note if the environment variable cannot be parsed as a duration, including an
+// empty string, this will fail and exit.
+func GetEnvDuration(key string, defaultValue time.Duration, log logr.Logger) time.Duration {
+	if strVal, found := os.LookupEnv(key); found {
+		val, err := time.ParseDuration(strVal)
+		if err != nil {
+			log.Error(err, "Environment variable must be a duration", "env_var", key, "value", strVal)
 			os.Exit(1)
 		}
 		return val

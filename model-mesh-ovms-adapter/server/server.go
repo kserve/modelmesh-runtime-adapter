@@ -41,8 +41,12 @@ type AdapterConfiguration struct {
 	RuntimeVersion           string
 	LimitModelConcurrency    int // 0 means no limit (default)
 	RootModelDir             string
-	ModelConfigFile          string
 	UseEmbeddedPuller        bool
+
+	// OVMS adapter specific
+	ModelConfigFile   string
+	BatchWaitTime     time.Duration
+	HttpClientTimeout time.Duration
 }
 
 type OvmsAdapterServer struct {
@@ -63,7 +67,10 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 		fmt.Sprintf("http://localhost:%d", config.OvmsPort),
 		config.ModelConfigFile,
 		log,
-		ModelManagerConfig{},
+		ModelManagerConfig{
+			BatchWaitTime:     config.BatchWaitTime,
+			HttpClientTimeout: config.HttpClientTimeout,
+		},
 	)
 
 	if s.AdapterConfig.UseEmbeddedPuller {

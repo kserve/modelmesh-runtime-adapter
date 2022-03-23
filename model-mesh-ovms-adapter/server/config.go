@@ -15,6 +15,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 
@@ -44,10 +45,16 @@ const (
 	defaultLimitPerModelConcurrency        = 0 // 0 means don't limit request concurrency
 	rootModelDir                    string = "ROOT_MODEL_DIR"
 	defaultRootModelDir                    = "/models"
-	modelConfigFile                 string = "MODEL_CONFIG_FILE"
-	defaultModelConfigFile                 = "/models/model_config_list.json"
 	useEmbeddedPuller               string = "USE_EMBEDDED_PULLER"
 	defaultUseEmbeddedPuller               = false
+
+	// OVMS adapter specific
+	modelConfigFile          string        = "MODEL_CONFIG_FILE"
+	defaultModelConfigFile                 = "/models/model_config_list.json"
+	batchWaitTime            string        = "BATCH_WAIT_TIME"
+	defaultBatchWaitTime     time.Duration = 100 * time.Millisecond
+	httpClientTimeout        string        = "OVMS_CLIENT_TIMEOUT"
+	defaultHttpClientTimeout time.Duration = 30 * time.Second
 )
 
 func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, error) {
@@ -64,8 +71,12 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.RuntimeVersion = GetEnvString(runtimeVersion, defaultRuntimeVersion)
 	adapterConfig.LimitModelConcurrency = GetEnvInt(limitPerModelConcurrency, defaultLimitPerModelConcurrency, log)
 	adapterConfig.RootModelDir = GetEnvString(rootModelDir, defaultRootModelDir)
-	adapterConfig.ModelConfigFile = GetEnvString(modelConfigFile, defaultModelConfigFile)
 	adapterConfig.UseEmbeddedPuller = GetEnvBool(useEmbeddedPuller, defaultUseEmbeddedPuller, log)
+
+	// OVMS adapter specific
+	adapterConfig.ModelConfigFile = GetEnvString(modelConfigFile, defaultModelConfigFile)
+	adapterConfig.BatchWaitTime = GetEnvDuration(batchWaitTime, defaultBatchWaitTime, log)
+	adapterConfig.HttpClientTimeout = GetEnvDuration(httpClientTimeout, defaultHttpClientTimeout, log)
 
 	if adapterConfig.OvmsContainerMemReqBytes < 0 {
 		return adapterConfig, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", ovmsContainerMemReqBytes, adapterConfig.OvmsContainerMemReqBytes)
