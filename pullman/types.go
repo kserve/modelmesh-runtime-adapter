@@ -48,6 +48,6 @@ type PullCommand struct {
 type Target struct {
 	// remote path to resource(s) to be pulled
 	RemotePath string
-	// filepath to write the file(s) to
+	// filepath to write the file(s) to.
 	LocalPath string
 }
