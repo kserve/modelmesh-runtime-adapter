@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -76,7 +78,8 @@ func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log
 	mlserverClientCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	conn, err := grpc.DialContext(mlserverClientCtx, fmt.Sprintf("localhost:%d", runtimePort), grpc.WithInsecure(), grpc.WithBlock(),
+	conn, err := grpc.DialContext(mlserverClientCtx, fmt.Sprintf("localhost:%d", runtimePort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(),
 		grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig, MinConnectTimeout: 10 * time.Second}))
 
 	if err != nil {
