@@ -18,6 +18,8 @@ import (
 	"os"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"google.golang.org/grpc"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -30,7 +32,8 @@ func main() {
 	mmeshClientCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(mmeshClientCtx, "localhost:8085", grpc.WithBlock(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(mmeshClientCtx, "localhost:8085", grpc.WithBlock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error(err, "Failed to connect to MMesh")
 		os.Exit(1)

@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/go-logr/logr"
 
 	"google.golang.org/grpc"
@@ -82,7 +84,7 @@ func (s *PullerServer) StartServer() error {
 	modelRuntimeConnection, err := grpc.DialContext(
 		runtimeClientCtx,
 		modelServerEndpoint,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 		grpc.WithConnectParams(grpc.ConnectParams{
 			Backoff:           backoff.DefaultConfig,
