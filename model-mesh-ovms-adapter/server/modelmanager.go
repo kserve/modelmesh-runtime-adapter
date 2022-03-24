@@ -38,8 +38,9 @@ import (
 // model updates in batches
 type OvmsModelManager struct {
 	modelConfigFilename string
+	configEndpoint      string
+	reloadEndpoint      string
 	log                 logr.Logger
-	address             string
 	config              ModelManagerConfig
 
 	// internal
@@ -117,7 +118,8 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 	}
 
 	ovmsMM := &OvmsModelManager{
-		address: address,
+		configEndpoint: fmt.Sprintf("%s/v1/config", address),
+		reloadEndpoint: fmt.Sprintf("%s/v1/config/reload", address),
 		// will need to be updated before being queried
 		cachedModelConfigResponse: OvmsConfigResponse{},
 		config:                    mmConfig,
@@ -403,7 +405,7 @@ func completeRequest(req *request, code codes.Code, reason string) {
 
 func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 	// query the Config Status API
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/config", mm.address), http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, mm.configEndpoint, http.NoBody)
 	if err != nil {
 		// this should never happen...
 		return fmt.Errorf("Error constructing config status request: %w", err)
@@ -481,7 +483,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	}
 
 	// Send config reload request to OVMS
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/v1/config/reload", mm.address), http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, mm.reloadEndpoint, http.NoBody)
 	if err != nil {
 		// this should never happen...
 		return fmt.Errorf("Error constructing reload config request: %w", err)
