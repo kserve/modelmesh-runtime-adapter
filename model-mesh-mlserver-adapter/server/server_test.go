@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"google.golang.org/grpc"
@@ -90,7 +92,8 @@ func TestAdapter(t *testing.T) {
 	mmeshClientCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(mmeshClientCtx, "localhost:8085", grpc.WithBlock(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(mmeshClientCtx, "localhost:8085", grpc.WithBlock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to connect to MMesh: %v", err)
 	}
