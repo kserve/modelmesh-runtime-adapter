@@ -106,12 +106,12 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 		// if there is any error in initialization from an existing file, just continue with an empty config
 		// but log if there was an error reading an existing file
 		if !errors.Is(err, os.ErrNotExist) {
-			log.Error(err, "WARNING: could not initialize model config from file, will contine with empty config", "filename", multiModelConfigFilename)
+			log.Error(err, "WARNING: could not initialize model config from file, will continue with empty config", "filename", multiModelConfigFilename)
 		}
 	} else {
 		var modelRepositoryConfig OvmsMultiModelRepositoryConfig
 		if err := json.Unmarshal(configBytes, &modelRepositoryConfig); err != nil {
-			log.Error(err, "WARNING: could not parse model config JSON, will contine with empty config", "filename", multiModelConfigFilename)
+			log.Error(err, "WARNING: could not parse model config JSON, will continue with empty config", "filename", multiModelConfigFilename)
 		} else {
 			multiModelConfig = make(map[string]OvmsMultiModelConfigListEntry, len(modelRepositoryConfig.ModelConfigList))
 			for _, mc := range modelRepositoryConfig.ModelConfigList {
