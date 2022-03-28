@@ -48,6 +48,9 @@ type OvmsModelManager struct {
 	client                    *http.Client
 	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
 	requests                  chan *request
+	//  optimization: keep reference to temporary map to avoid re-allocating
+	//  arrays each time the config is written out
+	modelRepositoryConfigList []OvmsMultiModelConfigListEntry
 }
 
 type ModelManagerConfig struct {
@@ -465,17 +468,20 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 }
 
 func (mm *OvmsModelManager) writeConfig() error {
-	// Build the model repository config to be written out
-	modelRepositoryConfig := OvmsMultiModelRepositoryConfig{
-		ModelConfigList: make([]OvmsMultiModelConfigListEntry, len(mm.loadedModelsMap)),
+	// reset the stored list and ensure sufficient capacity
+	if cap(mm.modelRepositoryConfigList) < len(mm.loadedModelsMap) {
+		mm.modelRepositoryConfigList = make([]OvmsMultiModelConfigListEntry, len(mm.loadedModelsMap))
+	} else {
+		mm.modelRepositoryConfigList = mm.modelRepositoryConfigList[:len(mm.loadedModelsMap)]
 	}
+
 	listIndex := 0
 	for _, model := range mm.loadedModelsMap {
-		modelRepositoryConfig.ModelConfigList[listIndex] = model
+		mm.modelRepositoryConfigList[listIndex] = model
 		listIndex++
 	}
 
-	modelRepositoryConfigJSON, err := json.Marshal(modelRepositoryConfig)
+	modelRepositoryConfigJSON, err := json.Marshal(OvmsMultiModelRepositoryConfig{mm.modelRepositoryConfigList})
 	if err != nil {
 		return fmt.Errorf("Error marshalling config file: %w", err)
 	}
