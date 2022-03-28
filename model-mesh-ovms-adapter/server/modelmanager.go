@@ -229,12 +229,12 @@ func (mm *OvmsModelManager) GetConfig(ctx context.Context) error {
 
 // internal
 
-type requestType int64
+type requestType string
 
 const (
-	load requestType = iota
-	unload
-	unloadAll
+	load      requestType = "Load"
+	unload                = "Unload"
+	unloadAll             = "UnloadAll"
 )
 
 type request struct {
@@ -316,6 +316,7 @@ func (mm *OvmsModelManager) run() {
 
 		// if the batch included an UnloadAll, reset the model config map prior adding the updates
 		if unloadAllRequest != nil {
+			log.V(1).Info("Processing UnloadAll", "numRequests", len(batch))
 			mm.loadedModelsMap = map[string]OvmsMultiModelConfigListEntry{}
 		}
 
@@ -340,16 +341,18 @@ func (mm *OvmsModelManager) run() {
 			msg := "Failed to update model configuration with OVMS"
 			log.Error(err, msg)
 
+			msgWithError := fmt.Sprintf("%s: %v", msg, err)
+
 			// at this point, we don't know whether OVMS has
 			// reloaded or not... so complete all requests with
 			// errors
 
 			for _, req := range modelUpdates {
-				completeRequest(req, codes.Internal, msg)
+				completeRequest(req, codes.Internal, msgWithError)
 			}
 
 			if unloadAllRequest != nil {
-				completeRequest(unloadAllRequest, codes.Internal, msg)
+				completeRequest(unloadAllRequest, codes.Internal, msgWithError)
 			}
 
 			continue // back to the start of the main loop
@@ -359,12 +362,15 @@ func (mm *OvmsModelManager) run() {
 		for id, req := range modelUpdates {
 			var statusExists bool
 			var modelStatus OvmsModelVersionStatus
+			modelState := "_missing_" // default value for logging purposes
 
 			conf, statusExists := mm.cachedModelConfigResponse[id]
 			if statusExists {
 				modelStatus = conf.ModelVersionStatus[0]
+				modelState = modelStatus.State
 			}
 
+			log.V(1).Info("Completing request", "model_id", id, "status_exists", statusExists, "type", req.requestType, "state", modelState)
 			switch req.requestType {
 			case load:
 				if !statusExists {
@@ -376,8 +382,8 @@ func (mm *OvmsModelManager) run() {
 				}
 			case unload:
 				if !statusExists {
-					// OVMS keeps a reference to a loaded model that is unloaded, so this case means that the model
-					// was not loaded previously. This case is unexpected, but we can proceed
+					// OVMS keeps an entry for a model that has been unloaded, so this case means that the
+					// model was not loaded previously. This is unexpected, but we can proceed
 					log.Info("Processed UnloadModel for model that was never loaded", "modelId", req.modelId)
 					completeRequest(req, codes.OK, "")
 				} else if modelStatus.State == "END" {
@@ -430,7 +436,9 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 	if resp.StatusCode == http.StatusOK {
 		var c OvmsConfigResponse
 		if err1 := json.Unmarshal(body, &c); err1 != nil {
-			return fmt.Errorf("Error parsing config status response: %w", err1)
+			const msg string = "Error parsing /config response"
+			mm.log.V(1).Error(err1, msg, "responseBody", string(body))
+			return fmt.Errorf("%s: %w", msg, err1)
 		}
 		mm.cachedModelConfigResponse = c
 
@@ -439,7 +447,9 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 
 	var errorResponse OvmsConfigErrorResponse
 	if err = json.Unmarshal(body, &errorResponse); err != nil {
-		return fmt.Errorf("Error parsing model config error response: %w", err)
+		const msg string = "Error parsing /config error response"
+		mm.log.V(1).Error(err, msg, "responseBody", string(body))
+		return fmt.Errorf("%s: %w", msg, err)
 	}
 
 	errDesc := fmt.Errorf("Error response when getting the config: %s", errorResponse.Error)
@@ -503,7 +513,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	// read the body
+	// Read the body
 	// NOTE: if the body is not read, the connection cannot be re-used, so
 	// we read the body regardless of the status of the response
 	body, err := io.ReadAll(resp.Body)
@@ -515,7 +525,9 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
 		var c OvmsConfigResponse
 		if err = json.Unmarshal(body, &c); err != nil {
-			return fmt.Errorf("Error parsing config reload response: %w", err)
+			const msg string = "Error parsing /config/reload response"
+			mm.log.V(1).Error(err, msg, "responseBody", string(body))
+			return fmt.Errorf("%s: %w", msg, err)
 		}
 		mm.cachedModelConfigResponse = c
 
@@ -527,7 +539,9 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	// for the config separately to get details on the failing models
 	var errorResponse OvmsConfigErrorResponse
 	if err = json.Unmarshal(body, &errorResponse); err != nil {
-		return fmt.Errorf("Error parsing model config error response: %w", err)
+		const msg string = "Error parsing /config/reload error response"
+		mm.log.V(1).Error(err, msg, "responseBody", string(body))
+		return fmt.Errorf("%s: %w", msg, err)
 	}
 
 	mm.log.Error(fmt.Errorf("Error response when reloading the config: %s", errorResponse.Error), "Call to /v1/config/reload returned an error", "code", resp.StatusCode)
