@@ -296,6 +296,12 @@ func (mm *OvmsModelManager) run() {
 		for _, req := range batch {
 			// check for an unloadAll
 			if req.requestType == unloadAll {
+				if unloadAllRequest != nil {
+					// unexpected situation
+					log.Info("Got multiple UnloadAll requests in one batch")
+					completeRequest(unloadAllRequest, codes.Aborted, "Subsequent UnloadAll request received")
+				}
+
 				unloadAllRequest = req
 				// abort any requests preceding the unloadAll
 				for id, req := range modelUpdates {
