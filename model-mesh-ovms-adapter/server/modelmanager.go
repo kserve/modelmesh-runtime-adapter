@@ -236,8 +236,8 @@ type requestType string
 
 const (
 	load      requestType = "Load"
-	unload                = "Unload"
-	unloadAll             = "UnloadAll"
+	unload    requestType = "Unload"
+	unloadAll requestType = "UnloadAll"
 )
 
 type request struct {
