@@ -85,6 +85,7 @@ COPY . ./
 RUN go build -o puller model-serving-puller/main.go
 RUN go build -o triton-adapter model-mesh-triton-adapter/main.go
 RUN go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go
+RUN go build -o ovms-adapter model-mesh-ovms-adapter/main.go
 
 
 ###############################################################################
@@ -119,6 +120,7 @@ COPY --from=build /opt/app/puller /opt/app/
 COPY --from=build /opt/app/triton-adapter /opt/app/
 COPY --from=build /opt/app/mlserver-adapter /opt/app/
 COPY --from=build /opt/app/model-mesh-triton-adapter/scripts/tf_pb.py /opt/scripts/
+COPY --from=build /opt/app/ovms-adapter /opt/app/
 
 # Don't define an entrypoint. This is a multi-purpose image so the user should specify which binary they want to run (e.g. /opt/app/puller or /opt/app/triton-adapter)
 # ENTRYPOINT ["/opt/app/puller"]
