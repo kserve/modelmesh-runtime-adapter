@@ -54,8 +54,8 @@ type OvmsModelManager struct {
 }
 
 type ModelManagerConfig struct {
-	BatchWaitTime     time.Duration
-	BatchPreallocSize uint
+	BatchWaitTimeMin time.Duration
+	BatchWaitTimeMax time.Duration
 
 	HttpClientMaxConns int
 	HttpClientTimeout  time.Duration
@@ -66,8 +66,8 @@ type ModelManagerConfig struct {
 }
 
 var modelManagerConfigDefaults ModelManagerConfig = ModelManagerConfig{
-	BatchWaitTime:        100 * time.Millisecond,
-	BatchPreallocSize:    10,
+	BatchWaitTimeMin:     100 * time.Millisecond,
+	BatchWaitTimeMax:     3 * time.Second,
 	HttpClientMaxConns:   100,
 	HttpClientTimeout:    30 * time.Second,
 	RequestChannelSize:   25,
@@ -75,11 +75,11 @@ var modelManagerConfigDefaults ModelManagerConfig = ModelManagerConfig{
 }
 
 func (c *ModelManagerConfig) applyDefaults() {
-	if c.BatchWaitTime == 0 {
-		c.BatchWaitTime = modelManagerConfigDefaults.BatchWaitTime
+	if c.BatchWaitTimeMin == 0 {
+		c.BatchWaitTimeMin = modelManagerConfigDefaults.BatchWaitTimeMin
 	}
-	if c.BatchPreallocSize == 0 {
-		c.BatchPreallocSize = modelManagerConfigDefaults.BatchPreallocSize
+	if c.BatchWaitTimeMax == 0 {
+		c.BatchWaitTimeMax = modelManagerConfigDefaults.BatchWaitTimeMax
 	}
 	if c.HttpClientMaxConns == 0 {
 		c.HttpClientMaxConns = modelManagerConfigDefaults.HttpClientMaxConns
@@ -252,7 +252,6 @@ type request struct {
 
 // Run loop for the manager's internal actor that owns the model repository config
 //
-//
 // Maintains a slice of batched requests that are in process in the reload
 //
 // Returns results from the reload operation once it completes
@@ -261,86 +260,19 @@ func (mm *OvmsModelManager) run() {
 	log := mm.log.WithValues("thread", "run")
 	log.Info("Starting ModelManger thread")
 	for mm.requests != nil {
-		// read a batch of requests to process
-		// we need a criteria to determine when to stop batching
-		// requests; here we take the approach of waiting for a fixed
-		// period of time after a request is received
-		batch := make([]*request, 0, mm.config.BatchPreallocSize)
-		var stopChan <-chan time.Time
+		loadRequestsMap := mm.gatherLoadRequests()
 
-	runLoopSelect:
-		select {
-		case req, ok := <-mm.requests:
-			if !ok {
-				// shutdown the loop after processing this batch
-				mm.requests = nil
-				break // from select
-			}
-			// add request to batch
-			batch = append(batch, req)
+		// gatherLoadRequests() collects requests over time, some requests
+		// may have been cancelled by now. Check that here before
+		// reloading the config
+		for id, req := range loadRequestsMap {
+			if err := req.ctx.Err(); err != nil {
+				s := status.FromContextError(err)
+				mm.log.V(1).Info("Aborting request with cancelled context before reloading", "model_id", id, "request_type", req.requestType, "code", s.Code())
+				completeRequest(req, s.Code(), "Request context has been cancelled")
 
-			// set the stop timer, if not set already
-			if stopChan == nil {
-				stopChan = time.NewTimer(mm.config.BatchWaitTime).C
-			}
-
-			goto runLoopSelect
-		case <-stopChan:
-			break // from select
-		}
-
-		log.V(1).Info("Processing batch of requests", "numRequests", len(batch))
-
-		// update the model configuration based on the requests
-		var unloadAllRequest *request
-
-		// build a new map to track changes to the same model
-		modelUpdates := map[string]*request{}
-		for _, req := range batch {
-			// check for an unloadAll
-			if req.requestType == unloadAll {
-				if unloadAllRequest != nil {
-					// unexpected situation
-					log.Info("Got multiple UnloadAll requests in one batch")
-					completeRequest(unloadAllRequest, codes.Aborted, "Subsequent UnloadAll request received")
-				}
-
-				unloadAllRequest = req
-				// abort any requests preceding the unloadAll
-				for id, req := range modelUpdates {
-					completeRequest(req, codes.Aborted, "Model Server is being reset")
-					// remove the pointer from the updates map
-					delete(modelUpdates, id)
-				}
-				continue
-			}
-
-			if modelUpdates[req.modelId] != nil {
-				// abort the prior request first
-				completeRequest(modelUpdates[req.modelId], codes.Aborted, "Concurrent request received for the same model")
-			}
-
-			modelUpdates[req.modelId] = req
-		}
-
-		// if the batch included an UnloadAll, reset the model config map prior adding the updates
-		if unloadAllRequest != nil {
-			log.V(1).Info("Processing UnloadAll", "numRequests", len(batch))
-			mm.loadedModelsMap = map[string]OvmsMultiModelConfigListEntry{}
-		}
-
-		// process the updates
-		for id, req := range modelUpdates {
-			switch req.requestType {
-			case load:
-				mm.loadedModelsMap[id] = OvmsMultiModelConfigListEntry{
-					Config: OvmsMultiModelModelConfig{
-						Name:     req.modelId,
-						BasePath: req.basePath,
-					},
-				}
-			case unload:
 				delete(mm.loadedModelsMap, id)
+				delete(loadRequestsMap, id)
 			}
 		}
 
@@ -350,25 +282,20 @@ func (mm *OvmsModelManager) run() {
 			msg := "Failed to update model configuration with OVMS"
 			log.Error(err, msg)
 
-			msgWithError := fmt.Sprintf("%s: %v", msg, err)
-
 			// at this point, we don't know whether OVMS has
-			// reloaded or not... so complete all requests with
-			// errors
-
-			for _, req := range modelUpdates {
+			// reloaded or not... but we treat it as if the load
+			// failed
+			msgWithError := fmt.Sprintf("%s: %v", msg, err)
+			for id, req := range loadRequestsMap {
 				completeRequest(req, codes.Internal, msgWithError)
+				delete(mm.loadedModelsMap, id)
 			}
 
-			if unloadAllRequest != nil {
-				completeRequest(unloadAllRequest, codes.Internal, msgWithError)
-			}
-
-			continue // back to the start of the main loop
+			continue // back to the start of the run() loop
 		}
 
 		// complete the requests
-		for id, req := range modelUpdates {
+		for id, req := range loadRequestsMap {
 			var statusExists bool
 			var modelStatus OvmsModelVersionStatus
 			modelState := "_missing_" // default value for logging purposes
@@ -379,38 +306,136 @@ func (mm *OvmsModelManager) run() {
 				modelState = modelStatus.State
 			}
 
-			log.V(1).Info("Completing request", "model_id", id, "status_exists", statusExists, "type", req.requestType, "state", modelState)
-			switch req.requestType {
-			case load:
-				if !statusExists {
-					completeRequest(req, codes.Internal, "Expected model to load, but no status entry found")
-				} else if modelStatus.State == "AVAILABLE" {
-					completeRequest(req, codes.OK, "")
-				} else {
-					completeRequest(req, codes.InvalidArgument, fmt.Sprintf("OVMS model load failed. code: '%s' reason: '%s'", modelStatus.Status.ErrorCode, modelStatus.Status.ErrorMessage))
-				}
-			case unload:
-				if !statusExists {
-					// OVMS keeps an entry for a model that has been unloaded, so this case means that the
-					// model was not loaded previously. This is unexpected, but we can proceed
-					log.Info("Processed UnloadModel for model that was never loaded", "modelId", req.modelId)
-					completeRequest(req, codes.OK, "")
-				} else if modelStatus.State == "END" {
-					completeRequest(req, codes.OK, "")
-				} else {
-					completeRequest(req, codes.Internal, fmt.Sprintf("OVMS model unload failed. state: %s", modelStatus.State))
-				}
+			var code codes.Code
+			var message string
+			if !statusExists {
+				code = codes.Internal
+				message = "Expected model to load, but no status entry found in the config"
+			} else if modelStatus.State == "AVAILABLE" {
+				code = codes.OK
+			} else {
+				code = codes.InvalidArgument
+				message = fmt.Sprintf("OVMS model load failed. code: '%s' reason: '%s'", modelStatus.Status.ErrorCode, modelStatus.Status.ErrorMessage)
+			}
+			log.V(1).Info("Completing load request", "model_id", id, "state", modelState, "grpcCode", code, "message", message)
+			completeRequest(req, code, message)
+
+			// if the load failed, cleanup the map entry
+			if code != codes.OK {
+				delete(mm.loadedModelsMap, id)
 			}
 		}
-
-		// as long as the reload was attempted, assume that the unloadAll completed successfully
-		if unloadAllRequest != nil {
-			completeRequest(unloadAllRequest, codes.OK, "")
-		}
-
 	}
 
 	log.Info("ModelManager thread exiting")
+}
+
+// gatherUpdates reads requests from the channel and updates the loadedModelsMap
+//
+// This handles deciding which requests will require a reload, completing
+// requests that will not change the state and ignoring requests that are
+// cancelled.
+//
+//
+// We need a criteria to determine when to stop grabbing requests after a reload
+// is needed; here we take the approach of waiting for a period of time after a
+// request is received
+func (mm *OvmsModelManager) gatherLoadRequests() map[string]*request {
+	requestMap := map[string]*request{}
+	// used to signal when to proceed with a reload after a timer
+	var stopChan <-chan time.Time
+	// Load calls need to trigger the model server as part of the request,
+	// but an unload request can be completed immediately by removeing the
+	// registration from the models map (state will be synced with the next
+	// updates) Though even unloads should be processed eventually. To
+	// support this the timer duration for the stopChan depends on wether or
+	// not a load request is included in the batch of updates, which is
+	// tracked with this boolean
+	shortTimerSet := false
+	for {
+		select {
+		case <-stopChan:
+			return requestMap
+
+		case req, ok := <-mm.requests:
+			if !ok {
+				// shutdown the run() loop after processing this batch
+				mm.requests = nil
+				break // from select
+			}
+
+			// has the context been cancelled?
+			if err := req.ctx.Err(); err != nil {
+				s := status.FromContextError(err)
+				mm.log.V(1).Info("Aborting request with cancelled context", "model_id", req.modelId, "request_type", req.requestType, "code", s.Code())
+				completeRequest(req, s.Code(), "Request context has been cancelled")
+				continue
+			}
+
+			switch req.requestType {
+			case unloadAll:
+				mm.log.V(1).Info("Processing UnloadAll", "numRequests", len(requestMap))
+
+				// abort all pending requests
+				for _, r := range requestMap {
+					mm.log.V(1).Info("Aborting request to reset the Model Server", "model_id", r.modelId, "request_type", r.requestType, "context_error", r.ctx.Err().Error())
+					completeRequest(r, codes.Aborted, "Model Server is being reset")
+				}
+				requestMap = map[string]*request{}
+
+				// an UnloadAll does not need to trigger a reload right now, we can report success
+				// and will sync state with the model server on the next reload
+				completeRequest(req, codes.OK, "")
+
+				// reset the desired model state to be empty
+				mm.loadedModelsMap = map[string]OvmsMultiModelConfigListEntry{}
+
+				// reset the stop timer
+				if stopChan == nil {
+					shortTimerSet = false
+					stopChan = time.NewTimer(mm.config.BatchWaitTimeMax).C
+				}
+
+			case unload:
+				// abort any pending load requests for this model
+				if requestMap[req.modelId] != nil {
+					mm.log.V(1).Info("Aborting request due to subsequent unload", "model_id", requestMap[req.modelId].modelId, "request_type", requestMap[req.modelId].requestType, "context_error", requestMap[req.modelId].ctx.Err().Error())
+					completeRequest(requestMap[req.modelId], codes.Aborted, "Aborting due to subsequent unload request")
+					delete(requestMap, req.modelId)
+				}
+
+				delete(mm.loadedModelsMap, req.modelId)
+				// an Unload does not need to trigger a config reload, we can report
+				// success and will sync state with the model server on the next reload
+				completeRequest(req, codes.OK, "")
+
+				// set the stop timer, if not already set
+				if stopChan == nil {
+					stopChan = time.NewTimer(mm.config.BatchWaitTimeMax).C
+				}
+
+			case load:
+				// abort any pending load requests for this model
+				if requestMap[req.modelId] != nil {
+					mm.log.V(1).Info("Aborting request due to subsequent load", "model_id", requestMap[req.modelId].modelId, "request_type", requestMap[req.modelId].requestType, "context_error", requestMap[req.modelId].ctx.Err().Error())
+					completeRequest(requestMap[req.modelId], codes.Aborted, "Aborting due to concurrent load request")
+				}
+
+				// set the stop timer, if not already set with the short timer
+				if stopChan == nil || !shortTimerSet {
+					stopChan = time.NewTimer(mm.config.BatchWaitTimeMin).C
+				}
+
+				requestMap[req.modelId] = req
+				mm.loadedModelsMap[req.modelId] = OvmsMultiModelConfigListEntry{
+					Config: OvmsMultiModelModelConfig{
+						Name:     req.modelId,
+						BasePath: req.basePath,
+					},
+				}
+			}
+		}
+	}
 }
 
 func completeRequest(req *request, code codes.Code, reason string) {

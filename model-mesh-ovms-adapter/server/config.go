@@ -51,8 +51,10 @@ const (
 	// OVMS adapter specific
 	modelConfigFile          string        = "MODEL_CONFIG_FILE"
 	defaultModelConfigFile                 = "/models/model_config_list.json"
-	batchWaitTime            string        = "BATCH_WAIT_TIME"
-	defaultBatchWaitTime     time.Duration = 100 * time.Millisecond
+	batchWaitTimeMin         string        = "BATCH_WAIT_TIME_MIN"
+	defaultBatchWaitTimeMin  time.Duration = 100 * time.Millisecond
+	batchWaitTimeMax         string        = "BATCH_WAIT_TIME_MAX"
+	defaultBatchWaitTimeMax  time.Duration = 3 * time.Second
 	httpClientTimeout        string        = "OVMS_CLIENT_TIMEOUT"
 	defaultHttpClientTimeout time.Duration = 30 * time.Second
 )
@@ -75,7 +77,8 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 
 	// OVMS adapter specific
 	adapterConfig.ModelConfigFile = GetEnvString(modelConfigFile, defaultModelConfigFile)
-	adapterConfig.BatchWaitTime = GetEnvDuration(batchWaitTime, defaultBatchWaitTime, log)
+	adapterConfig.BatchWaitTimeMin = GetEnvDuration(batchWaitTimeMin, defaultBatchWaitTimeMin, log)
+	adapterConfig.BatchWaitTimeMax = GetEnvDuration(batchWaitTimeMax, defaultBatchWaitTimeMax, log)
 	adapterConfig.HttpClientTimeout = GetEnvDuration(httpClientTimeout, defaultHttpClientTimeout, log)
 
 	if adapterConfig.OvmsContainerMemReqBytes < 0 {

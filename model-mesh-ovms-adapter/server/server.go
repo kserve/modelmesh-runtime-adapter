@@ -45,7 +45,8 @@ type AdapterConfiguration struct {
 
 	// OVMS adapter specific
 	ModelConfigFile   string
-	BatchWaitTime     time.Duration
+	BatchWaitTimeMin  time.Duration
+	BatchWaitTimeMax  time.Duration
 	HttpClientTimeout time.Duration
 }
 
@@ -68,7 +69,8 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 		config.ModelConfigFile,
 		log,
 		ModelManagerConfig{
-			BatchWaitTime:     config.BatchWaitTime,
+			BatchWaitTimeMin:  config.BatchWaitTimeMin,
+			BatchWaitTimeMax:  config.BatchWaitTimeMax,
 			HttpClientTimeout: config.HttpClientTimeout,
 		},
 	)
