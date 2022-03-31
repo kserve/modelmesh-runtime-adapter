@@ -27,11 +27,12 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
-	"google.golang.org/grpc"
 )
 
 const testModelSizeMultiplier = 1.35
@@ -132,7 +133,8 @@ func TestAdapter(t *testing.T) {
 	mmeshClientCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(mmeshClientCtx, fmt.Sprintf("localhost:%d", testAdapterPort), grpc.WithBlock(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(mmeshClientCtx, fmt.Sprintf("localhost:%d", testAdapterPort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		t.Fatalf("Failed to connect to MMesh: %v", err)
 	}
