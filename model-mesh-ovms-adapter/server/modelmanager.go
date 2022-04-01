@@ -286,9 +286,8 @@ func (mm *OvmsModelManager) run() {
 			// at this point, we don't know whether OVMS has
 			// reloaded or not... but we treat it as if the load
 			// failed
-			msgWithError := fmt.Sprintf("%s: %v", msg, err)
 			for id, req := range loadRequestsMap {
-				completeRequest(req, codes.Internal, msgWithError)
+				completeRequest(req, codes.Internal, fmt.Sprintf("%s: %v", msg, err))
 				delete(mm.loadedModelsMap, id)
 			}
 
@@ -346,7 +345,7 @@ func (mm *OvmsModelManager) gatherLoadRequests() map[string]*request {
 	// used to signal when to proceed with a reload after a timer
 	var stopChan <-chan time.Time
 	// Load calls need to trigger the model server as part of the request,
-	// but an unload request can be completed immediately by removeing the
+	// but an unload request can be completed immediately by removing the
 	// registration from the models map (state will be synced with the next
 	// updates) Though even unloads should be processed eventually. To
 	// support this the timer duration for the stopChan depends on wether or
@@ -424,6 +423,7 @@ func (mm *OvmsModelManager) gatherLoadRequests() map[string]*request {
 
 				// set the stop timer, if not already set with the short timer
 				if stopChan == nil || !shortTimerSet {
+					shortTimerSet = true
 					stopChan = time.NewTimer(mm.config.BatchWaitTimeMin).C
 				}
 
