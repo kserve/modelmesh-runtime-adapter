@@ -80,12 +80,21 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 		s.Puller = puller.NewPuller(log)
 	}
 
-	// send simple request to test connection
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// send simple request to verify the connection, with retries
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	for ctx.Err() == nil {
+		err := s.ModelManager.GetConfig(ctx)
+		if err == nil {
+			break
+		}
+		log.Info("Adapter failed to ping OVMS, will retry", "error", err.Error())
+		time.Sleep(1 * time.Second)
+	}
 
-	if err := s.ModelManager.GetConfig(ctx); err != nil {
-		log.Error(err, "Adapter failed to ping OVMS")
+	// if the context is cancelled, we could not connect
+	if ctx.Err() != nil {
+		log.Error(ctx.Err(), "Adapter failed to connect to OVMS")
 		os.Exit(1)
 	}
 	log.Info("OVMS Runtime connected!")
