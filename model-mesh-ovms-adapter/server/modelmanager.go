@@ -99,7 +99,7 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 
 	mmConfig.applyDefaults()
 
-	// load initial config from disk, if it exists
+	// try to load the initial config from disk, if it exists
 	// this handles the case where the adapter crashes
 	multiModelConfig := map[string]OvmsMultiModelConfigListEntry{}
 	if configBytes, err := os.ReadFile(multiModelConfigFilename); err != nil {
@@ -134,10 +134,11 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 			},
 			Timeout: mmConfig.HttpClientTimeout,
 		},
-		log:                 log,
-		loadedModelsMap:     multiModelConfig,
-		modelConfigFilename: multiModelConfigFilename,
-		requests:            make(chan *request, mmConfig.RequestChannelSize),
+		log:                       log,
+		loadedModelsMap:           multiModelConfig,
+		modelConfigFilename:       multiModelConfigFilename,
+		requests:                  make(chan *request, mmConfig.RequestChannelSize),
+		modelRepositoryConfigList: make([]OvmsMultiModelConfigListEntry, 0, len(multiModelConfig)),
 	}
 
 	// write the config out on boot because OVMS needs it to exist
