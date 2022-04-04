@@ -118,7 +118,6 @@ func createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, mod
 		return fmt.Errorf("Error creating symlink: %w", err)
 	}
 
-	// TODO: handle the schema
 	if schemaPath == "" {
 		return nil
 	}

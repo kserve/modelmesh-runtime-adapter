@@ -81,7 +81,7 @@ type OvmsModelStatus struct {
 
 type OvmsModelVersionStatus struct {
 	Version string          `json:"version"`
-	State   string          `json:"state"` // TODO: can be an enum?
+	State   string          `json:"state"`
 	Status  OvmsModelStatus `json:"status"`
 }
 

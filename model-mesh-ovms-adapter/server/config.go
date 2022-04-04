@@ -40,7 +40,7 @@ const (
 	modelSizeMultiplier             string = "MODELSIZE_MULTIPLIER"
 	defaultModelSizeMultiplier             = 1.25
 	runtimeVersion                  string = "RUNTIME_VERSION"
-	defaultRuntimeVersion                  = "TODO"
+	defaultRuntimeVersion                  = "v1"
 	limitPerModelConcurrency        string = "LIMIT_PER_MODEL_CONCURRENCY"
 	defaultLimitPerModelConcurrency        = 0 // 0 means don't limit request concurrency
 	rootModelDir                    string = "ROOT_MODEL_DIR"

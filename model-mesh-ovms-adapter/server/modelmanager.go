@@ -167,11 +167,6 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 	return ovmsMM, nil
 }
 
-// TODO?
-// func (mm *OvmsModelManager) Close() {
-// 	close(mm.reqs)
-// }
-
 // "Client" API
 func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, modelId string) error {
 
@@ -460,7 +455,6 @@ func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 	// query the Config Status API
 	resp, err := mm.client.Do(mm.configRequest.WithContext(ctx))
 	if err != nil {
-		// TODO: check if error is a timeout and handle appropriately
 		return fmt.Errorf("Protocol error getting the config: %w", err)
 	}
 	defer resp.Body.Close()
@@ -550,7 +544,6 @@ func (mm *OvmsModelManager) updateModelConfig() error {
 	//    If other error, just return it?
 	resp, err := mm.client.Do(mm.reloadRequest.WithContext(ctx))
 	if err != nil {
-		// TODO: check if error is a timeout and handle appropriately
 		return fmt.Errorf("Communication error reloading the config: %w", err)
 	}
 	defer resp.Body.Close()
