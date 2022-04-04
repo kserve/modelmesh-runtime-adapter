@@ -64,7 +64,8 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 	s := new(OvmsAdapterServer)
 	s.Log = log
 	s.AdapterConfig = config
-	s.ModelManager = NewOvmsModelManager(
+
+	if mm, err := NewOvmsModelManager(
 		fmt.Sprintf("http://localhost:%d", config.OvmsPort),
 		config.ModelConfigFile,
 		log,
@@ -73,7 +74,11 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 			BatchWaitTimeMax:  config.BatchWaitTimeMax,
 			HttpClientTimeout: config.HttpClientTimeout,
 		},
-	)
+	); err != nil {
+		panic(err)
+	} else {
+		s.ModelManager = mm
+	}
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// puller is configured from its own env vars

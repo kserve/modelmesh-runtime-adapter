@@ -94,10 +94,19 @@ func (m *MockOVMS) setMockConfigResponse(c OvmsConfigResponse, code int) error {
 	return nil
 }
 
+// shared instance of the mock server
 var mockOVMS *MockOVMS
 
+func setupModelManager(t *testing.T) *OvmsModelManager {
+	mm, err := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log, ModelManagerConfig{})
+	if err != nil {
+		t.Fatalf("Unable to create ModelManager with Mock: %v", err)
+	}
+	return mm
+}
+
 func TestHappyPathLoadAndUnload(t *testing.T) {
-	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log, ModelManagerConfig{})
+	mm := setupModelManager(t)
 
 	mockOVMS.setMockReloadResponse(OvmsConfigResponse{
 		testOpenvinoModelId: OvmsModelStatusResponse{
@@ -131,7 +140,7 @@ func TestHappyPathLoadAndUnload(t *testing.T) {
 }
 
 func TestLoadFailure(t *testing.T) {
-	mm := NewOvmsModelManager(mockOVMS.GetAddress(), testModelConfigFile, log, ModelManagerConfig{})
+	mm := setupModelManager(t)
 
 	mockOVMS.setMockReloadResponse(OvmsConfigErrorResponse{Error: "Reloading models versions failed"}, http.StatusBadRequest)
 

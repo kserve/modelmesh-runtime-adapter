@@ -38,8 +38,6 @@ import (
 // model updates in batches
 type OvmsModelManager struct {
 	modelConfigFilename string
-	configEndpoint      string
-	reloadEndpoint      string
 	log                 logr.Logger
 	config              ModelManagerConfig
 
@@ -48,9 +46,15 @@ type OvmsModelManager struct {
 	client                    *http.Client
 	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
 	requests                  chan *request
-	//  optimization: keep reference to temporary map to avoid re-allocating
-	//  arrays each time the config is written out
+
+	// optimizations
+	// keep reference to temporary map to avoid re-allocating arrays each
+	// time the config is written out
 	modelRepositoryConfigList []OvmsMultiModelConfigListEntry
+	// build HTTP requests once and re-use them (this is safe only because
+	// they do not have a body)
+	configRequest *http.Request
+	reloadRequest *http.Request
 }
 
 type ModelManagerConfig struct {
@@ -95,7 +99,7 @@ func (c *ModelManagerConfig) applyDefaults() {
 	}
 }
 
-func NewOvmsModelManager(address string, multiModelConfigFilename string, log logr.Logger, mmConfig ModelManagerConfig) *OvmsModelManager {
+func NewOvmsModelManager(address string, multiModelConfigFilename string, log logr.Logger, mmConfig ModelManagerConfig) (*OvmsModelManager, error) {
 
 	mmConfig.applyDefaults()
 
@@ -120,9 +124,19 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 		}
 	}
 
+	configRequest, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/v1/config", address), http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
+	reloadRequest, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/v1/config/reload", address), http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
 	ovmsMM := &OvmsModelManager{
-		configEndpoint: fmt.Sprintf("%s/v1/config", address),
-		reloadEndpoint: fmt.Sprintf("%s/v1/config/reload", address),
+		configRequest: configRequest,
+		reloadRequest: reloadRequest,
 		// will need to be updated before being queried
 		cachedModelConfigResponse: OvmsConfigResponse{},
 		config:                    mmConfig,
@@ -151,7 +165,7 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 	// start the actor process
 	go ovmsMM.run()
 
-	return ovmsMM
+	return ovmsMM, nil
 }
 
 // TODO?
@@ -446,13 +460,7 @@ func completeRequest(req *request, code codes.Code, reason string) {
 
 func (mm *OvmsModelManager) getConfig(ctx context.Context) error {
 	// query the Config Status API
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, mm.configEndpoint, http.NoBody)
-	if err != nil {
-		// this should never happen...
-		return fmt.Errorf("Error constructing config status request: %w", err)
-	}
-
-	resp, err := mm.client.Do(req)
+	resp, err := mm.client.Do(mm.configRequest.WithContext(ctx))
 	if err != nil {
 		// TODO: check if error is a timeout and handle appropriately
 		return fmt.Errorf("Protocol error getting the config: %w", err)
@@ -531,12 +539,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	}
 
 	// Send config reload request to OVMS
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, mm.reloadEndpoint, http.NoBody)
-	if err != nil {
-		// this should never happen...
-		return fmt.Errorf("Error constructing reload config request: %w", err)
-	}
-
+	//
 	// Handling of the response
 	// - If connection error: return the error
 	// - If timeout: Maybe should have retries?
@@ -544,7 +547,7 @@ func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
 	// - If other HTTP error, check error message in JSON
 	//    If model load error: query the config status API
 	//    If other error, just return it?
-	resp, err := mm.client.Do(req)
+	resp, err := mm.client.Do(mm.reloadRequest.WithContext(ctx))
 	if err != nil {
 		// TODO: check if error is a timeout and handle appropriately
 		return fmt.Errorf("Communication error reloading the config: %w", err)
