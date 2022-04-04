@@ -314,7 +314,7 @@ func (mm *OvmsModelManager) run() {
 			} else if modelStatus.State == "AVAILABLE" {
 				code = codes.OK
 			} else {
-				code = codes.InvalidArgument
+				code = codes.Unknown
 				message = fmt.Sprintf("OVMS model load failed. code: '%s' reason: '%s'", modelStatus.Status.ErrorCode, modelStatus.Status.ErrorMessage)
 			}
 			log.V(1).Info("Completing load request", "model_id", id, "state", modelState, "grpcCode", code, "message", message)
