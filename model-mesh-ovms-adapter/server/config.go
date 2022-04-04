@@ -49,14 +49,14 @@ const (
 	defaultUseEmbeddedPuller               = false
 
 	// OVMS adapter specific
-	modelConfigFile          string        = "MODEL_CONFIG_FILE"
-	defaultModelConfigFile                 = "/models/model_config_list.json"
-	batchWaitTimeMin         string        = "BATCH_WAIT_TIME_MIN"
-	defaultBatchWaitTimeMin  time.Duration = 100 * time.Millisecond
-	batchWaitTimeMax         string        = "BATCH_WAIT_TIME_MAX"
-	defaultBatchWaitTimeMax  time.Duration = 3 * time.Second
-	httpClientTimeout        string        = "OVMS_CLIENT_TIMEOUT"
-	defaultHttpClientTimeout time.Duration = 30 * time.Second
+	modelConfigFile         string        = "MODEL_CONFIG_FILE"
+	defaultModelConfigFile                = "/models/model_config_list.json"
+	batchWaitTimeMin        string        = "BATCH_WAIT_TIME_MIN"
+	defaultBatchWaitTimeMin time.Duration = 100 * time.Millisecond
+	batchWaitTimeMax        string        = "BATCH_WAIT_TIME_MAX"
+	defaultBatchWaitTimeMax time.Duration = 3 * time.Second
+	reloadTimeout           string        = "OVMS_RELOAD_TIMEOUT"
+	defaultReloadTimeout    time.Duration = 30 * time.Second
 )
 
 func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, error) {
@@ -79,7 +79,7 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.ModelConfigFile = GetEnvString(modelConfigFile, defaultModelConfigFile)
 	adapterConfig.BatchWaitTimeMin = GetEnvDuration(batchWaitTimeMin, defaultBatchWaitTimeMin, log)
 	adapterConfig.BatchWaitTimeMax = GetEnvDuration(batchWaitTimeMax, defaultBatchWaitTimeMax, log)
-	adapterConfig.HttpClientTimeout = GetEnvDuration(httpClientTimeout, defaultHttpClientTimeout, log)
+	adapterConfig.ReloadTimeout = GetEnvDuration(reloadTimeout, defaultReloadTimeout, log)
 
 	if adapterConfig.OvmsContainerMemReqBytes < 0 {
 		return adapterConfig, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", ovmsContainerMemReqBytes, adapterConfig.OvmsContainerMemReqBytes)

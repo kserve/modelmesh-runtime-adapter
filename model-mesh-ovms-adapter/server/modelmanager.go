@@ -62,7 +62,7 @@ type ModelManagerConfig struct {
 	BatchWaitTimeMax time.Duration
 
 	HttpClientMaxConns int
-	HttpClientTimeout  time.Duration
+	ReloadTimeout      time.Duration
 
 	ModelConfigFilePerms fs.FileMode
 
@@ -73,7 +73,7 @@ var modelManagerConfigDefaults ModelManagerConfig = ModelManagerConfig{
 	BatchWaitTimeMin:     100 * time.Millisecond,
 	BatchWaitTimeMax:     3 * time.Second,
 	HttpClientMaxConns:   100,
-	HttpClientTimeout:    30 * time.Second,
+	ReloadTimeout:        30 * time.Second,
 	RequestChannelSize:   25,
 	ModelConfigFilePerms: 0644,
 }
@@ -88,8 +88,8 @@ func (c *ModelManagerConfig) applyDefaults() {
 	if c.HttpClientMaxConns == 0 {
 		c.HttpClientMaxConns = modelManagerConfigDefaults.HttpClientMaxConns
 	}
-	if c.HttpClientTimeout == 0 {
-		c.HttpClientTimeout = modelManagerConfigDefaults.HttpClientTimeout
+	if c.ReloadTimeout == 0 {
+		c.ReloadTimeout = modelManagerConfigDefaults.ReloadTimeout
 	}
 	if c.RequestChannelSize == 0 {
 		c.RequestChannelSize = modelManagerConfigDefaults.RequestChannelSize
@@ -146,7 +146,6 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 				MaxConnsPerHost:     mmConfig.HttpClientMaxConns,
 				MaxIdleConnsPerHost: mmConfig.HttpClientMaxConns,
 			},
-			Timeout: mmConfig.HttpClientTimeout,
 		},
 		log:                       log,
 		loadedModelsMap:           multiModelConfig,
@@ -292,8 +291,7 @@ func (mm *OvmsModelManager) run() {
 		}
 
 		// reload the config
-		ctx := context.TODO()
-		if err := mm.updateModelConfig(ctx); err != nil {
+		if err := mm.updateModelConfig(); err != nil {
 			msg := "Failed to update model configuration with OVMS"
 			log.Error(err, msg)
 
@@ -533,7 +531,10 @@ func (mm *OvmsModelManager) writeConfig() error {
 // error will be nil even if a model load fails.
 //
 // The returned config is saved to cachedModelConfigResponse.
-func (mm *OvmsModelManager) updateModelConfig(ctx context.Context) error {
+func (mm *OvmsModelManager) updateModelConfig() error {
+	ctx, cancel := context.WithTimeout(context.Background(), mm.config.ReloadTimeout)
+	defer cancel()
+
 	if err := mm.writeConfig(); err != nil {
 		return fmt.Errorf("Error updating model config when writing config file: %w", err)
 	}

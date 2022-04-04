@@ -44,10 +44,10 @@ type AdapterConfiguration struct {
 	UseEmbeddedPuller        bool
 
 	// OVMS adapter specific
-	ModelConfigFile   string
-	BatchWaitTimeMin  time.Duration
-	BatchWaitTimeMax  time.Duration
-	HttpClientTimeout time.Duration
+	ModelConfigFile  string
+	BatchWaitTimeMin time.Duration
+	BatchWaitTimeMax time.Duration
+	ReloadTimeout    time.Duration
 }
 
 type OvmsAdapterServer struct {
@@ -70,9 +70,9 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 		config.ModelConfigFile,
 		log,
 		ModelManagerConfig{
-			BatchWaitTimeMin:  config.BatchWaitTimeMin,
-			BatchWaitTimeMax:  config.BatchWaitTimeMax,
-			HttpClientTimeout: config.HttpClientTimeout,
+			BatchWaitTimeMin: config.BatchWaitTimeMin,
+			BatchWaitTimeMax: config.BatchWaitTimeMax,
+			ReloadTimeout:    config.ReloadTimeout,
 		},
 	); err != nil {
 		panic(err)
