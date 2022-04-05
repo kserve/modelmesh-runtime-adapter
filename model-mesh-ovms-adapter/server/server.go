@@ -194,18 +194,6 @@ func (s *OvmsAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadMo
 	return &mmesh.UnloadModelResponse{}, nil
 }
 
-//TODO: this implementation need to be reworked
-func (s *OvmsAdapterServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
-	size := s.AdapterConfig.DefaultModelSizeInBytes
-	return &mmesh.PredictModelSizeResponse{SizeInBytes: uint64(size)}, nil
-}
-
-func (s *OvmsAdapterServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
-	size := s.AdapterConfig.DefaultModelSizeInBytes // TODO find out size
-
-	return &mmesh.ModelSizeResponse{SizeInBytes: uint64(size)}, nil
-}
-
 func (s *OvmsAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
 	log := s.Log
 	runtimeStatus := new(mmesh.RuntimeStatusResponse)
