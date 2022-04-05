@@ -27,6 +27,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+// wrap unimplemented structs to embed deeper than the mocks
+type unimplementedServer struct {
+	mlserver.UnimplementedGRPCInferenceServiceServer
+	modelrepo.UnimplementedModelRepositoryServiceServer
+}
+
+type mockInferenceServiceWithUnimplemented struct {
+	*mock.MockGRPCInferenceServiceServer
+	unimplementedServer
+}
+
+type mockModelRepoServiceWithUnimplemented struct {
+	*mock.MockModelRepositoryServiceServer
+	unimplementedServer
+}
+
 func main() {
 	log := zap.New(zap.UseDevMode(true))
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 8001))
@@ -46,13 +62,12 @@ func main() {
 	grpcServer := grpc.NewServer(opts...)
 
 	// Mock Inference Service
-
 	i := mock.NewMockGRPCInferenceServiceServer(ctrl)
 	i.EXPECT().ServerLive(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.ServerLiveResponse{Live: true}, nil)
 	i.EXPECT().ServerReady(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.ServerReadyResponse{Ready: true}, nil)
 	i.EXPECT().ServerMetadata(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.ServerMetadataResponse{}, nil)
 
-	mlserver.RegisterGRPCInferenceServiceServer(grpcServer, i)
+	mlserver.RegisterGRPCInferenceServiceServer(grpcServer, mockInferenceServiceWithUnimplemented{i, unimplementedServer{}})
 
 	// Mock ModelRepository Service
 
@@ -61,7 +76,7 @@ func main() {
 	mr.EXPECT().RepositoryModelLoad(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryModelLoadResponse{}, nil)
 	mr.EXPECT().RepositoryModelUnload(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryModelUnloadResponse{}, nil)
 
-	modelrepo.RegisterModelRepositoryServiceServer(grpcServer, mr)
+	modelrepo.RegisterModelRepositoryServiceServer(grpcServer, mockModelRepoServiceWithUnimplemented{mr, unimplementedServer{}})
 
 	err = grpcServer.Serve(lis)
 

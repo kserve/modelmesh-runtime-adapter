@@ -24,6 +24,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+// wrap unimplemented struct to embed deeper than the mock
+type unimplementedServer struct {
+	triton.UnimplementedGRPCInferenceServiceServer
+}
+
+type mockInferenceServiceWithUnimplemented struct {
+	*mock.MockGRPCInferenceServiceServer
+	unimplementedServer
+}
+
 func main() {
 	log := zap.New(zap.UseDevMode(true))
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 8001))
@@ -38,7 +48,7 @@ func main() {
 	log.Info("Mock Triton gRPC Server Registered...")
 	grpcServer := grpc.NewServer(opts...)
 
-	triton.RegisterGRPCInferenceServiceServer(grpcServer, &mock.MockGRPCInferenceServiceServer{})
+	triton.RegisterGRPCInferenceServiceServer(grpcServer, &mockInferenceServiceWithUnimplemented{})
 
 	err = grpcServer.Serve(lis)
 

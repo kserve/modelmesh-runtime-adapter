@@ -45,6 +45,9 @@ type PullerServer struct {
 	pullerServerConfig *PullerServerConfiguration
 	puller             *puller.Puller
 	sm                 *modelStateManager
+
+	// embed generated Unimplemented type for forward-compatibility for gRPC
+	mmesh.UnimplementedModelRuntimeServer
 }
 
 // NewPullerServer creates a new PullerServer instance and initializes it with configuration from the environment

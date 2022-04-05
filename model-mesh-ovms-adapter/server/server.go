@@ -55,6 +55,9 @@ type OvmsAdapterServer struct {
 	Puller        *puller.Puller
 	AdapterConfig *AdapterConfiguration
 	Log           logr.Logger
+
+	// embed generated Unimplemented type for forward-compatibility for gRPC
+	mmesh.UnimplementedModelRuntimeServer
 }
 
 func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *OvmsAdapterServer {
