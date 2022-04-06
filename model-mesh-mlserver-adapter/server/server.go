@@ -41,7 +41,6 @@ import (
 
 const (
 	mlserverServiceName              string = "inference.GRPCInferenceService"
-	diskSizeBytesJSONKey             string = "disk_size_bytes"
 	mlserverModelSubdir              string = "_mlserver_models"
 	mlserverRepositoryConfigFilename string = "model-settings.json"
 )
@@ -147,7 +146,7 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 		return nil, status.Errorf(status.Code(mlserverErr), "Failed to load Model due to MLServer runtime error: %s", mlserverErr)
 	}
 
-	size := calcMemCapacity(req.ModelKey, s.AdapterConfig, log)
+	size := util.CalcMemCapacity(req.ModelKey, s.AdapterConfig.DefaultModelSizeInBytes, s.AdapterConfig.ModelSizeMultiplier, log)
 
 	log.Info("MLServer model loaded")
 
@@ -424,31 +423,6 @@ func tensorMetadataToJson(tm modelschema.TensorMetadata) map[string]interface{} 
 	json["shape"] = tm.Shape
 
 	return json
-}
-
-func calcMemCapacity(reqModelKey string, adapterConfig *AdapterConfiguration, log logr.Logger) uint64 {
-	// Try to calculate the model size from the disk size passed in the LoadModelRequest.ModelKey
-	// but first set the default to fall back on if we cannot get the disk size.
-	size := uint64(adapterConfig.DefaultModelSizeInBytes)
-	var modelKey map[string]interface{}
-	err := json.Unmarshal([]byte(reqModelKey), &modelKey)
-	if err != nil {
-		log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey value is not valid JSON", "SizeInBytes", size, "LoadModelRequest.ModelKey", reqModelKey, "Error", err)
-	} else {
-		if modelKey[diskSizeBytesJSONKey] != nil {
-			diskSize, ok := modelKey[diskSizeBytesJSONKey].(float64)
-			if ok {
-				size = uint64(diskSize * adapterConfig.ModelSizeMultiplier)
-				log.Info("Setting 'SizeInBytes' to multiples of model disk size", "SizeInBytes", size, "ModelSizeMultiplier", adapterConfig.ModelSizeMultiplier)
-			} else {
-				log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey value is not a number", "SizeInBytes", size, "disc size bytes json key", diskSizeBytesJSONKey,
-					"Model key", modelKey[diskSizeBytesJSONKey])
-			}
-		} else {
-			log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey did not contain a value", "SizeInBytes", size, "diskSizeBytesJSONKey", diskSizeBytesJSONKey)
-		}
-	}
-	return size
 }
 
 func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {

@@ -131,7 +131,7 @@ func (s *TritonAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMode
 		return nil, status.Errorf(status.Code(tritonErr), "Failed to load Model due to Triton runtime error: %s", tritonErr)
 	}
 
-	size := calcMemCapacity(req.ModelKey, s.AdapterConfig, log)
+	size := util.CalcMemCapacity(req.ModelKey, s.AdapterConfig.DefaultModelSizeInBytes, s.AdapterConfig.ModelSizeMultiplier, log)
 
 	log.Info("Triton model loaded")
 
@@ -164,30 +164,6 @@ func getModelType(req *mmesh.LoadModelRequest, log logr.Logger) string {
 		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey attribute is not a string or map[string].", "model_type", req.ModelType, "attribute", modelTypeJSONKey, "attribute_value", modelKey[modelTypeJSONKey])
 	}
 	return modelType
-}
-
-func calcMemCapacity(reqModelKey string, adapterConfig *AdapterConfiguration, log logr.Logger) uint64 {
-	// Try to calculate the model size from the disk size passed in the LoadModelRequest.ModelKey
-	// but first set the default to fall back on if we cannot get the disk size.
-	size := uint64(adapterConfig.DefaultModelSizeInBytes)
-	var modelKey map[string]interface{}
-	err := json.Unmarshal([]byte(reqModelKey), &modelKey)
-	if err != nil {
-		log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey value is not valid JSON", "SizeInBytes", size, "model_key", reqModelKey, "error", err)
-	} else {
-		if modelKey[diskSizeBytesJSONKey] != nil {
-			diskSize, ok := modelKey[diskSizeBytesJSONKey].(float64)
-			if ok {
-				size = uint64(diskSize * adapterConfig.ModelSizeMultiplier)
-				log.Info("Setting 'SizeInBytes' to a multiple of model disk size", "SizeInBytes", size, "disk_size", diskSize, "multiplier", adapterConfig.ModelSizeMultiplier)
-			} else {
-				log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey 'disk_size_bytes' value is not a number", "SizeInBytes", size, "model_key", modelKey)
-			}
-		} else {
-			log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey did not contain a value for 'disk_size_bytes'", "SizeInBytes", size, "model_key", modelKey)
-		}
-	}
-	return size
 }
 
 func (s *TritonAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
