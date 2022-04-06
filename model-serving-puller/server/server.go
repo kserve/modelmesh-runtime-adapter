@@ -183,6 +183,7 @@ func (s *PullerServer) unloadModel(ctx context.Context, req *mmesh.UnloadModelRe
 // See model-runtime.proto predictModelSize()
 // This is a Direct passthrough to the model runtime grpc
 func (s *PullerServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
+	s.Log.Info("Predicting model size", "model_id", req.ModelId, "model_path", req.ModelPath, "model_key", req.ModelKey, "model_type", req.ModelType)
 	return s.modelRuntimeClient.PredictModelSize(ctx, req)
 }
 
@@ -190,6 +191,7 @@ func (s *PullerServer) PredictModelSize(ctx context.Context, req *mmesh.PredictM
 // See model-runtime.proto modelSize()
 // This is a Direct passthrough to the model runtime grpc
 func (s *PullerServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
+	s.Log.Info("Getting model size", "model_id", req.ModelId)
 	return s.modelRuntimeClient.ModelSize(ctx, req)
 }
 
