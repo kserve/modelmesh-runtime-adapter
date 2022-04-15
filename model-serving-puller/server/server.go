@@ -45,6 +45,9 @@ type PullerServer struct {
 	pullerServerConfig *PullerServerConfiguration
 	puller             *puller.Puller
 	sm                 *modelStateManager
+
+	// embed generated Unimplemented type for forward-compatibility for gRPC
+	mmesh.UnimplementedModelRuntimeServer
 }
 
 // NewPullerServer creates a new PullerServer instance and initializes it with configuration from the environment
@@ -178,36 +181,15 @@ func (s *PullerServer) unloadModel(ctx context.Context, req *mmesh.UnloadModelRe
 
 // PredictModelSize predicts the size of not-yet-loaded model - must return almost immediately.
 // See model-runtime.proto predictModelSize()
+// This is a Direct passthrough to the model runtime grpc
 func (s *PullerServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
 	s.Log.Info("Predicting model size", "model_id", req.ModelId, "model_path", req.ModelPath, "model_key", req.ModelKey, "model_type", req.ModelType)
-	// if strings.HasPrefix(req.ModelPath, "cos:") || strings.HasPrefix(req.ModelPath, "s3:") {
-	// 	objSize, err := s.GetObjSizeInCOS(req.ModelPath)
-	// 	if err != nil {
-	// 		return nil, status.Errorf(codes.Internal, "Failed to get obj size from COS: %v", err)
-	// 	}
-	// 	return &mmesh.PredictModelSizeResponse{SizeInBytes: objSize}, nil
-	// }
-
-	// if !strings.HasPrefix(req.ModelPath, "file:") {
-	// 	return nil, status.Error(codes.InvalidArgument, "cannot recognize model path")
-	// }
-
-	// p := req.ModelPath[5:len(req.ModelPath)]
-
-	// size, err := dirSize(p) // Adapter should mount model volume to same path
-	// if err != nil {
-	// 	return nil, status.Error(codes.InvalidArgument, "Cannot calculate size of path: "+p)
-	// }
-
-	// return &mmesh.PredictModelSizeResponse{SizeInBytes: uint64(size)}, nil
-
-	// Direct passthrough to model runtime grpc
 	return s.modelRuntimeClient.PredictModelSize(ctx, req)
 }
 
 // ModelSize calculates the size (memory consumption) of a currently-loaded model.
-// This is a Direct passthrough to the model runtime grpc
 // See model-runtime.proto modelSize()
+// This is a Direct passthrough to the model runtime grpc
 func (s *PullerServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
 	s.Log.Info("Getting model size", "model_id", req.ModelId)
 	return s.modelRuntimeClient.ModelSize(ctx, req)

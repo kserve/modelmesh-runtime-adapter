@@ -68,6 +68,9 @@ type MLServerAdapterServer struct {
 	Puller          *puller.Puller
 	AdapterConfig   *AdapterConfiguration
 	Log             logr.Logger
+
+	// embed generated Unimplemented type for forward-compatibility for gRPC
+	mmesh.UnimplementedModelRuntimeServer
 }
 
 func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *MLServerAdapterServer {
@@ -466,18 +469,6 @@ func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unlo
 	}
 
 	return &mmesh.UnloadModelResponse{}, nil
-}
-
-//TODO: this implementation need to be reworked
-func (s *MLServerAdapterServer) PredictModelSize(ctx context.Context, req *mmesh.PredictModelSizeRequest) (*mmesh.PredictModelSizeResponse, error) {
-	size := s.AdapterConfig.DefaultModelSizeInBytes
-	return &mmesh.PredictModelSizeResponse{SizeInBytes: uint64(size)}, nil
-}
-
-func (s *MLServerAdapterServer) ModelSize(ctx context.Context, req *mmesh.ModelSizeRequest) (*mmesh.ModelSizeResponse, error) {
-	size := s.AdapterConfig.DefaultModelSizeInBytes // TODO find out size
-
-	return &mmesh.ModelSizeResponse{SizeInBytes: uint64(size)}, nil
 }
 
 func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {

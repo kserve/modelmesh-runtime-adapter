@@ -1,7 +1,8 @@
-// Copied from https://github.com/SeldonIO/MLServer/blob/9a7c77f93dd61ac395e389280195d8adc413aad7/proto/model_repository.proto
 syntax = "proto3";
 
 package inference.model_repository;
+
+// Copied from https://github.com/SeldonIO/MLServer/blob/9358dd2de7e309471c2382364289d56f000be6fe/proto/model_repository.proto
 
 service ModelRepositoryService
 {

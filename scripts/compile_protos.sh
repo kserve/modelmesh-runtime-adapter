@@ -42,15 +42,6 @@ function compile_protos {
     done
   done
 
-  # Protobuf compilation for grpc in grpc-go has recently gone through a major
-  # change from a plugin to a separate protoc-gen-go-grpc tool. Part of this
-  # included improved future compatibility which requires an embedded type.
-  # TODO: We disable this feature for now, but should consider enabling it by
-  # editing our gRPC servers.
-  # REF: https://github.com/grpc/grpc-go/tree/master/cmd/protoc-gen-go-grpc#future-proofing-services
-  # REF: https://github.com/grpc/grpc-go/issues/2318
-  protoc_opt_flags="$protoc_opt_flags --go-grpc_opt=require_unimplemented_servers=false"
-
   # compile each proto directory separately which allows output paths to be set
   # per dir to prevent go package name conflicts
   for dir in ${proto_dirs}; do
