@@ -264,6 +264,7 @@ func (s *TritonAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runt
 
 	// only support Transform for now
 	mis[tritonServiceName+"/ModelInfer"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
+	mis[tritonServiceName+"/ModelMetadata"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
 	runtimeStatus.MethodInfos = mis
 
 	log.Info("runtimeStatus", "Status", runtimeStatus)

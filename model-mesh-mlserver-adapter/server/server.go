@@ -526,6 +526,7 @@ func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 	mis := make(map[string]*mmesh.RuntimeStatusResponse_MethodInfo)
 
 	mis[mlserverServiceName+"/ModelInfer"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
+	mis[mlserverServiceName+"/ModelMetadata"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
 	runtimeStatus.MethodInfos = mis
 
 	log.Info("runtimeStatus", "Status", runtimeStatus)
