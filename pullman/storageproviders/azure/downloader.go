@@ -38,10 +38,7 @@ type azureImplDownloader struct {
 }
 
 func (f azureClientFactory) newDownloaderWithNoCredential(log logr.Logger, containerUrl string) (azureDownloader, error) {
-	var containerClient azblob.ContainerClient
-	var err error
-
-	containerClient, err = azblob.NewContainerClientWithNoCredential(containerUrl, nil)
+	containerClient, err := azblob.NewContainerClientWithNoCredential(containerUrl, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -52,10 +49,7 @@ func (f azureClientFactory) newDownloaderWithNoCredential(log logr.Logger, conta
 }
 
 func (f azureClientFactory) newDownloaderWithConnectionString(log logr.Logger, containerName string, connectionString string) (azureDownloader, error) {
-	var containerClient azblob.ContainerClient
-	var err error
-
-	containerClient, err = azblob.NewContainerClientFromConnectionString(connectionString, containerName, nil)
+	containerClient, err := azblob.NewContainerClientFromConnectionString(connectionString, containerName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -66,14 +60,11 @@ func (f azureClientFactory) newDownloaderWithConnectionString(log logr.Logger, c
 }
 
 func (f azureClientFactory) newDownloaderWithServicePrincipal(log logr.Logger, containerUrl string, credentials servicePrincipalCredentials) (azureDownloader, error) {
-	var containerClient azblob.ContainerClient
-	var err error
-
 	cred, err := azidentity.NewClientSecretCredential(credentials.tenantId, credentials.clientId, credentials.clientSecret, nil)
 	if err != nil {
 		return nil, err
 	}
-	containerClient, err = azblob.NewContainerClient(containerUrl, cred, nil)
+	containerClient, err := azblob.NewContainerClient(containerUrl, cred, nil)
 	if err != nil {
 		return nil, err
 	}
