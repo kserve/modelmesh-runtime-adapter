@@ -17,8 +17,8 @@
 ###############################################################################
 FROM  registry.access.redhat.com/ubi8/ubi-minimal:8.4 AS develop
 
-ARG GOLANG_VERSION=1.17.8
-ARG PROTOC_VERSION=3.19.4
+ARG GOLANG_VERSION=1.17.13
+ARG PROTOC_VERSION=21.5
 
 USER root
 
@@ -108,7 +108,7 @@ USER root
 RUN microdnf install \
     gcc \
     gcc-c++ \
-    python38 && \ 
+    python38 && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip3 /usr/bin/pip && \
     pip install tensorflow
