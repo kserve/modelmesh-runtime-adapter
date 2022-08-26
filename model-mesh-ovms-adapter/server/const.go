@@ -14,6 +14,8 @@
 package server
 
 const (
-	ovmsModelSubdir   string = "_ovms_models"
-	onnxModelFilename string = "model.onnx"
+	tfsGrpcServiceName      string = "tensorflow.serving.PredictionService"
+	kServeV2GrpcServiceName string = "inference.GRPCInferenceService"
+	ovmsModelSubdir         string = "_ovms_models"
+	onnxModelFilename       string = "model.onnx"
 )

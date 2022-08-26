@@ -221,10 +221,14 @@ func (s *OvmsAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runtim
 	runtimeStatus.RuntimeVersion = s.AdapterConfig.RuntimeVersion
 	runtimeStatus.LimitModelConcurrency = s.AdapterConfig.LimitModelConcurrency > 0
 
-	// OVMS only supports the Predict API currently
+	path_1 := []uint32{1}
 	path_1_1 := []uint32{1, 1} // PredictRequest[model_spec][name]
 	mis := make(map[string]*mmesh.RuntimeStatusResponse_MethodInfo)
-	mis["tensorflow.serving.PredictionService/Predict"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path_1_1}
+	// V1 (TFS) API
+	mis[tfsGrpcServiceName+"/Predict"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path_1_1}
+	// KServe V2 API
+	mis[kServeV2GrpcServiceName+"/ModelInfer"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path_1}
+	mis[kServeV2GrpcServiceName+"/ModelMetadata"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path_1}
 	runtimeStatus.MethodInfos = mis
 
 	log.Info("runtimeStatus", "Status", runtimeStatus)

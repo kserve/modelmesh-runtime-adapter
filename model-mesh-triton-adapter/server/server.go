@@ -261,8 +261,6 @@ func (s *TritonAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runt
 	path1 := []uint32{1}
 
 	mis := make(map[string]*mmesh.RuntimeStatusResponse_MethodInfo)
-
-	// only support Transform for now
 	mis[tritonServiceName+"/ModelInfer"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
 	mis[tritonServiceName+"/ModelMetadata"] = &mmesh.RuntimeStatusResponse_MethodInfo{IdInjectionPath: path1}
 	runtimeStatus.MethodInfos = mis
