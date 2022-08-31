@@ -88,24 +88,7 @@ func NewOvmsAdapterServer(runtimePort int, config *AdapterConfiguration, log log
 		s.Puller = puller.NewPuller(log)
 	}
 
-	// send simple request to verify the connection, with retries
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	for ctx.Err() == nil {
-		err := s.ModelManager.GetConfig(ctx)
-		if err == nil {
-			break
-		}
-		log.Info("Adapter failed to ping OVMS, will retry", "error", err.Error())
-		time.Sleep(1 * time.Second)
-	}
-
-	// if the context is cancelled, we could not connect
-	if ctx.Err() != nil {
-		log.Error(ctx.Err(), "Adapter failed to connect to OVMS")
-		os.Exit(1)
-	}
-	log.Info("OVMS Runtime connected!")
+	log.Info("OVMS Runtime started")
 
 	return s
 }
@@ -137,9 +120,9 @@ func (s *OvmsAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelR
 		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %s", err)
 	}
 
-	adaptedModelPath, err := util.SecureJoin(s.AdapterConfig.RootModelDir, ovmsModelSubdir, req.ModelId)
+	adaptedModelPath, err := util.SecureJoin(s.AdapterConfig.RootModelDir, req.ModelId)
 	if err != nil {
-		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "ovmsModelSubdir", ovmsModelSubdir, "modelID", req.ModelId)
+		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "modelID", req.ModelId)
 		return nil, err
 	}
 
@@ -160,8 +143,7 @@ func (s *OvmsAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelR
 }
 
 func (s *OvmsAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
-	unloadErr := s.ModelManager.UnloadModel(ctx, req.ModelId)
-	if unloadErr != nil {
+	if unloadErr := s.ModelManager.UnloadModel(ctx, req.ModelId); unloadErr != nil {
 		// check if we got a gRPC error as a response that indicates that OVMS
 		// does not have the model registered. In that case we still want to proceed
 		// with removing the model files.
@@ -173,13 +155,12 @@ func (s *OvmsAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadMo
 		}
 	}
 
-	ovmsModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, ovmsModelSubdir, req.ModelId)
+	ovmsModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, req.ModelId)
 	if err != nil {
-		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "ovmsModelSubdir", ovmsModelSubdir, "modelId", req.ModelId)
+		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "modelId", req.ModelId)
 		return nil, err
 	}
-	err = os.RemoveAll(ovmsModelIDDir)
-	if err != nil {
+	if err = os.RemoveAll(ovmsModelIDDir); err != nil {
 		return nil, status.Errorf(status.Code(err), "Error while deleting the %s dir: %v", ovmsModelIDDir, err)
 	}
 
@@ -196,21 +177,36 @@ func (s *OvmsAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadMo
 
 func (s *OvmsAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
 	log := s.Log
-	runtimeStatus := new(mmesh.RuntimeStatusResponse)
+	runtimeStatus := &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_STARTING}
 
-	ovmsErr := s.ModelManager.GetConfig(ctx)
-	if ovmsErr != nil {
+	if ovmsErr := s.ModelManager.GetConfig(ctx); ovmsErr != nil {
 		log.Info("Failed to ping OVMS", "error", ovmsErr)
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+		return runtimeStatus, nil
+	}
+
+	// if the context is cancelled, we could not connect
+	if ctx.Err() != nil {
+		log.Error(ctx.Err(), "Adapter failed to connect to OVMS")
 		return runtimeStatus, nil
 	}
 
 	// Reset OVMS, unloading any existing models
-	unloadErr := s.ModelManager.UnloadAll(ctx)
-	if unloadErr != nil {
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+	if unloadErr := s.ModelManager.UnloadAll(ctx); unloadErr != nil {
 		log.Info("Unloading all OVMS models failed", "error", unloadErr)
 		return runtimeStatus, nil
+	}
+
+	// Clear adapted model dirs
+	if err := util.ClearDirectoryContents(s.AdapterConfig.RootModelDir, nil); err != nil {
+		log.Error(err, "Error cleaning up local model dir")
+		return &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_FAILING}, nil
+	}
+
+	if s.AdapterConfig.UseEmbeddedPuller {
+		if err := s.Puller.ClearLocalModelStorage(ovmsModelSubdir); err != nil {
+			log.Error(err, "Error cleaning up local model dir")
+			return &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_FAILING}, nil
+		}
 	}
 
 	runtimeStatus.Status = mmesh.RuntimeStatusResponse_READY

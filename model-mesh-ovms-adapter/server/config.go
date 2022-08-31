@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
+
 	"github.com/go-logr/logr"
 
 	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
@@ -49,14 +51,14 @@ const (
 	defaultUseEmbeddedPuller               = false
 
 	// OVMS adapter specific
-	modelConfigFile         string        = "MODEL_CONFIG_FILE"
-	defaultModelConfigFile                = "/models/model_config_list.json"
-	batchWaitTimeMin        string        = "BATCH_WAIT_TIME_MIN"
-	defaultBatchWaitTimeMin time.Duration = 100 * time.Millisecond
-	batchWaitTimeMax        string        = "BATCH_WAIT_TIME_MAX"
-	defaultBatchWaitTimeMax time.Duration = 3 * time.Second
-	reloadTimeout           string        = "OVMS_RELOAD_TIMEOUT"
-	defaultReloadTimeout    time.Duration = 30 * time.Second
+	modelConfigFile         string = "MODEL_CONFIG_FILE"
+	defaultModelConfigFile         = "/models/model_config_list.json"
+	batchWaitTimeMin        string = "BATCH_WAIT_TIME_MIN"
+	defaultBatchWaitTimeMin        = 100 * time.Millisecond
+	batchWaitTimeMax        string = "BATCH_WAIT_TIME_MAX"
+	defaultBatchWaitTimeMax        = 3 * time.Second
+	reloadTimeout           string = "OVMS_RELOAD_TIMEOUT"
+	defaultReloadTimeout           = 30 * time.Second
 )
 
 func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, error) {
@@ -72,8 +74,13 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.ModelSizeMultiplier = GetEnvFloat(modelSizeMultiplier, defaultModelSizeMultiplier, log)
 	adapterConfig.RuntimeVersion = GetEnvString(runtimeVersion, defaultRuntimeVersion)
 	adapterConfig.LimitModelConcurrency = GetEnvInt(limitPerModelConcurrency, defaultLimitPerModelConcurrency, log)
-	adapterConfig.RootModelDir = GetEnvString(rootModelDir, defaultRootModelDir)
 	adapterConfig.UseEmbeddedPuller = GetEnvBool(useEmbeddedPuller, defaultUseEmbeddedPuller, log)
+
+	var err error
+	adapterConfig.RootModelDir, err = util.SecureJoin(GetEnvString(rootModelDir, defaultRootModelDir), ovmsModelSubdir)
+	if err != nil {
+		return nil, fmt.Errorf("Could not construct model store path: %w", err)
+	}
 
 	// OVMS adapter specific
 	adapterConfig.ModelConfigFile = GetEnvString(modelConfigFile, defaultModelConfigFile)
@@ -82,10 +89,10 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.ReloadTimeout = GetEnvDuration(reloadTimeout, defaultReloadTimeout, log)
 
 	if adapterConfig.OvmsContainerMemReqBytes < 0 {
-		return adapterConfig, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", ovmsContainerMemReqBytes, adapterConfig.OvmsContainerMemReqBytes)
+		return nil, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", ovmsContainerMemReqBytes, adapterConfig.OvmsContainerMemReqBytes)
 	}
 	if adapterConfig.ModelSizeMultiplier <= 0 {
-		return adapterConfig, fmt.Errorf("%s environment variable must be greater than 0, found value %v", modelSizeMultiplier, adapterConfig.ModelSizeMultiplier)
+		return nil, fmt.Errorf("%s environment variable must be greater than 0, found value %v", modelSizeMultiplier, adapterConfig.ModelSizeMultiplier)
 	}
 	return adapterConfig, nil
 }

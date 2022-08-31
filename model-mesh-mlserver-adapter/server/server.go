@@ -75,15 +75,18 @@ type MLServerAdapterServer struct {
 
 func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *MLServerAdapterServer {
 	log = log.WithName("MLServer Adapter Server")
+
+	mlserverModelDir := config.RootModelDir
+	if err := os.MkdirAll(mlserverModelDir, 0755); err != nil {
+		log.Error(err, "Error creating root MLServer model directory", "path", mlserverModelDir)
+		os.Exit(1)
+	}
+	log.Info("Created root MLServer model directory", "path", mlserverModelDir)
+
 	log.Info("Connecting to MLServer...", "port", runtimePort)
-
-	mlserverClientCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
-	conn, err := grpc.DialContext(mlserverClientCtx, fmt.Sprintf("localhost:%d", runtimePort),
-		grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(),
+	conn, err := grpc.DialContext(context.Background(), fmt.Sprintf("localhost:%d", runtimePort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig, MinConnectTimeout: 10 * time.Second}))
-
 	if err != nil {
 		log.Error(err, "Can not connect to MLServer runtime")
 		os.Exit(1)
@@ -100,24 +103,14 @@ func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log
 		s.Puller = puller.NewPuller(log)
 	}
 
-	resp, mlserverErr := s.Client.ServerMetadata(mlserverClientCtx, &mlserver.ServerMetadataRequest{})
-
-	if mlserverErr != nil || resp.Version == "" {
-		log.Error(mlserverErr, "MLServer failed to get server metadata")
-	} else {
-		s.AdapterConfig.RuntimeVersion = resp.Version
-	}
-
-	log.Info("MLServer Runtime connected!")
-
+	log.Info("MLServer runtime adapter started")
 	return s
 }
 
 func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelResponse, error) {
-	log := s.Log.WithName("Load Model")
-	log = log.WithValues("model_id", req.ModelId)
+	log := s.Log.WithName("LoadModel").WithValues("modelId", req.ModelId)
 	modelType := util.GetModelType(req, log)
-	log.Info("Using model type", "model_type", modelType)
+	log.Info("Model details", "modelType", modelType, "modelPath", req.ModelPath)
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		var pullerErr error
@@ -128,7 +121,6 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 		}
 	}
 
-	var err error
 	schemaPath, err := util.GetSchemaPath(req)
 	if err != nil {
 		return nil, err
@@ -138,7 +130,7 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 	err = adaptModelLayoutForRuntime(s.AdapterConfig.RootModelDir, req.ModelId, modelType, req.ModelPath, schemaPath, log)
 	if err != nil {
 		log.Error(err, "Failed to create model directory and load model")
-		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %s", err)
+		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %v", err)
 	}
 
 	_, mlserverErr := s.ModelRepoClient.RepositoryModelLoad(ctx, &modelrepo.RepositoryModelLoadRequest{
@@ -146,12 +138,12 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 	})
 	if mlserverErr != nil {
 		log.Error(mlserverErr, "MLServer failed to load model")
-		return nil, status.Errorf(status.Code(mlserverErr), "Failed to load Model due to MLServer runtime error: %s", mlserverErr)
+		return nil, status.Errorf(status.Code(mlserverErr), "Failed to load Model due to MLServer runtime error: %v", mlserverErr)
 	}
 
 	size := util.CalcMemCapacity(req.ModelKey, s.AdapterConfig.DefaultModelSizeInBytes, s.AdapterConfig.ModelSizeMultiplier, log)
 
-	log.Info("MLServer model loaded")
+	log.Info("MLServer model loaded", "sizeInBytes", size)
 
 	return &mmesh.LoadModelResponse{
 		SizeInBytes:    size,
@@ -164,15 +156,15 @@ func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, sch
 	// convert to lower case and remove anything after a :
 	modelType = strings.ToLower(strings.Split(modelType, ":")[0])
 
-	mlserverModelIDDir, err := util.SecureJoin(rootModelDir, mlserverModelSubdir, modelID)
+	mlserverModelIDDir, err := util.SecureJoin(rootModelDir, modelID)
 	if err != nil {
-		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "mlserverModelSubdir", mlserverModelSubdir, "modelID", modelID)
+		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "modelID", modelID)
 		return err
 	}
 
 	// clean up and then create directory where the rewritten model repo will live
 	if removeErr := os.RemoveAll(mlserverModelIDDir); removeErr != nil {
-		log.Info("Ignoring error trying to remove dir", "Directory", mlserverModelIDDir, "Error", removeErr)
+		log.Info("Ignoring error trying to remove dir", "path", mlserverModelIDDir, "error", removeErr)
 	}
 	if mkdirErr := os.MkdirAll(mlserverModelIDDir, 0755); mkdirErr != nil {
 		return fmt.Errorf("Error creating directories for path %s: %w", mlserverModelIDDir, mkdirErr)
@@ -188,7 +180,7 @@ func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, sch
 
 	if !modelPathInfo.IsDir() {
 		// simpler case if ModelPath points to a file
-		err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, log)
+		err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, false, log)
 	} else {
 		// model path is a directory, inspect the files
 		files, err1 := ioutil.ReadDir(modelPath)
@@ -207,7 +199,7 @@ func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, sch
 		if assumeNativeLayout {
 			err = adaptNativeModelLayout(files, modelID, modelPath, schemaPath, mlserverModelIDDir, log)
 		} else {
-			err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, log)
+			err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, true, log)
 		}
 	}
 	if err != nil {
@@ -244,7 +236,8 @@ func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath,
 
 			target, jerr := util.SecureJoin(targetDir, mlserverRepositoryConfigFilename)
 			if jerr != nil {
-				log.Error(jerr, "Unable to securely join", "targetDir", targetDir, "mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename)
+				log.Error(jerr, "Unable to securely join", "targetDir", targetDir,
+					"mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename)
 				return jerr
 			}
 			err1 = ioutil.WriteFile(target, processedConfigJSON, f.Mode())
@@ -264,6 +257,10 @@ func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath,
 			return fmt.Errorf("Error creating symlink to %s: %w", source, err)
 		}
 	}
+
+	log.Info("Adapted model directory with existing settings file",
+		"sourceDir", modelPath, "mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename,
+		"fileCount", len(files), "schemaPath", schemaPath, "targetDir", targetDir)
 
 	return nil
 }
@@ -286,12 +283,13 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, schemaPa
 	// rewrite uri from relative to absolute path
 	if j["parameters"] != nil && j["parameters"].(map[string]interface{})["uri"] != nil {
 		uri := j["parameters"].(map[string]interface{})["uri"].(string)
-		var err error
-		j["parameters"].(map[string]interface{})["uri"], err = util.SecureJoin(targetDir, uri)
+		newUri, err := util.SecureJoin(targetDir, uri)
 		if err != nil {
 			log.Info("Error joining paths", "directory", targetDir, "uri", uri, "error", err)
 			return jsonIn, nil
 		}
+		j["parameters"].(map[string]interface{})["uri"] = newUri
+		log.Info("Rewrote model uri in settings file", "before", uri, "after", newUri)
 	}
 
 	if schemaPath != "" {
@@ -302,6 +300,7 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, schemaPa
 		if err1 = processSchema(j, s); err1 != nil {
 			return nil, fmt.Errorf("Error processing schema file: %w", err1)
 		}
+		log.Info("Injected schema information into settings file", "schemaPath", schemaPath)
 	}
 
 	jsonOut, err := json.MarshalIndent(j, "", "  ")
@@ -320,7 +319,7 @@ func processConfigJSON(jsonIn []byte, modelID string, targetDir string, schemaPa
 // - inject schema information if schemaPath is included
 // - use symlinks to reference files from the source modelPath
 // - use modelPath to construct the model's URI as an absolute path
-func adaptModelLayout(modelID, modelType, modelPath, schemaPath, targetDir string, log logr.Logger) error {
+func adaptModelLayout(modelID, modelType, modelPath, schemaPath, targetDir string, isDir bool, log logr.Logger) error {
 	// soft-link to either directory or file depending on the input received
 	linkPath, err := util.SecureJoin(targetDir, filepath.Base(modelPath))
 	if err != nil {
@@ -328,31 +327,33 @@ func adaptModelLayout(modelID, modelType, modelPath, schemaPath, targetDir strin
 		return err
 	}
 
-	err = os.Symlink(modelPath, linkPath)
-	if err != nil {
+	if err = os.Symlink(modelPath, linkPath); err != nil {
 		return fmt.Errorf("Error creating symlink: %w", err)
 	}
 
 	// generate the required configuration file
-	configJSON, err := generateModelConfigJSON(modelID, modelType, linkPath, schemaPath)
+	configJSON, err := generateModelConfigJSON(modelID, modelType, linkPath, schemaPath, log)
 	if err != nil {
 		return fmt.Errorf("Error generating config file for %s: %w", modelID, err)
 	}
 
 	target, err := util.SecureJoin(targetDir, mlserverRepositoryConfigFilename)
 	if err != nil {
-		log.Error(err, "Unable to securely join", "targetDir", targetDir, "mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename)
+		log.Error(err, "Unable to securely join", "targetDir", targetDir,
+			"mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename)
 		return err
 	}
-	err = ioutil.WriteFile(target, configJSON, 0664)
-	if err != nil {
+	if err = ioutil.WriteFile(target, configJSON, 0664); err != nil {
 		return fmt.Errorf("Error writing generated config file for %s: %w", modelID, err)
 	}
+
+	log.Info("Adapted model directory for standalone file/dir", "sourcePath", modelPath,
+		"isDir", isDir, "symLinkPath", modelType, "generatedSettingsFile", target)
 
 	return nil
 }
 
-func generateModelConfigJSON(modelID string, modelType string, uri string, schemaPath string) ([]byte, error) {
+func generateModelConfigJSON(modelID string, modelType string, uri string, schemaPath string, log logr.Logger) ([]byte, error) {
 	j := make(map[string]interface{})
 	// set the name
 	j["name"] = modelID
@@ -366,7 +367,8 @@ func generateModelConfigJSON(modelID string, modelType string, uri string, schem
 	}
 
 	// set the implementation
-	if imp := modelTypeToImplementationMapping[modelType]; imp != "" {
+	imp := modelTypeToImplementationMapping[modelType]
+	if imp != "" {
 		j["implementation"] = imp
 	}
 	j["parameters"] = map[string]interface{}{"uri": uri}
@@ -396,6 +398,7 @@ func generateModelConfigJSON(modelID string, modelType string, uri string, schem
 		return nil, fmt.Errorf("Unable to marshal JSON: %w", err)
 	}
 
+	log.Info("Generated model settings file", "schemaPath", schemaPath, "implementation", imp)
 	return jsonOut, nil
 }
 
@@ -429,6 +432,7 @@ func tensorMetadataToJson(tm modelschema.TensorMetadata) map[string]interface{} 
 }
 
 func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
+	log := s.Log.WithName("UnloadModel").WithValues("modelId", req.ModelId)
 	_, mlserverErr := s.ModelRepoClient.RepositoryModelUnload(ctx, &modelrepo.RepositoryModelUnloadRequest{
 		ModelName: req.ModelId,
 	})
@@ -441,18 +445,17 @@ func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unlo
 		// doesn't exist, but this may become NOT_FOUND in the future.
 		if grpcStatus, ok := status.FromError(mlserverErr); ok &&
 			(grpcStatus.Code() == codes.InvalidArgument || grpcStatus.Code() == codes.NotFound) {
-
-			s.Log.Info("Unload request for model not found in MLServer", "error", mlserverErr, "model_id", req.ModelId)
+			log.Info("Unload request for model not found in MLServer", "error", mlserverErr)
 		} else {
-			s.Log.Error(mlserverErr, "Failed to unload model from MLServer", "model_id", req.ModelId)
+			log.Error(mlserverErr, "Failed to unload model from MLServer")
 			return nil, status.Errorf(status.Code(mlserverErr), "Failed to unload model from MLServer")
 		}
 	}
 
 	// delete files from runtime model repository
-	mlserverModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, mlserverModelSubdir, req.ModelId)
+	mlserverModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, req.ModelId)
 	if err != nil {
-		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "mlserverModelSubdir", mlserverModelSubdir, "modelId", req.ModelId)
+		log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir)
 		return nil, err
 	}
 	err = os.RemoveAll(mlserverModelIDDir)
@@ -462,9 +465,8 @@ func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unlo
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// delete files from puller cache
-		err = s.Puller.CleanupModel(req.ModelId)
-		if err != nil {
-			return nil, status.Errorf(status.Code(err), "Failed to delete model files from puller cache: %s", err)
+		if err = s.Puller.CleanupModel(req.ModelId); err != nil {
+			return nil, status.Errorf(status.Code(err), "Failed to delete model files from puller cache: %v", err)
 		}
 	}
 
@@ -473,20 +475,17 @@ func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unlo
 
 func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
 	log := s.Log
-	runtimeStatus := new(mmesh.RuntimeStatusResponse)
+	runtimeStatus := &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_STARTING}
 
-	log.Info("runtimeStatus-entry")
 	serverReadyResponse, mlserverErr := s.Client.ServerReady(ctx, &mlserver.ServerReadyRequest{})
 
 	if mlserverErr != nil {
 		log.Info("MLServer failed to get status or not ready", "error", mlserverErr)
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		return runtimeStatus, nil
 	}
 
 	if !serverReadyResponse.Ready {
 		log.Info("MLServer runtime not ready")
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		return runtimeStatus, nil
 	}
 
@@ -496,21 +495,41 @@ func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 		Ready:          true})
 
 	if mlserverErr != nil {
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		log.Info("MLServer runtime status, getting model info failed", "error", mlserverErr)
 		return runtimeStatus, nil
 	}
 
 	for model := range indexResponse.Models {
-		_, mlserverErr := s.ModelRepoClient.RepositoryModelUnload(ctx, &modelrepo.RepositoryModelUnloadRequest{
-			ModelName: indexResponse.Models[model].Name,
-		})
-
-		if mlserverErr != nil {
-			runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
-			s.Log.Info("MLServer runtime status, unload model failed", "error", mlserverErr)
+		modelId := indexResponse.Models[model].Name
+		if _, mlserverErr = s.ModelRepoClient.RepositoryModelUnload(ctx, &modelrepo.RepositoryModelUnloadRequest{
+			ModelName: modelId,
+		}); mlserverErr != nil {
+			log.Info("MLServer runtime status, unload model failed", "error", mlserverErr, "model", modelId)
 			return runtimeStatus, nil
 		}
+	}
+
+	// Clear adapted model dirs
+	if err := util.ClearDirectoryContents(s.AdapterConfig.RootModelDir, nil); err != nil {
+		log.Error(err, "Error cleaning up local model dir")
+		return &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_FAILING}, nil
+	}
+
+	if s.AdapterConfig.UseEmbeddedPuller {
+		if err := s.Puller.ClearLocalModelStorage(mlserverModelSubdir); err != nil {
+			log.Error(err, "Error cleaning up local model dir")
+			return &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_FAILING}, nil
+		}
+	}
+
+	resp, err := s.Client.ServerMetadata(ctx, &mlserver.ServerMetadataRequest{})
+	if err != nil {
+		log.Info("MLServer failed to get server metadata", "error", err)
+		return runtimeStatus, nil
+	}
+	if resp.Version != "" {
+		log.Info("Using runtime version returned by MLServer", "version", resp.Version)
+		s.AdapterConfig.RuntimeVersion = resp.Version
 	}
 
 	runtimeStatus.Status = mmesh.RuntimeStatusResponse_READY

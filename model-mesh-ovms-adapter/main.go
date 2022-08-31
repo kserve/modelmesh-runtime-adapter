@@ -25,8 +25,7 @@ import (
 )
 
 func main() {
-	log := zap.New(zap.UseDevMode(true))
-	log = log.WithName("OpenVINO Adapter")
+	log := zap.New(zap.UseDevMode(true)).WithName("OpenVINO Adapter")
 
 	adapterConfig, err := server.GetAdapterConfigurationFromEnv(log)
 	if err != nil {
@@ -46,11 +45,9 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	mmesh.RegisterModelRuntimeServer(grpcServer, server)
-	log.Info("Adapter gRPC Server Registered...")
+	log.Info("Adapter gRPC Server Registered, now serving")
 
-	err = grpcServer.Serve(lis)
-
-	if err != nil {
+	if err = grpcServer.Serve(lis); err != nil {
 		log.Error(err, "*** Adapter terminated with error ")
 	} else {
 		log.Info("*** Adapter terminated")

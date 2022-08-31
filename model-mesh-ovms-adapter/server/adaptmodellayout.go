@@ -31,9 +31,9 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 	// convert to lower case and remove anything after the :
 	modelType = strings.ToLower(strings.Split(modelType, ":")[0])
 
-	ovmsModelIDDir, err := util.SecureJoin(rootModelDir, ovmsModelSubdir, modelID)
+	ovmsModelIDDir, err := util.SecureJoin(rootModelDir, modelID)
 	if err != nil {
-		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "ovmsModelSubdir", ovmsModelSubdir, "modelID", modelID)
+		log.Error(err, "Unable to securely join", "rootModelDir", rootModelDir, "modelID", modelID)
 		return err
 	}
 	// clean up and then create directory where the rewritten model repo will live

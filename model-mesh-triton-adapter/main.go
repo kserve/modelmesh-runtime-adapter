@@ -25,8 +25,7 @@ import (
 )
 
 func main() {
-	log := zap.New(zap.UseDevMode(true))
-	log = log.WithName("Triton Adapter")
+	log := zap.New(zap.UseDevMode(true)).WithName("Triton Adapter")
 
 	adapterConfig, err := server.GetAdapterConfigurationFromEnv(log)
 	if err != nil {
@@ -46,14 +45,11 @@ func main() {
 
 	log.Info("Adapter will run at port", "port", adapterConfig.Port, "Triton port", adapterConfig.TritonPort)
 
-	var opts []grpc.ServerOption
-
-	log.Info("Adapter gRPC Server Registered...")
-	grpcServer := grpc.NewServer(opts...)
+	grpcServer := grpc.NewServer()
 	mmesh.RegisterModelRuntimeServer(grpcServer, TAServer)
-	err = grpcServer.Serve(lis)
+	log.Info("Adapter gRPC Server registered, now serving")
 
-	if err != nil {
+	if err = grpcServer.Serve(lis); err != nil {
 		log.Error(err, "*** Adapter terminated with error ")
 	} else {
 		log.Info("*** Adapter terminated")
