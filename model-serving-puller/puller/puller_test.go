@@ -14,6 +14,7 @@
 package puller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -176,7 +177,7 @@ func Test_ProcessLoadModelRequest_Success_SingleFileModel(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -216,7 +217,7 @@ func Test_ProcessLoadModelRequest_Success_MultiFileModel(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -262,7 +263,7 @@ func Test_ProcessLoadModelRequest_SuccessWithSchema(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -302,7 +303,7 @@ func Test_ProcessLoadModelRequest_SuccessWithBucket(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -342,7 +343,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucket(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -382,7 +383,7 @@ func Test_ProcessLoadModelRequest_SuccessNoBucketNoStorageParams(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -419,7 +420,7 @@ func Test_ProcessLoadModelRequest_SuccessStorageTypeOnly(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -466,7 +467,7 @@ func Test_ProcessLoadModelRequest_DefaultStorageKey(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -504,7 +505,7 @@ func Test_ProcessLoadModelRequest_DefaultStorageKeyTyped(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -544,7 +545,7 @@ func Test_ProcessLoadModelRequest_StorageParamsOverrides(t *testing.T) {
 
 	mockPuller.EXPECT().Pull(gomock.Any(), eqPullCommand(&expectedPullCommand)).Return(nil).Times(1)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRequestRewrite, returnRequest)
 }
@@ -559,7 +560,7 @@ func Test_ProcessLoadModelRequest_FailInvalidModelKey(t *testing.T) {
 
 	p, _ := newPullerWithMock(t)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Contains(t, err.Error(), "Invalid modelKey in LoadModelRequest")
 	assert.Nil(t, returnRequest)
 }
@@ -574,7 +575,7 @@ func Test_ProcessLoadModelRequest_FailInvalidSchemaPath(t *testing.T) {
 
 	p, _ := newPullerWithMock(t)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, returnRequest)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Invalid modelKey in LoadModelRequest")
@@ -591,7 +592,7 @@ func Test_ProcessLoadModelRequest_FailMissingStorageKeyAndType(t *testing.T) {
 
 	p, _ := newPullerWithMock(t)
 
-	returnRequest, err := p.ProcessLoadModelRequest(request)
+	returnRequest, err := p.ProcessLoadModelRequest(context.Background(), request)
 	assert.Nil(t, returnRequest)
 	assert.EqualError(t, err, expectedError)
 }

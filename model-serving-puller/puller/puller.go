@@ -91,7 +91,7 @@ func NewPullerFromConfig(log logr.Logger, config *PullerConfiguration) *Puller {
 // - rewrite ModelPath to a local filesystem path
 // - rewrite ModelKey["schema_path"] to a local filesystem path
 // - add the size of the model on disk to ModelKey["disk_size_bytes"]
-func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
+func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelRequest, error) {
 	var modelKey ModelKeyInfo
 	if parseErr := json.Unmarshal([]byte(req.ModelKey), &modelKey); parseErr != nil {
 		return nil, fmt.Errorf("Invalid modelKey in LoadModelRequest. Error processing JSON '%s': %w", req.ModelKey, parseErr)
@@ -177,7 +177,7 @@ func (s *Puller) ProcessLoadModelRequest(req *mmesh.LoadModelRequest) (*mmesh.Lo
 		Directory:        modelDir,
 		Targets:          targets,
 	}
-	pullerErr := s.PullManager.Pull(context.TODO(), pullCommand)
+	pullerErr := s.PullManager.Pull(ctx, pullCommand)
 	if pullerErr != nil {
 		return nil, status.Errorf(status.Code(pullerErr), "Failed to pull model from storage due to error: %s", pullerErr)
 	}

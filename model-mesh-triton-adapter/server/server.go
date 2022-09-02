@@ -106,7 +106,7 @@ func (s *TritonAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMode
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		var pullerErr error
-		req, pullerErr = s.Puller.ProcessLoadModelRequest(req)
+		req, pullerErr = s.Puller.ProcessLoadModelRequest(ctx, req)
 		if pullerErr != nil {
 			log.Error(pullerErr, "Failed to pull model from storage")
 			return nil, pullerErr

@@ -129,7 +129,7 @@ func (s *PullerServer) loadModel(ctx context.Context, req *mmesh.LoadModelReques
 
 	// Pull the model from storage
 	var pullerErr error
-	req, pullerErr = s.puller.ProcessLoadModelRequest(req)
+	req, pullerErr = s.puller.ProcessLoadModelRequest(ctx, req)
 	if pullerErr != nil {
 		log.Error(pullerErr, "Failed to pull model from storage")
 		return nil, pullerErr

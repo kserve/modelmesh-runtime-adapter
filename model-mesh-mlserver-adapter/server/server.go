@@ -121,7 +121,7 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 
 	if s.AdapterConfig.UseEmbeddedPuller {
 		var pullerErr error
-		req, pullerErr = s.Puller.ProcessLoadModelRequest(req)
+		req, pullerErr = s.Puller.ProcessLoadModelRequest(ctx, req)
 		if pullerErr != nil {
 			log.Error(pullerErr, "Failed to pull model from storage")
 			return nil, pullerErr
