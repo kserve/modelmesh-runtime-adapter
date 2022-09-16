@@ -348,7 +348,7 @@ func adaptModelLayout(modelID, modelType, modelPath, schemaPath, targetDir strin
 	}
 
 	log.Info("Adapted model directory for standalone file/dir", "sourcePath", modelPath,
-		"isDir", isDir, "symLinkPath", modelType, "generatedSettingsFile", target)
+		"isDir", isDir, "symLinkPath", linkPath, "generatedSettingsFile", target)
 
 	return nil
 }
