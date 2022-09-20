@@ -33,8 +33,7 @@ const (
 func GetModelType(req *mmesh.LoadModelRequest, log logr.Logger) string {
 	modelType := req.ModelType
 	var modelKey map[string]interface{}
-	err := json.Unmarshal([]byte(req.ModelKey), &modelKey)
-	if err != nil {
+	if err := json.Unmarshal([]byte(req.ModelKey), &modelKey); err != nil {
 		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey value is not valid JSON", "LoadModelRequest.ModelType", req.ModelType, "LoadModelRequest.ModelKey", req.ModelKey, "Error", err)
 	} else if modelKey[modelTypeJSONKey] == nil {
 		log.Info("The model type will fall back to LoadModelRequest.ModelType as LoadModelRequest.ModelKey does not have specified attribute", "LoadModelRequest.ModelType", req.ModelType, "attribute", modelTypeJSONKey)
@@ -61,10 +60,8 @@ func GetSchemaPath(req *mmesh.LoadModelRequest) (string, error) {
 	}
 
 	schemaPath, ok := modelKey[schemaPathJSONKey].(string)
-	if !ok {
-		if modelKey[schemaPathJSONKey] != nil {
-			return "", fmt.Errorf("Invalid schemaPath in LoadModelRequest, '%s' attribute must have a string value. Found value %v", schemaPathJSONKey, modelKey[schemaPathJSONKey])
-		}
+	if !ok && modelKey[schemaPathJSONKey] != nil {
+		return "", fmt.Errorf("Invalid schemaPath in LoadModelRequest, '%s' attribute must have a string value. Found value %v", schemaPathJSONKey, modelKey[schemaPathJSONKey])
 	}
 
 	return schemaPath, nil
@@ -75,8 +72,7 @@ func CalcMemCapacity(reqModelKey string, defaultSize int, multiplier float64, lo
 	// but first set the default to fall back on if we cannot get the disk size.
 	size := uint64(defaultSize)
 	var modelKey map[string]interface{}
-	err := json.Unmarshal([]byte(reqModelKey), &modelKey)
-	if err != nil {
+	if err := json.Unmarshal([]byte(reqModelKey), &modelKey); err != nil {
 		log.Info("'SizeInBytes' will be defaulted as LoadModelRequest.ModelKey value is not valid JSON", "SizeInBytes", size, "model_key", reqModelKey, "error", err)
 	} else {
 		if modelKey[diskSizeBytesJSONKey] != nil {

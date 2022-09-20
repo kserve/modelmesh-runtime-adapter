@@ -63,15 +63,11 @@ type TritonAdapterServer struct {
 
 func NewTritonAdapterServer(runtimePort int, config *AdapterConfiguration, log logr.Logger) *TritonAdapterServer {
 	log = log.WithName("Triton Adapter Server")
+
 	log.Info("Connecting to Triton...", "port", runtimePort)
-
-	tritonClientCtx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
-	conn, err := grpc.DialContext(tritonClientCtx, fmt.Sprintf("localhost:%d", runtimePort),
-		grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(),
+	conn, err := grpc.DialContext(context.Background(), fmt.Sprintf("localhost:%d", runtimePort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig, MinConnectTimeout: 10 * time.Second}))
-
 	if err != nil {
 		log.Error(err, "Can not connect to Triton Runtime")
 		os.Exit(1)
@@ -87,15 +83,7 @@ func NewTritonAdapterServer(runtimePort int, config *AdapterConfiguration, log l
 		s.Puller = puller.NewPuller(log)
 	}
 
-	resp, tritonErr := s.Client.ServerMetadata(tritonClientCtx, &triton.ServerMetadataRequest{})
-	if tritonErr != nil || resp.Version == "" {
-		log.Error(tritonErr, "Warning: Triton failed to get version from server metadata")
-	} else {
-		s.AdapterConfig.RuntimeVersion = resp.Version
-	}
-
-	log.Info("Triton Runtime connected!")
-
+	log.Info("Triton runtime adapter started")
 	return s
 }
 
@@ -188,9 +176,9 @@ func (s *TritonAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unload
 		}
 	}
 
-	tritonModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, tritonModelSubdir, req.ModelId)
+	tritonModelIDDir, err := util.SecureJoin(s.AdapterConfig.RootModelDir, req.ModelId)
 	if err != nil {
-		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "tritonModelSubdir", tritonModelSubdir, "modelId", req.ModelId)
+		s.Log.Error(err, "Unable to securely join", "rootModelDir", s.AdapterConfig.RootModelDir, "modelId", req.ModelId)
 		return nil, err
 	}
 	err = os.RemoveAll(tritonModelIDDir)
@@ -211,19 +199,17 @@ func (s *TritonAdapterServer) UnloadModel(ctx context.Context, req *mmesh.Unload
 
 func (s *TritonAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.RuntimeStatusRequest) (*mmesh.RuntimeStatusResponse, error) {
 	log := s.Log
-	runtimeStatus := new(mmesh.RuntimeStatusResponse)
+	runtimeStatus := &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_STARTING}
 
 	serverReadyResponse, tritonErr := s.Client.ServerReady(ctx, &triton.ServerReadyRequest{})
 
 	if tritonErr != nil {
 		log.Info("Triton failed to get status or not ready", "error", tritonErr)
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		return runtimeStatus, nil
 	}
 
 	if !serverReadyResponse.Ready {
 		log.Info("Triton runtime not ready")
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		return runtimeStatus, nil
 	}
 
@@ -233,21 +219,39 @@ func (s *TritonAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Runt
 		Ready:          true})
 
 	if tritonErr != nil {
-		runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
 		log.Info("Triton runtime status, getting model info failed", "error", tritonErr)
 		return runtimeStatus, nil
 	}
 
 	for model := range indexResponse.Models {
-		_, tritonErr := s.Client.RepositoryModelUnload(ctx, &triton.RepositoryModelUnloadRequest{
+		if _, tritonErr := s.Client.RepositoryModelUnload(ctx, &triton.RepositoryModelUnloadRequest{
 			ModelName: indexResponse.Models[model].Name,
-		})
-
-		if tritonErr != nil {
-			runtimeStatus.Status = mmesh.RuntimeStatusResponse_STARTING
+		}); tritonErr != nil {
 			s.Log.Info("Triton runtime status, unload model failed", "error", tritonErr)
 			return runtimeStatus, nil
 		}
+	}
+
+	// Clear adapted model dirs
+	if err := util.ClearDirectoryContents(s.AdapterConfig.RootModelDir, nil); err != nil {
+		log.Error(err, "Error cleaning up local model dir")
+		return &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_FAILING}, nil
+	}
+
+	if s.AdapterConfig.UseEmbeddedPuller {
+		if err := s.Puller.ClearLocalModelStorage(tritonModelSubdir); err != nil {
+			log.Error(err, "Error cleaning up local model dir")
+			return &mmesh.RuntimeStatusResponse{Status: mmesh.RuntimeStatusResponse_FAILING}, nil
+		}
+	}
+
+	resp, err := s.Client.ServerMetadata(ctx, &triton.ServerMetadataRequest{})
+	if err != nil {
+		log.Info("Warning: Triton failed to get version from server metadata", "error", err)
+	}
+	if resp.Version != "" {
+		log.Info("Using runtime version returned by Triton", "version", resp.Version)
+		s.AdapterConfig.RuntimeVersion = resp.Version
 	}
 
 	runtimeStatus.Status = mmesh.RuntimeStatusResponse_READY

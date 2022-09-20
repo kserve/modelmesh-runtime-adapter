@@ -14,7 +14,10 @@
 package util
 
 import (
+	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 )
 
 // RemoveFileFromListOfFileInfo
@@ -44,4 +47,26 @@ func FileExists(path string) (bool, error) {
 	} else {
 		return false, err
 	}
+}
+
+// Clear contents of directory if it exists.
+// If condition is specified then only delete dir entries to which it returns true
+func ClearDirectoryContents(dirPath string, condition func(entry os.DirEntry) bool) error {
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil // ok
+		}
+		return fmt.Errorf("Error listing files to clean up in model dir %s: %w", dirPath, err)
+	}
+	for _, f := range files {
+		if condition != nil && !condition(f) {
+			continue
+		}
+		filePath := filepath.Join(dirPath, f.Name()) // this is safe, securejoin not needed
+		if err = os.RemoveAll(filePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("Error removing preexisting entry from model store dir: %s: %w", filePath, err)
+		}
+	}
+	return nil
 }

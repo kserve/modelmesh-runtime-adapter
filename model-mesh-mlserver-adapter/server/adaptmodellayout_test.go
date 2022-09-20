@@ -414,6 +414,7 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
 	}
+	mlServerRootModelDir := filepath.Join(generatedTestdataDir, mlserverModelSubdir)
 	for _, tt := range adaptModelLayoutTests {
 		t.Run(tt.ModelID, func(t *testing.T) {
 			var err1 error
@@ -430,17 +431,17 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 			if tt.SchemaPath != "" {
 				schemaFullPath = filepath.Join(tt.getSourceDir(), tt.SchemaPath)
 			}
-			err1 = adaptModelLayoutForRuntime(generatedTestdataDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
+			err1 = adaptModelLayoutForRuntime(mlServerRootModelDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
 
 			// assert no error
 			if err1 != nil {
-				t.Error("adaptModelLayoutForRuntime failed with error:", err1)
+				t.Fatal("adaptModelLayoutForRuntime failed with error:", err1)
 			}
 
 			// assert that the expected links exist and are correct
 			generatedFiles, err1 := getFilesInDir(tt.getTargetDir())
 			if err1 != nil {
-				t.Error(err1)
+				t.Fatal(err1)
 			}
 			for _, file := range tt.ExpectedFiles {
 				// assert that the expected file exists

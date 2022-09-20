@@ -248,12 +248,17 @@ func (p *Puller) CleanupModel(modelID string) error {
 		p.Log.Error(err, "Error joining paths", "RootModelDir", p.PullerConfig.RootModelDir, "ModelId", modelID)
 		return err
 	}
-	err = os.RemoveAll(pathToModel)
-	if err != nil {
+	if err = os.RemoveAll(pathToModel); err != nil {
 		p.Log.Error(err, "Model unload failed to delete files from the local filesystem", "local_dir", pathToModel)
 		return fmt.Errorf("Failed to delete model from local filesystem: %w", err)
 	}
 	return nil
+}
+
+func (p *Puller) ClearLocalModelStorage(exclude string) error {
+	return util.ClearDirectoryContents(p.PullerConfig.RootModelDir, func(f os.DirEntry) bool {
+		return f.Name() != exclude
+	})
 }
 
 func (p *Puller) ListModels() ([]string, error) {

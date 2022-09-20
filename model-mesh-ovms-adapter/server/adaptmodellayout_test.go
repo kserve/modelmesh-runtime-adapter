@@ -88,6 +88,7 @@ func (tt adaptModelLayoutTestCase) writeSchemaFile(t *testing.T) {
 }
 
 func TestAdaptModelLayoutForRuntime(t *testing.T) {
+	ovmsRootModelDir := filepath.Join(generatedTestdataDir, ovmsModelSubdir)
 	for _, tt := range adaptModelLayoutTests {
 		t.Run(tt.ModelID, func(t *testing.T) {
 			// cleanup the source directory before running each test
@@ -103,7 +104,7 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 			if tt.SchemaPath != "" {
 				schemaFullPath = filepath.Join(tt.getSourceDir(), tt.SchemaPath)
 			}
-			err = adaptModelLayoutForRuntime(context.Background(), generatedTestdataDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
+			err = adaptModelLayoutForRuntime(context.Background(), ovmsRootModelDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
 
 			if tt.ExpectError && err == nil {
 				t.Fatal("ExpectError is true, but no error was returned")
@@ -127,6 +128,7 @@ func TestAdaptModelLayoutForRuntime_Multiple(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not remove root model dir %s due to error %v", generatedTestdataDir, err)
 	}
+	ovmsRootModelDir := filepath.Join(generatedTestdataDir, ovmsModelSubdir)
 
 	// first create all the source files
 	for _, tt := range adaptModelLayoutTests {
@@ -141,7 +143,7 @@ func TestAdaptModelLayoutForRuntime_Multiple(t *testing.T) {
 		if tt.SchemaPath != "" {
 			schemaFullPath = filepath.Join(tt.getSourceDir(), tt.SchemaPath)
 		}
-		err = adaptModelLayoutForRuntime(ctx, generatedTestdataDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
+		err = adaptModelLayoutForRuntime(ctx, ovmsRootModelDir, tt.ModelID, tt.ModelType, modelFullPath, schemaFullPath, log)
 		if tt.ExpectError && err == nil {
 			t.Fatal("ExpectError is true, but no error was returned")
 		}

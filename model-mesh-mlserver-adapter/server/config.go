@@ -16,6 +16,8 @@ package server
 import (
 	"fmt"
 
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
+
 	"github.com/go-logr/logr"
 
 	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
@@ -61,14 +63,19 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 	adapterConfig.ModelSizeMultiplier = GetEnvFloat(modelSizeMultiplier, defaultModelSizeMultiplier, log)
 	adapterConfig.RuntimeVersion = GetEnvString(runtimeVersion, defaultRuntimeVersion)
 	adapterConfig.LimitModelConcurrency = GetEnvInt(limitPerModelConcurrency, defaultLimitPerModelConcurrency, log)
-	adapterConfig.RootModelDir = GetEnvString(rootModelDir, defaultRootModelDir)
 	adapterConfig.UseEmbeddedPuller = GetEnvBool(useEmbeddedPuller, defaultUseEmbeddedPuller, log)
 
+	var err error
+	adapterConfig.RootModelDir, err = util.SecureJoin(GetEnvString(rootModelDir, defaultRootModelDir), mlserverModelSubdir)
+	if err != nil {
+		return nil, fmt.Errorf("Could not construct root model path: %w", err)
+	}
+
 	if adapterConfig.MLServerContainerMemReqBytes < 0 {
-		return adapterConfig, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", mlserverContainerMemReqBytes, adapterConfig.MLServerContainerMemReqBytes)
+		return nil, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v", mlserverContainerMemReqBytes, adapterConfig.MLServerContainerMemReqBytes)
 	}
 	if adapterConfig.ModelSizeMultiplier <= 0 {
-		return adapterConfig, fmt.Errorf("%s environment variable must be greater than 0, found value %v", modelSizeMultiplier, adapterConfig.ModelSizeMultiplier)
+		return nil, fmt.Errorf("%s environment variable must be greater than 0, found value %v", modelSizeMultiplier, adapterConfig.ModelSizeMultiplier)
 	}
 	return adapterConfig, nil
 }

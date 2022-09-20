@@ -16,9 +16,10 @@ package server
 import (
 	"context"
 	"fmt"
-	"os"
-	"path"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/go-logr/logr"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
@@ -190,17 +191,18 @@ func (m *modelStateManager) unloadAll() error {
 		if !excluded {
 			unloadReq := &mmesh.UnloadModelRequest{ModelId: modelid}
 			ctx := context.Background()
-			_, err := pullerServer.modelRuntimeClient.UnloadModel(ctx, unloadReq)
-			if err != nil {
-				// When an error occurs unloading a model, abort all model
-				// unloading with the error
-				m.log.Error(err, "Error requesting unload of model")
-				return err
+			if _, err = pullerServer.modelRuntimeClient.UnloadModel(ctx, unloadReq); err != nil {
+				if status, ok := status.FromError(err); !ok || status.Code() != codes.NotFound { // ignore NotFound
+					// When an error occurs unloading a model, abort all model
+					// unloading with the error
+					m.log.Error(err, "Error requesting unload of model")
+					return err
+				}
 			}
 
-			filePath := path.Join(pullerServer.puller.PullerConfig.RootModelDir, modelid)
-			m.log.Info("Purging", "filepath", filePath)
-			os.RemoveAll(filePath)
+			if err = pullerServer.puller.CleanupModel(modelid); err != nil {
+				return err
+			}
 		} else {
 			m.log.Info("Skipping purge because it is excluded from deletion", "filename", modelid)
 		}
