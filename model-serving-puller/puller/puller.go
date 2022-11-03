@@ -30,6 +30,7 @@ import (
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/azure"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/gcs"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/http"
+	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/pvc"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/s3"
 )
 
@@ -167,7 +168,13 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 		targets = append(targets, schemaTarget)
 	}
 
-	modelDir, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
+	var modelDir string
+	var joinErr error
+	if storageType == "pvc" {
+		modelDir, joinErr = util.SecureJoin("/pvc_mounts", storageConfig["name"].(string), filepath.Dir(req.ModelPath))
+	} else {
+		modelDir, joinErr = util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
+	}
 	if joinErr != nil {
 		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %v", s.PullerConfig.RootModelDir, req.ModelId, joinErr)
 	}
