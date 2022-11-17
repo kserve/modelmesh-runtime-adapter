@@ -168,13 +168,7 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 		targets = append(targets, schemaTarget)
 	}
 
-	var modelDir string
-	var joinErr error
-	if storageType == "pvc" {
-		modelDir, joinErr = util.SecureJoin("/pvc_mounts", storageConfig["name"].(string), filepath.Dir(req.ModelPath))
-	} else {
-		modelDir, joinErr = util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
-	}
+	modelDir, joinErr := util.SecureJoin(s.PullerConfig.RootModelDir, req.ModelId)
 	if joinErr != nil {
 		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %v", s.PullerConfig.RootModelDir, req.ModelId, joinErr)
 	}
@@ -190,10 +184,13 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	}
 
 	// update model path to an absolute path in the local filesystem
-	modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
-	if joinErr != nil {
-		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
-	}
+	// commment out SecureJoin since it doesn't handle symlinks well
+	// modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
+	// if joinErr != nil {
+	// 	return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
+	// }
+	modelFullPath := modelDir + string(filepath.Separator) + modelPathFilename
+
 	req.ModelPath = modelFullPath
 
 	// if it was included, update schema path to an absolute path in the local filesystem

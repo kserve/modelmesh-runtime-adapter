@@ -31,15 +31,20 @@ func newPVCProvider(t *testing.T) (pvcProvider, logr.Logger) {
 }
 
 func newPVCRepositoryClient(t *testing.T) *pvcRepositoryClient {
-	log := zap.New()
+	pvcMountBase, _ := os.Getwd()
+	p, log := newPVCProvider(t)
+	p.pvcMountBase = pvcMountBase
 	pvcrc := pvcRepositoryClient{
-		log: log,
+		pvcProvider: p,
+		log:         log,
 	}
 	return &pvcrc
 }
 
 func Test_NewRepository(t *testing.T) {
+	pvcMountBase, _ := os.Getwd()
 	p, log := newPVCProvider(t)
+	p.pvcMountBase = pvcMountBase
 	c := pullman.NewRepositoryConfig("pvc", nil)
 	c.Set("name", "pvcName")
 	_, err := p.NewRepository(c, log)
@@ -47,19 +52,20 @@ func Test_NewRepository(t *testing.T) {
 }
 
 func Test_Verify_Directory(t *testing.T) {
-	pvcMountBase, _ := os.Getwd()
 	pvcName := "pvcName"
 	modelDir := "modelDir"
+	modelID := "testId"
 	pvcRc := newPVCRepositoryClient(t)
 	c := pullman.NewRepositoryConfig("pvc", nil)
 	c.Set("name", pvcName)
-	c.Set("pvc_mount_base", pvcMountBase)
 
-	pvcModelDir := pvcMountBase + "/" + pvcName + "/" + modelDir
+	pvcNameDir := pvcRc.pvcProvider.pvcMountBase + "/" + pvcName
+	pvcModelDir := pvcNameDir + "/" + modelDir
+	serveModelDir := pvcRc.pvcProvider.pvcMountBase + "/" + modelID
 
 	inputPullCommand := pullman.PullCommand{
 		RepositoryConfig: c,
-		Directory:        pvcModelDir,
+		Directory:        serveModelDir,
 		Targets: []pullman.Target{
 			{
 				RemotePath: modelDir,
@@ -78,33 +84,26 @@ func Test_Verify_Directory(t *testing.T) {
 	err = pvcRc.Pull(context.Background(), inputPullCommand)
 	assert.NoError(t, err)
 
-	err = os.RemoveAll(pvcModelDir)
+	err = os.RemoveAll(pvcNameDir)
+	assert.NoError(t, err)
+
+	err = os.RemoveAll(serveModelDir)
 	assert.NoError(t, err)
 }
 
 func Test_GetKey(t *testing.T) {
 	provider := pvcProvider{}
 
-	createTestConfig := func() *pullman.RepositoryConfig {
+	createTestConfig := func(pvcName string) *pullman.RepositoryConfig {
 		config := pullman.NewRepositoryConfig("pvc", nil)
-		config.Set(configPVCName, "pvcName1")
+		config.Set(configPVCName, pvcName)
 		return config
 	}
 
-	// should return the same result given the same config
-	t.Run("shouldMatchForSameConfig", func(t *testing.T) {
-		config1 := createTestConfig()
-		config2 := createTestConfig()
-
-		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
-	})
-
-	// changing the pvc name should change the key
+	// different pvc names should have the same key
 	t.Run("shouldChangeForTokenUri", func(t *testing.T) {
-		config1 := createTestConfig()
-		config2 := createTestConfig()
-		config2.Set(configPVCName, "pvcName2")
-
-		assert.NotEqual(t, provider.GetKey(config1), provider.GetKey(config2))
+		config1 := createTestConfig("pvcName1")
+		config2 := createTestConfig("pvcName2")
+		assert.Equal(t, provider.GetKey(config1), provider.GetKey(config2))
 	})
 }
