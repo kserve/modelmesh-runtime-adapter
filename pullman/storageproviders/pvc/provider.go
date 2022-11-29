@@ -51,9 +51,13 @@ func (p pvcProvider) NewRepository(config pullman.Config, log logr.Logger) (pull
 	}
 
 	fileInfo, err := os.Stat(p.pvcMountBase)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("the PVC mount base '%s' doesn't exist: %w", p.pvcMountBase, err)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("the PVC mount base '%s' doesn't exist: %w", p.pvcMountBase, err)
+		}
+		return nil, fmt.Errorf("failed to access the PVC mount base '%s': %w", p.pvcMountBase, err)
 	}
+
 	if !fileInfo.IsDir() {
 		return nil, fmt.Errorf("the PVC mount base '%s' is not a directory", p.pvcMountBase)
 	}
