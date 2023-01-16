@@ -67,3 +67,4 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
           push: ${{ github.event_name == 'push' }}
           tags: ${{ env.IMAGE_ID }}:${{ env.VERSION }}
+          target: runtime
