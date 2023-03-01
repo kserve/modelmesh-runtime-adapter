@@ -30,6 +30,7 @@ import (
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/azure"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/gcs"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/http"
+	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/pvc"
 	_ "github.com/kserve/modelmesh-runtime-adapter/pullman/storageproviders/s3"
 )
 
@@ -183,10 +184,13 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	}
 
 	// update model path to an absolute path in the local filesystem
-	modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
-	if joinErr != nil {
-		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
-	}
+	// commment out SecureJoin since it doesn't handle symlinks well
+	// modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
+	// if joinErr != nil {
+	// 	return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
+	// }
+	modelFullPath := modelDir + string(filepath.Separator) + modelPathFilename
+
 	req.ModelPath = modelFullPath
 
 	// if it was included, update schema path to an absolute path in the local filesystem
