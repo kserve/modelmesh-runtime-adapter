@@ -103,13 +103,19 @@ func (m *modelStateManager) submitRequest(ctx context.Context, req grpcRequest) 
 }
 
 func (m *modelStateManager) loadModel(ctx context.Context, req *mmesh.LoadModelRequest) (*mmesh.LoadModelResponse, error) {
-	resp, err := m.submitRequest(ctx, req)
-	return resp.(*mmesh.LoadModelResponse), err
+	res, err := m.submitRequest(ctx, req)
+	if resp, ok := res.(*mmesh.LoadModelResponse); ok {
+		return resp, err
+	}
+	return nil, err
 }
 
 func (m *modelStateManager) unloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
-	resp, err := m.submitRequest(ctx, req)
-	return resp.(*mmesh.UnloadModelResponse), err
+	res, err := m.submitRequest(ctx, req)
+	if resp, ok := res.(*mmesh.UnloadModelResponse); ok {
+		return resp, err
+	}
+	return nil, err
 }
 
 func (m *modelStateManager) execute() {
