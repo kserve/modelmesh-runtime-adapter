@@ -2,31 +2,24 @@ name: Build and Push
 
 on:
   push:
-    branches: [main]
-    tags:
-      - v*
+    branches: [ main, 'release-[0-9].[0-9]+' ]
+    paths-ignore: [ '**.md' ]
+    tags: [ 'v*' ]
   pull_request:
+    branches: [ main, 'release-[0-9].[0-9]+' ]
+    paths-ignore: [ '**.md' ]
+
+env:
+  IMAGE_NAME: "kserve/modelmesh-runtime-adapter"
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build develop image
-        run: make build.develop
-      - name: Run lint
-        run: ./scripts/develop.sh make fmt
-      - name: Run unit test
-        run: ./scripts/develop.sh make test
   build:
-    needs: test
     runs-on: ubuntu-latest
-
     env:
-      IMAGE_NAME: modelmesh-runtime-adapter
-
+      CI: true
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v2
@@ -41,29 +34,39 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: export version variables
+      - name: Export docker build args
         run: |
-          IMAGE_ID=kserve/$IMAGE_NAME
-
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          # see: scripts/build_docker.sh
 
           # Strip git ref prefix from version
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
 
-          # Strip "v" prefix from tag name
-          # [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Generate PR tag from github.ref == "refs/pull/123/merge"
+          [ "$VERSION" == "merge" ] && VERSION=$(echo "${{ github.ref }}" | sed -e 's,refs/pull/\(.*\)/merge,pr-\1,')
 
           # Use Docker `latest` tag convention
           [ "$VERSION" == "main" ] && VERSION=latest
 
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+          git_commit_sha="$(git rev-parse HEAD)"
+          DOCKER_TAG="$(git rev-parse --abbrev-ref HEAD)-$(date -u +"%Y%m%dT%H%M%S%Z")"
 
-      - name: Build and push
-        uses: docker/build-push-action@v3
+          echo "IMAGE_TAG=$VERSION"                 >> $GITHUB_ENV
+          echo "COMMIT_SHA=$git_commit_sha"         >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$DOCKER_TAG"          >> $GITHUB_ENV
+
+          # print env vars for debugging
+          cat "$GITHUB_ENV"
+
+      - name: Build and push runtime image
+        uses: docker/build-push-action@v4
         with:
-          platforms: linux/amd64,linux/arm64/v8,linux/ppc64le,linux/s390x
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ env.IMAGE_ID }}:${{ env.VERSION }}
+          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
+          context: .
           target: runtime
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            IMAGE_VERSION=${{ env.IMAGE_VERSION }}
+            COMMIT_SHA=${{ env.COMMIT_SHA }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

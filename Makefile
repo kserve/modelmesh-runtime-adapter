@@ -14,6 +14,9 @@
 # collect args from `make run` so that they don't run twice
 ifeq (run,$(firstword $(MAKECMDGOALS)))
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  ifneq ("$(wildcard /.dockerenv)","")
+    $(error Inside docker container, run 'make $(RUN_ARGS)')
+  endif
 endif
 
 all: build
@@ -26,12 +29,6 @@ build.develop:
 
 develop: build.develop
 	./scripts/develop.sh
-
-docs:
-	./scripts/docs.sh
-
-docs.dev:
-	./scripts/docs.sh --dev
 
 run: build.develop
 	./scripts/develop.sh make $(RUN_ARGS)

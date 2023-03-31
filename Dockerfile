@@ -15,7 +15,7 @@
 ###############################################################################
 # Stage 1: Create the develop, test, and build environment
 ###############################################################################
-FROM  registry.access.redhat.com/ubi8/ubi-minimal:8.4 AS develop
+FROM registry.access.redhat.com/ubi8/go-toolset:1.17 AS develop
 
 ARG GOLANG_VERSION=1.17.13
 ARG PROTOC_VERSION=21.5
@@ -23,32 +23,56 @@ ARG PROTOC_VERSION=21.5
 USER root
 
 # Install build and dev tools
-RUN microdnf install \
-    gcc \
-    gcc-c++ \
-    make \
-    vim \
-    findutils \
-    diffutils \
-    git \
-    wget \
-    tar \
-    unzip \
-    python3 \
+RUN dnf install -y --nodocs \
+#    gcc \
+#    gcc-c++ \
+#    make \
+#    vim \
+#    findutils \
+#    diffutils \
+#    git \
+#    wget \
+#    tar \
+#    unzip \
+    python3 python3-pip\
     nodejs && \
     pip3 install pre-commit
 
-# Install go
-ENV PATH /usr/local/go/bin:$PATH
+# https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
+# - TARGETPLATFORM - e.g. linux/amd64, linux/arm/v7, windows/amd64
+# - TARGETOS       - e.g. linux, windows, darwin
+# - TARGETARCH     - e.g. amd64, arm32v7, arm64v8, i386, ppc64le, s390x
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+# Verify go version, TODO: remove
+#ENV PATH /usr/local/go/bin:$PATH
 RUN set -eux; \
-    wget -qO go.tgz "https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz"; \
-    sha256sum *go.tgz; \
-    tar -C /usr/local -xzf go.tgz; \
+    echo "PATH=$PATH"; \
     go version
 
 # Install protoc
+# The protoc download files use a different variation of architecture identifiers
+# from the Docker TARGETARCH forms amd64, arm64, ppc64le, s390x
+#   protoc-22.2-linux-aarch_64.zip  <- arm64
+#   protoc-22.2-linux-ppcle_64.zip  <- ppc64le
+#   protoc-22.2-linux-s390_64.zip   <- s390x
+#   protoc-22.2-linux-x86_64.zip    <- amd64
+# so we need to map the arch identifiers before downloading the protoc.zip using
+# shell parameter expansion: with the first character of a parameter being an
+# exclamation point (!) it introduces a level of indirection where the value
+# of the parameter is used as the name of another variable and the value of that
+# other variable is the result of the expansion, e.g. the echo statement in the
+# following three lines of shell script print "x86_64"
+#   TARGETARCH=amd64
+#   amd64=x86_64
+#   echo ${!TARGETARCH}
 RUN set -eux; \
-    wget -qO protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"; \
+    amd64=x86_64; \
+    arm64=aarch_64; \
+    ppc64le=ppcle_64; \
+    s390x=s390_64; \
+    wget -qO protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${TARGETOS}-${!TARGETARCH}.zip"; \
     sha256sum protoc.zip; \
     unzip protoc.zip -x readme.txt -d /usr/local; \
     protoc --version
