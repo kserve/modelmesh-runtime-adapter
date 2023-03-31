@@ -128,7 +128,9 @@ LABEL name="model-serving-runtime-adapter" \
       description="Container which runs in each model serving pod and act as an intermediary between model-mesh and third-party model-server containers"
 
 USER root
+
 # install python to convert keras to tf
+# NOTE: tensorflow not supported for s390x architecture https://github.com/tensorflow/tensorflow/issues/46181
 RUN microdnf install \
     gcc \
     gcc-c++ \

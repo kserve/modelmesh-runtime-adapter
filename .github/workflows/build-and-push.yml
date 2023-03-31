@@ -60,7 +60,8 @@ jobs:
       - name: Build and push runtime image
         uses: docker/build-push-action@v4
         with:
-          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
+          # tensorflow not supported for s390x architecture https://github.com/tensorflow/tensorflow/issues/46181
+          platforms: linux/amd64,linux/arm64,linux/ppc64le #,linux/s390x
           context: .
           target: runtime
           push: ${{ github.event_name != 'pull_request' }}
