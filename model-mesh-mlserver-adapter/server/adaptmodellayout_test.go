@@ -404,6 +404,36 @@ var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 				},
 			},
 		},
+	}, 
+	
+	// model with filename that alphabetically precedes model-settings.json
+
+	{
+		ModelID:   "model-filename-precedes-model-settings",
+		ModelType: "sklearn",
+		ModelPath: "data",
+		InputFiles: []string{
+			"data/model-settings.json",
+			"data/aaaaa.json",
+		},
+		InputConfig: map[string]interface{}{
+			"name":           "model-name",
+			"implementation": "mlserver_sklearn.SKLearnModel",
+			"parameters": map[string]interface{}{
+				"uri":     "./aaaaa.json",
+			},
+		},
+		ExpectedFiles: []string{
+			"model-settings.json",
+			"aaaaa.json",
+		},
+		ExpectedConfig: map[string]interface{}{
+			"name":           "model-filename-precedes-model-settings",
+			"implementation": "mlserver_sklearn.SKLearnModel",
+			"parameters": map[string]interface{}{
+				"uri":     filepath.Join(generatedMlserverModelsDir, "model-filename-precedes-model-settings", "aaaaa.json"),
+			},
+		},
 	},
 }
 
