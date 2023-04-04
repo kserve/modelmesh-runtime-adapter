@@ -23,33 +23,16 @@ ARG PROTOC_VERSION=21.5
 USER root
 
 # Install build and dev tools
-RUN dnf install -y --nodocs \
-#    gcc \
-#    gcc-c++ \
-#    make \
-#    vim \
-#    findutils \
-#    diffutils \
-#    git \
-#    wget \
-#    tar \
-#    unzip \
-    python3 python3-pip\
-    nodejs && \
-    pip3 install pre-commit
+RUN true \
+    && dnf install -y --nodocs \
+       python3 python3-pip \
+       nodejs \
+    && pip3 install pre-commit \
+    && true
 
 # https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
-# - TARGETPLATFORM - e.g. linux/amd64, linux/arm/v7, windows/amd64
-# - TARGETOS       - e.g. linux, windows, darwin
-# - TARGETARCH     - e.g. amd64, arm32v7, arm64v8, i386, ppc64le, s390x
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
-
-# Verify go version, TODO: remove
-#ENV PATH /usr/local/go/bin:$PATH
-RUN set -eux; \
-    echo "PATH=$PATH"; \
-    go version
 
 # Install protoc
 # The protoc download files use a different variation of architecture identifiers
@@ -72,10 +55,11 @@ RUN set -eux; \
     arm64=aarch_64; \
     ppc64le=ppcle_64; \
     s390x=s390_64; \
-    wget -qO protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${TARGETOS}-${!TARGETARCH}.zip"; \
-    sha256sum protoc.zip; \
-    unzip protoc.zip -x readme.txt -d /usr/local; \
-    protoc --version
+    wget -qO protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${TARGETOS}-${!TARGETARCH}.zip" \
+    && sha256sum protoc.zip \
+    && unzip protoc.zip -x readme.txt -d /usr/local \
+    && protoc --version \
+    && true
 
 # Install go protoc plugins
 ENV PATH /root/go/bin:$PATH
@@ -96,26 +80,38 @@ RUN go mod download
 
 
 ###############################################################################
-# Stage 2: Run the build
+# Stage 2: Run the go build with go compiler native to the build platform
+# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
 ###############################################################################
-FROM develop AS build
+ARG BUILDPLATFORM="linux/amd64"
+FROM --platform=${BUILDPLATFORM} develop AS build
 
 LABEL image="build"
 
 # Copy the source
 COPY . ./
 
-# Build the binaries
-RUN go build -o puller model-serving-puller/main.go
-RUN go build -o triton-adapter model-mesh-triton-adapter/main.go
-RUN go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go
-RUN go build -o ovms-adapter model-mesh-ovms-adapter/main.go
-RUN go build -o torchserve-adapter model-mesh-torchserve-adapter/main.go
+# https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+ARG GOOS=${TARGETOS}
+ARG GOARCH=${TARGETARCH}
+
+# Build the binaries using native go compiler from BUILDPLATFORM but compiled output for TARGETPLATFORM
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg \
+    go build -o puller model-serving-puller/main.go && \
+    go build -o puller model-serving-puller/main.go && \
+    go build -o triton-adapter model-mesh-triton-adapter/main.go && \
+    go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go && \
+    go build -o ovms-adapter model-mesh-ovms-adapter/main.go && \
+    go build -o torchserve-adapter model-mesh-torchserve-adapter/main.go
 
 ###############################################################################
 # Stage 3: Copy build assets to create the smallest final runtime image
 ###############################################################################
-FROM  registry.access.redhat.com/ubi8/ubi-minimal:8.4 as runtime
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4 as runtime
 
 ARG IMAGE_VERSION
 ARG COMMIT_SHA
@@ -131,13 +127,15 @@ USER root
 
 # install python to convert keras to tf
 # NOTE: tensorflow not supported for s390x architecture https://github.com/tensorflow/tensorflow/issues/46181
-RUN microdnf install \
-    gcc \
-    gcc-c++ \
-    python38 && \
-    ln -sf /usr/bin/python3 /usr/bin/python && \
-    ln -sf /usr/bin/pip3 /usr/bin/pip && \
-    pip install tensorflow
+RUN true \
+    && microdnf install \
+       gcc \
+       gcc-c++ \
+       python38 \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip \
+    && pip install tensorflow \
+    && true
 
 USER ${USER}
 
