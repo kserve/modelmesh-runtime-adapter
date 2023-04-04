@@ -13,9 +13,10 @@
 # limitations under the License.
 
 ###############################################################################
-# Stage 1: Create the develop, test, and build environment
+# Stage 1: Create the developer image for the BUILDPLATFORM only
 ###############################################################################
-FROM registry.access.redhat.com/ubi8/go-toolset:1.17 AS develop
+ARG BUILDPLATFORM="linux/amd64"
+FROM --platform=${BUILDPLATFORM} registry.access.redhat.com/ubi8/go-toolset:1.17 AS develop
 
 ARG GOLANG_VERSION=1.17.13
 ARG PROTOC_VERSION=21.5
@@ -80,8 +81,7 @@ RUN go mod download
 
 
 ###############################################################################
-# Stage 2: Run the go build with go compiler native to the build platform
-# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
+# Stage 2: Run the go build with BUILDPLATFORM's native go compiler
 ###############################################################################
 ARG BUILDPLATFORM="linux/amd64"
 FROM --platform=${BUILDPLATFORM} develop AS build
@@ -99,6 +99,7 @@ ARG GOOS=${TARGETOS}
 ARG GOARCH=${TARGETARCH}
 
 # Build the binaries using native go compiler from BUILDPLATFORM but compiled output for TARGETPLATFORM
+# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg \
     go build -o puller model-serving-puller/main.go && \
@@ -107,6 +108,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go && \
     go build -o ovms-adapter model-mesh-ovms-adapter/main.go && \
     go build -o torchserve-adapter model-mesh-torchserve-adapter/main.go
+
 
 ###############################################################################
 # Stage 3: Copy build assets to create the smallest final runtime image
