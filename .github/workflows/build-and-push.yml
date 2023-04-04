@@ -50,9 +50,9 @@ jobs:
           git_commit_sha="$(git rev-parse HEAD)"
           DOCKER_TAG="$(git rev-parse --abbrev-ref HEAD)-$(date -u +"%Y%m%dT%H%M%S%Z")"
 
-          echo "IMAGE_TAG=$VERSION"                 >> $GITHUB_ENV
-          echo "COMMIT_SHA=$git_commit_sha"         >> $GITHUB_ENV
-          echo "IMAGE_VERSION=$DOCKER_TAG"          >> $GITHUB_ENV
+          echo "IMAGE_TAG=$VERSION"           >> $GITHUB_ENV
+          echo "COMMIT_SHA=$git_commit_sha"   >> $GITHUB_ENV
+          echo "IMAGE_VERSION=$DOCKER_TAG"    >> $GITHUB_ENV
 
           # print env vars for debugging
           cat "$GITHUB_ENV"
@@ -60,8 +60,10 @@ jobs:
       - name: Build and push runtime image
         uses: docker/build-push-action@v4
         with:
-          # tensorflow not supported for s390x architecture https://github.com/tensorflow/tensorflow/issues/46181
-          platforms: linux/amd64,linux/arm64,linux/ppc64le #,linux/s390x
+          # tensorflow not supported on PowerPC (ppc64le) or System Z (s390x)
+          # https://pypi.org/project/tensorflow/2.12.0/#files
+          # https://github.com/tensorflow/tensorflow/issues/46181
+          platforms: linux/amd64,linux/arm64 #,linux/ppc64le,linux/s390x
           context: .
           target: runtime
           push: ${{ github.event_name != 'pull_request' }}
