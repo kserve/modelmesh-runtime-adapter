@@ -404,8 +404,8 @@ var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 				},
 			},
 		},
-	}, 
-	
+	},
+
 	// model with filename that alphabetically precedes model-settings.json
 
 	{
@@ -420,7 +420,7 @@ var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 			"name":           "model-name",
 			"implementation": "mlserver_sklearn.SKLearnModel",
 			"parameters": map[string]interface{}{
-				"uri":     "./aaaaa.json",
+				"uri": "./aaaaa.json",
 			},
 		},
 		ExpectedFiles: []string{
@@ -431,7 +431,7 @@ var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 			"name":           "model-filename-precedes-model-settings",
 			"implementation": "mlserver_sklearn.SKLearnModel",
 			"parameters": map[string]interface{}{
-				"uri":     filepath.Join(generatedMlserverModelsDir, "model-filename-precedes-model-settings", "aaaaa.json"),
+				"uri": filepath.Join(generatedMlserverModelsDir, "model-filename-precedes-model-settings", "aaaaa.json"),
 			},
 		},
 	},
