@@ -16,7 +16,7 @@
 # Stage 1: Create the developer image for the BUILDPLATFORM only
 ###############################################################################
 ARG GOLANG_VERSION=1.17
-FROM registry.access.redhat.com/ubi8/go-toolset:$GOLANG_VERSION AS develop
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi8/go-toolset:$GOLANG_VERSION AS develop
 
 ARG PROTOC_VERSION=21.5
 
@@ -31,15 +31,18 @@ RUN true \
     && pip3 install pre-commit \
     && true
 
+# When using the BuildKit backend, Docker predefines a set of ARG variables with
+# information on the platform of the node performing the build (build platform)
+# These arguments are defined in the global scope but are not automatically available
+# inside build stages. We need to expose the BUILDOS and BUILDARCH inside the build
+# stage and redefine it without a value
 # https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
-# don't provide "default" values (e.g. 'ARG TARGETARCH=amd64') for non-buildx environments,
-# see https://github.com/docker/buildx/issues/510
-ARG TARGETOS
-ARG TARGETARCH
+ARG BUILDOS
+ARG BUILDARCH
 
 # Install protoc
 # The protoc download files use a different variation of architecture identifiers
-# from the Docker TARGETARCH forms amd64, arm64, ppc64le, s390x
+# from the Docker BUILDARCH forms amd64, arm64, ppc64le, s390x
 #   protoc-22.2-linux-aarch_64.zip  <- arm64
 #   protoc-22.2-linux-ppcle_64.zip  <- ppc64le
 #   protoc-22.2-linux-s390_64.zip   <- s390x
@@ -50,15 +53,15 @@ ARG TARGETARCH
 # of the parameter is used as the name of another variable and the value of that
 # other variable is the result of the expansion, e.g. the echo statement in the
 # following three lines of shell script print "x86_64"
-#   TARGETARCH=amd64
+#   BUILDARCH=amd64
 #   amd64=x86_64
-#   echo ${!TARGETARCH}
+#   echo ${!BUILDARCH}
 RUN set -eux; \
     amd64=x86_64; \
     arm64=aarch_64; \
     ppc64le=ppcle_64; \
     s390x=s390_64; \
-    wget -qO protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${TARGETOS}-${!TARGETARCH}.zip" \
+    wget -qO protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-${BUILDOS}-${!BUILDARCH}.zip" \
     && sha256sum protoc.zip \
     && unzip protoc.zip -x readme.txt -d /usr/local \
     && protoc --version \
@@ -78,7 +81,7 @@ RUN git init && \
     pre-commit install-hooks && \
     rm -rf .git
 
-# Download dependiencies before copying the source so they will be cached
+# Download dependencies before copying the source so they will be cached
 RUN go mod download
 
 # the ubi/go-toolset image doesn't define ENTRYPOINT or CMD, but we need it to run 'make develop'
@@ -121,15 +124,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 ###############################################################################
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7 as runtime
 
-ARG IMAGE_VERSION
-ARG COMMIT_SHA
 ARG USER=2000
-
-LABEL name="model-serving-runtime-adapter" \
-      version="${IMAGE_VERSION}" \
-      release="${COMMIT_SHA}" \
-      summary="Sidecar container which runs in the Model-Mesh Serving model server pods" \
-      description="Container which runs in each model serving pod and act as an intermediary between model-mesh and third-party model-server containers"
 
 USER root
 
@@ -164,6 +159,16 @@ COPY --from=build /opt/app/model-mesh-triton-adapter/scripts/tf_pb.py /opt/scrip
 COPY --from=build /opt/app/ovms-adapter /opt/app/
 COPY --from=build /opt/app/torchserve-adapter /opt/app/
 
+# wait to create commit specific LABEL until end of build to not invalidate cached
+# image layers unnecessarily
+ARG IMAGE_VERSION
+ARG COMMIT_SHA
+
+LABEL name="model-serving-runtime-adapter" \
+      version="${IMAGE_VERSION}" \
+      release="${COMMIT_SHA}" \
+      summary="Sidecar container which runs in the Model-Mesh Serving model server pods" \
+      description="Container which runs in each model serving pod and act as an intermediary between model-mesh and third-party model-server containers"
 
 # Don't define an entrypoint. This is a multi-purpose image so the user should specify which binary they want to run (e.g. /opt/app/puller or /opt/app/triton-adapter)
 # ENTRYPOINT ["/opt/app/puller"]
