@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 # collect args from `make run` so that they don't run twice
 ifeq (run,$(firstword $(MAKECMDGOALS)))
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -46,4 +47,4 @@ proto.compile:
 $(eval $(RUN_ARGS):;@:)
 
 # Remove $(MAKECMDGOALS) if you don't intend make to just be a taskrunner
-.PHONY: all $(MAKECMDGOALS)
+.PHONY: all build build.develop develop run test fmt proto.compile $(MAKECMDGOALS)

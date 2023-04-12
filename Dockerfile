@@ -15,10 +15,9 @@
 ###############################################################################
 # Stage 1: Create the developer image for the BUILDPLATFORM only
 ###############################################################################
-ARG BUILDPLATFORM="linux/amd64"
-FROM --platform=${BUILDPLATFORM} registry.access.redhat.com/ubi8/go-toolset:1.17 AS develop
+ARG GOLANG_VERSION=1.17
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi8/go-toolset:$GOLANG_VERSION AS develop
 
-ARG GOLANG_VERSION=1.17.13
 ARG PROTOC_VERSION=21.5
 
 USER root
@@ -26,14 +25,17 @@ USER root
 # Install build and dev tools
 RUN true \
     && dnf install -y --nodocs \
-       python3 python3-pip \
+       python3 \
+       python3-pip \
        nodejs \
     && pip3 install pre-commit \
     && true
 
 # https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+# don't provide "default" values (e.g. 'ARG TARGETARCH=amd64') for non-buildx environments,
+# see https://github.com/docker/buildx/issues/510
+ARG TARGETOS
+ARG TARGETARCH
 
 # Install protoc
 # The protoc download files use a different variation of architecture identifiers
@@ -62,12 +64,13 @@ RUN set -eux; \
     && protoc --version \
     && true
 
+WORKDIR /opt/app
+
+COPY go.mod go.sum ./
+
 # Install go protoc plugins
-ENV PATH /root/go/bin:$PATH
 RUN go get google.golang.org/protobuf/cmd/protoc-gen-go \
            google.golang.org/grpc/cmd/protoc-gen-go-grpc
-
-WORKDIR /opt/app
 
 # Download and initialize the pre-commit environments before copying the source so they will be cached
 COPY .pre-commit-config.yaml ./
@@ -76,15 +79,16 @@ RUN git init && \
     rm -rf .git
 
 # Download dependiencies before copying the source so they will be cached
-COPY go.mod go.sum ./
 RUN go mod download
+
+# the ubi/go-toolset image doesn't define ENTRYPOINT or CMD, but we need it to run 'make develop'
+CMD /bin/bash
 
 
 ###############################################################################
 # Stage 2: Run the go build with BUILDPLATFORM's native go compiler
 ###############################################################################
-ARG BUILDPLATFORM="linux/amd64"
-FROM --platform=${BUILDPLATFORM} develop AS build
+FROM --platform=$BUILDPLATFORM develop AS build
 
 LABEL image="build"
 
@@ -92,11 +96,13 @@ LABEL image="build"
 COPY . ./
 
 # https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+# don't provide "default" values (e.g. 'ARG TARGETARCH=amd64') for non-buildx environments,
+# see https://github.com/docker/buildx/issues/510
+ARG TARGETOS
+ARG TARGETARCH
 
-ARG GOOS=${TARGETOS}
-ARG GOARCH=${TARGETARCH}
+ARG GOOS=${TARGETOS:-linux}
+ARG GOARCH=${TARGETARCH:-amd64}
 
 # Build the binaries using native go compiler from BUILDPLATFORM but compiled output for TARGETPLATFORM
 # https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
