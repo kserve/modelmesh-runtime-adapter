@@ -31,11 +31,10 @@ RUN --mount=type=cache,target=/root/.cache/dnf:rw \
     && true
 
 # Install pre-commit
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install --cache-dir /root/.cache/pip \
-       pre-commit \
-    && pip3 list \
-    && true
+ARG PIP_CACHE_DIR=/root/.cache/pip
+RUN --mount=type=cache,target=$PIP_CACHE_DIR \
+    pip3 install pre-commit && \
+    pip3 list
 
 # When using the BuildKit backend, Docker predefines a set of ARG variables with
 # information on the platform of the node performing the build (build platform)
@@ -154,7 +153,8 @@ RUN --mount=type=cache,target=$PIP_CACHE_DIR \
     pip install wheel && \
     pip install grpcio && \
     pip install tensorflow && \
-    pip list
+    pip list && \
+    pip cache info
 
 USER ${USER}
 
