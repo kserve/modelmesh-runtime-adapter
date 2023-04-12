@@ -3,8 +3,8 @@ name: Unit Test
 on:
   pull_request:
     branches:
-      - 'main'
-      - 'release-*'
+      - "main"
+      - "release-*"
 
 jobs:
   test:

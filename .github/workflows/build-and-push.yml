@@ -63,7 +63,7 @@ jobs:
           # tensorflow not supported on PowerPC (ppc64le) or System Z (s390x)
           # https://pypi.org/project/tensorflow/2.12.0/#files
           # https://github.com/tensorflow/tensorflow/issues/46181
-          platforms: linux/amd64,linux/arm64 #,linux/ppc64le,linux/s390x
+          platforms: linux/amd64,linux/arm64
           context: .
           target: runtime
           push: ${{ github.event_name != 'pull_request' }}
