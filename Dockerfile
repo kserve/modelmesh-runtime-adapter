@@ -32,7 +32,9 @@ RUN --mount=type=cache,target=/root/.cache/dnf:rw \
 
 # Install pre-commit
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install pre-commit \
+    pip3 install --cache-dir /root/.cache/pip \
+       pre-commit \
+    && pip3 list \
     && true
 
 # When using the BuildKit backend, Docker predefines a set of ARG variables with
@@ -146,7 +148,8 @@ RUN --mount=type=cache,target=/root/.cache/microdnf:rw \
 
 # need to upgrade pip and install wheel before installing grpcio, before installing tensorflow on aarch64
 # use caching to speed up multi-platform builds
-RUN --mount=type=cache,target=/root/.cache/pip \
+ARG PIP_CACHE_DIR=/root/.cache/pip
+RUN --mount=type=cache,target=$PIP_CACHE_DIR \
     pip install --upgrade pip && \
     pip install wheel && \
     pip install grpcio && \
