@@ -2,14 +2,21 @@ name: Unit Test
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - 'main'
+      - 'release-*'
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CI: true
+      DOCKER_BUILDKIT: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: Build dev image
         run: make build.develop
       - name: Run lint
