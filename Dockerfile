@@ -163,16 +163,16 @@ COPY --from=build /opt/app/model-mesh-triton-adapter/scripts/tf_pb.py /opt/scrip
 COPY --from=build /opt/app/ovms-adapter /opt/app/
 COPY --from=build /opt/app/torchserve-adapter /opt/app/
 
-# wait to create commit specific LABEL until end of build to not invalidate cached
-# image layers unnecessarily
+# wait to create commit-specific LABEL until end of the build to not unnecessarily
+# invalidate the cached image layers
 ARG IMAGE_VERSION
 ARG COMMIT_SHA
 
 LABEL name="model-serving-runtime-adapter" \
       version="${IMAGE_VERSION}" \
       release="${COMMIT_SHA}" \
-      summary="Sidecar container which runs in the Model-Mesh Serving model server pods" \
-      description="Container which runs in each model serving pod and act as an intermediary between model-mesh and third-party model-server containers"
+      summary="Sidecar container which runs in the ModelMesh Serving model server pods" \
+      description="Container which runs in each model serving pod acting as an intermediary between ModelMesh and third-party model-server containers"
 
 # Don't define an entrypoint. This is a multi-purpose image so the user should specify which binary they want to run (e.g. /opt/app/puller or /opt/app/triton-adapter)
 # ENTRYPOINT ["/opt/app/puller"]
