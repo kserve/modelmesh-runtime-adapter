@@ -23,12 +23,16 @@ ARG PROTOC_VERSION=21.5
 USER root
 
 # Install build and dev tools
-RUN true \
-    && dnf install -y --nodocs \
-       python3 \
-       python3-pip \
-       nodejs \
-    && pip3 install pre-commit \
+RUN --mount=type=cache,target=/root/.cache/dnf:rw \
+    dnf install -y --nodocs --setopt=cachedir=/root/.cache/dnf \
+        python3 \
+        python3-pip \
+        nodejs \
+    && true
+
+# Install pre-commit
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install pre-commit \
     && true
 
 # When using the BuildKit backend, Docker predefines a set of ARG variables with
