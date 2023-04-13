@@ -190,11 +190,17 @@ func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, sch
 		// check if the config file exists
 		// if it does, we assume files are in the "native" repo structure
 		assumeNativeLayout := false
-		for _, f := range files {
+		configFileIndex := -1
+		for i, f := range files {
 			if f.Name() == mlserverRepositoryConfigFilename {
 				assumeNativeLayout = true
+				configFileIndex = i
 				break
 			}
+		}
+		// always process the config file first to ensure that uri conversion within config file is correct
+		if configFileIndex > 0 {
+			files[0], files[configFileIndex] = files[configFileIndex], files[0]
 		}
 		if assumeNativeLayout {
 			err = adaptNativeModelLayout(files, modelID, modelPath, schemaPath, mlserverModelIDDir, log)
