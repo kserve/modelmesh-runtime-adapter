@@ -37,12 +37,6 @@ type mockInferenceServiceWithUnimplemented struct {
 	unimplementedServer
 }
 
-//
-//type mockModelRepoServiceWithUnimplemented struct {
-//	*mock.MockModelRepositoryServiceServer
-//	unimplementedServer
-//}
-
 func main() {
 	log := zap.New(zap.UseDevMode(true))
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 8001))
@@ -71,15 +65,6 @@ func main() {
 	i.EXPECT().RepositoryModelUnload(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.RepositoryModelUnloadResponse{}, nil)
 
 	mlserver.RegisterGRPCInferenceServiceServer(grpcServer, mockInferenceServiceWithUnimplemented{i, unimplementedServer{}})
-
-	//// Mock ModelRepository Service
-	//
-	//mr := mock.NewMockModelRepositoryServiceServer(ctrl)
-	//mr.EXPECT().RepositoryIndex(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryIndexResponse{}, nil)
-	//mr.EXPECT().RepositoryModelLoad(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryModelLoadResponse{}, nil)
-	//mr.EXPECT().RepositoryModelUnload(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryModelUnloadResponse{}, nil)
-	//
-	//modelrepo.RegisterModelRepositoryServiceServer(grpcServer, mockModelRepoServiceWithUnimplemented{mr, unimplementedServer{}})
 
 	err = grpcServer.Serve(lis)
 
