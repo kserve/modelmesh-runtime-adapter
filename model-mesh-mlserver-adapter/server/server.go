@@ -61,8 +61,7 @@ type AdapterConfiguration struct {
 }
 
 type MLServerAdapterServer struct {
-	Client mlserver.GRPCInferenceServiceClient
-	//ModelRepoClient modelrepo.ModelRepositoryServiceClient
+	Client        mlserver.GRPCInferenceServiceClient
 	Conn          *grpc.ClientConn
 	Puller        *puller.Puller
 	AdapterConfig *AdapterConfiguration
@@ -96,7 +95,6 @@ func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log
 	s.AdapterConfig = config
 	s.Client = mlserver.NewGRPCInferenceServiceClient(conn)
 	s.Conn = conn
-	//s.ModelRepoClient = modelrepo.NewModelRepositoryServiceClient(conn)
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// puller is configured from its own env vars
 		s.Puller = puller.NewPuller(log)

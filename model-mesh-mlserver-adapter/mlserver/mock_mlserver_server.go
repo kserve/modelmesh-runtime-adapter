@@ -29,7 +29,6 @@ import (
 // wrap unimplemented structs to embed deeper than the mocks
 type unimplementedServer struct {
 	mlserver.UnimplementedGRPCInferenceServiceServer
-	//modelrepo.UnimplementedModelRepositoryServiceServer
 }
 
 type mockInferenceServiceWithUnimplemented struct {
