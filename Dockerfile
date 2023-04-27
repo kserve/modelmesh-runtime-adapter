@@ -32,9 +32,8 @@ RUN --mount=type=cache,target=/root/.cache/dnf:rw \
 
 # Install pre-commit
 ARG PIP_CACHE_DIR=/root/.cache/pip
-RUN --mount=type=cache,target=$PIP_CACHE_DIR \
-    pip3 install pre-commit && \
-    pip3 list
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install pre-commit
 
 # When using the BuildKit backend, Docker predefines a set of ARG variables with
 # information on the platform of the node performing the build (build platform)
@@ -77,8 +76,11 @@ WORKDIR /opt/app
 COPY go.mod go.sum ./
 
 # Install go protoc plugins
+ENV PATH $HOME/go/bin:$PATH
 RUN go get google.golang.org/protobuf/cmd/protoc-gen-go \
-           google.golang.org/grpc/cmd/protoc-gen-go-grpc
+           google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+    && protoc-gen-go --version \
+    && true
 
 # Download and initialize the pre-commit environments before copying the source so they will be cached
 COPY .pre-commit-config.yaml ./
@@ -117,7 +119,6 @@ ARG GOARCH=${TARGETARCH:-amd64}
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg \
     go build -o puller model-serving-puller/main.go && \
-    go build -o puller model-serving-puller/main.go && \
     go build -o triton-adapter model-mesh-triton-adapter/main.go && \
     go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go && \
     go build -o ovms-adapter model-mesh-ovms-adapter/main.go && \
@@ -148,13 +149,11 @@ RUN --mount=type=cache,target=/root/.cache/microdnf:rw \
 # need to upgrade pip and install wheel before installing grpcio, before installing tensorflow on aarch64
 # use caching to speed up multi-platform builds
 ARG PIP_CACHE_DIR=/root/.cache/pip
-RUN --mount=type=cache,target=$PIP_CACHE_DIR \
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
     pip install wheel && \
     pip install grpcio && \
-    pip install tensorflow && \
-    pip list && \
-    pip cache info
+    pip install tensorflow
 
 USER ${USER}
 
