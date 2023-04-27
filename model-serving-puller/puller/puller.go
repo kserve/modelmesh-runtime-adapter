@@ -185,11 +185,11 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 
 	// update model path to an absolute path in the local filesystem
 	// commment out SecureJoin since it doesn't handle symlinks well
-	// modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
-	// if joinErr != nil {
-	// 	return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
-	// }
-	modelFullPath := modelDir + string(filepath.Separator) + modelPathFilename
+	modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
+	if joinErr != nil {
+		return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
+	}
+	//modelFullPath := modelDir + string(filepath.Separator) + modelPathFilename
 
 	req.ModelPath = modelFullPath
 
