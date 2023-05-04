@@ -20,32 +20,36 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
   endif
 endif
 
+.PHONY: all
 all: build
 
+.PHONY: build
 build:
 	./scripts/build_docker.sh --target runtime
 
+.PHONY: build.develop
 build.develop:
 	./scripts/build_docker.sh --target develop
 
+.PHONY: develop
 develop: build.develop
 	./scripts/develop.sh
 
+.PHONY: run
 run: build.develop
 	./scripts/develop.sh make $(RUN_ARGS)
 
+.PHONY: test
 test:
 	./scripts/run_tests.sh
 
+.PHONY: fmt
 fmt:
 	./scripts/fmt.sh
 
+.PHONY: proto.compile
 proto.compile:
 	./scripts/compile_protos.sh
 
 # Override targets if they are included in RUN_ARGs so it doesn't run them twice
 $(eval $(RUN_ARGS):;@:)
-
-# Remove $(MAKECMDGOALS) if you don't intend make to just be a taskrunner
-# https://stackoverflow.com/questions/44492805/declare-all-targets-phony/44499287#44499287
-.PHONY: all $(MAKECMDGOALS)
