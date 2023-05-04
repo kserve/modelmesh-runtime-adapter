@@ -21,17 +21,18 @@ FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi8/go-toolset:$GOLAN
 ARG PROTOC_VERSION=21.5
 
 USER root
+ENV HOME=/root
 
 # Install build and dev tools
 RUN --mount=type=cache,target=/root/.cache/dnf:rw \
-    dnf install -y --nodocs --setopt=cachedir=/root/.cache/dnf \
+    dnf install --setopt=cachedir=/root/.cache/dnf -y --nodocs \
         python3 \
         python3-pip \
         nodejs \
     && true
 
 # Install pre-commit
-ARG PIP_CACHE_DIR=/root/.cache/pip
+ENV PIP_CACHE_DIR=/root/.cache/pip
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install pre-commit
 
@@ -111,13 +112,12 @@ COPY . ./
 ARG TARGETOS
 ARG TARGETARCH
 
-ARG GOOS=${TARGETOS:-linux}
-ARG GOARCH=${TARGETARCH:-amd64}
-
 # Build the binaries using native go compiler from BUILDPLATFORM but compiled output for TARGETPLATFORM
 # https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg \
+    GOOS=${TARGETOS:-linux} \
+    GOARCH=${TARGETARCH:-amd64} \
     go build -o puller model-serving-puller/main.go && \
     go build -o triton-adapter model-mesh-triton-adapter/main.go && \
     go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go && \
@@ -148,7 +148,7 @@ RUN --mount=type=cache,target=/root/.cache/microdnf:rw \
 
 # need to upgrade pip and install wheel before installing grpcio, before installing tensorflow on aarch64
 # use caching to speed up multi-platform builds
-ARG PIP_CACHE_DIR=/root/.cache/pip
+ENV PIP_CACHE_DIR=/root/.cache/pip
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
     pip install wheel && \
