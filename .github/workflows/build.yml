@@ -1,13 +1,20 @@
-name: Build and Push
+name: Build
 
 on:
-  push:
-    branches: [main, "release-[0-9].[0-9]+"]
-    paths-ignore: ["**.md"]
-    tags: ["v*"]
   pull_request:
-    branches: [main, "release-[0-9].[0-9]+"]
-    paths-ignore: ["**.md"]
+    branches:
+      - main
+      - "release-[0-9].[0-9]+"
+    paths-ignore:
+      - "**.md"
+  push:
+    branches:
+      - main
+      - "release-[0-9].[0-9]+"
+    tags:
+      - "v*"
+    paths-ignore:
+      - "**.md"
 
 env:
   IMAGE_NAME: "kserve/modelmesh-runtime-adapter"
