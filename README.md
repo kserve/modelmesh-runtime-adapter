@@ -1,6 +1,6 @@
-[![Build and Push](https://github.com/kserve/modelmesh-runtime-adapter/actions/workflows/build-and-push.yml/badge.svg?branch=main)](https://github.com/kserve/modelmesh-runtime-adapter/actions/workflows/build-and-push.yml)
+[![Build](https://github.com/kserve/modelmesh-runtime-adapter/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/kserve/modelmesh-runtime-adapter/actions/workflows/build.yml)
 
-# modelmesh-runtime-adapter
+# Modelmesh Runtime Adapter
 
 This repo contains the unified puller/runtime-adapter image of the sidecar containers which run in the modelmesh-serving model server Pods. See the main [modelmesh-serving](https://github.com/kserve/modelmesh-serving) repo for more details.
 
