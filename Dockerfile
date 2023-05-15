@@ -116,8 +116,8 @@ ARG TARGETARCH
 # https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg \
-    GOOS=${TARGETOS:-linux} \
-    GOARCH=${TARGETARCH:-amd64} \
+    export GOOS=${TARGETOS:-linux} && \
+    export GOARCH=${TARGETARCH:-amd64} && \
     go build -o puller model-serving-puller/main.go && \
     go build -o triton-adapter model-mesh-triton-adapter/main.go && \
     go build -o mlserver-adapter model-mesh-mlserver-adapter/main.go && \
