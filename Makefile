@@ -40,7 +40,7 @@ develop: build.develop
 	./scripts/develop.sh
 
 .PHONY: run
-## Build develop docker image and run a make command in the develop envionment
+## Build develop docker image and run a make command in the develop envionment (e.g. `make run fmt` will execute `make fmt` within the docker container)
 run: build.develop
 	./scripts/develop.sh make $(RUN_ARGS)
 
