@@ -35,12 +35,12 @@ build.develop:
 	./scripts/build_docker.sh --target develop
 
 .PHONY: develop
-## Build develop docker image and run the develop envionment (interactive shell)
+## Build develop docker image and run an interactive shell in the develop envionment
 develop: build.develop
 	./scripts/develop.sh
 
 .PHONY: run
-## Build develop docker image and run the develop envionment (make)
+## Build develop docker image and run a make command in the develop envionment
 run: build.develop
 	./scripts/develop.sh make $(RUN_ARGS)
 
