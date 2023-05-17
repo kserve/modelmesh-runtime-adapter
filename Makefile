@@ -21,7 +21,7 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
 endif
 
 .PHONY: all
-## Build runtime docker image
+## Alias for `build`
 all: build
 
 .PHONY: build
