@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -33,7 +33,6 @@ import (
 
 	"github.com/kserve/modelmesh-runtime-adapter/internal/modelschema"
 	mlserver "github.com/kserve/modelmesh-runtime-adapter/internal/proto/mlserver/dataplane"
-	modelrepo "github.com/kserve/modelmesh-runtime-adapter/internal/proto/mlserver/modelrepo"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/proto/mmesh"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"github.com/kserve/modelmesh-runtime-adapter/model-serving-puller/puller"
@@ -62,12 +61,11 @@ type AdapterConfiguration struct {
 }
 
 type MLServerAdapterServer struct {
-	Client          mlserver.GRPCInferenceServiceClient
-	ModelRepoClient modelrepo.ModelRepositoryServiceClient
-	Conn            *grpc.ClientConn
-	Puller          *puller.Puller
-	AdapterConfig   *AdapterConfiguration
-	Log             logr.Logger
+	Client        mlserver.GRPCInferenceServiceClient
+	Conn          *grpc.ClientConn
+	Puller        *puller.Puller
+	AdapterConfig *AdapterConfiguration
+	Log           logr.Logger
 
 	// embed generated Unimplemented type for forward-compatibility for gRPC
 	mmesh.UnimplementedModelRuntimeServer
@@ -97,7 +95,6 @@ func NewMLServerAdapterServer(runtimePort int, config *AdapterConfiguration, log
 	s.AdapterConfig = config
 	s.Client = mlserver.NewGRPCInferenceServiceClient(conn)
 	s.Conn = conn
-	s.ModelRepoClient = modelrepo.NewModelRepositoryServiceClient(conn)
 	if s.AdapterConfig.UseEmbeddedPuller {
 		// puller is configured from its own env vars
 		s.Puller = puller.NewPuller(log)
@@ -133,7 +130,7 @@ func (s *MLServerAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadMo
 		return nil, status.Errorf(status.Code(err), "Failed to load Model due to adapter error: %v", err)
 	}
 
-	_, mlserverErr := s.ModelRepoClient.RepositoryModelLoad(ctx, &modelrepo.RepositoryModelLoadRequest{
+	_, mlserverErr := s.Client.RepositoryModelLoad(ctx, &mlserver.RepositoryModelLoadRequest{
 		ModelName: req.ModelId,
 	})
 	if mlserverErr != nil {
@@ -439,7 +436,7 @@ func tensorMetadataToJson(tm modelschema.TensorMetadata) map[string]interface{} 
 
 func (s *MLServerAdapterServer) UnloadModel(ctx context.Context, req *mmesh.UnloadModelRequest) (*mmesh.UnloadModelResponse, error) {
 	log := s.Log.WithName("UnloadModel").WithValues("modelId", req.ModelId)
-	_, mlserverErr := s.ModelRepoClient.RepositoryModelUnload(ctx, &modelrepo.RepositoryModelUnloadRequest{
+	_, mlserverErr := s.Client.RepositoryModelUnload(ctx, &mlserver.RepositoryModelUnloadRequest{
 		ModelName: req.ModelId,
 	})
 
@@ -496,7 +493,7 @@ func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 	}
 
 	//unloading if there are any models already loaded
-	indexResponse, mlserverErr := s.ModelRepoClient.RepositoryIndex(ctx, &modelrepo.RepositoryIndexRequest{
+	indexResponse, mlserverErr := s.Client.RepositoryIndex(ctx, &mlserver.RepositoryIndexRequest{
 		RepositoryName: "",
 		Ready:          true})
 
@@ -507,7 +504,7 @@ func (s *MLServerAdapterServer) RuntimeStatus(ctx context.Context, req *mmesh.Ru
 
 	for model := range indexResponse.Models {
 		modelId := indexResponse.Models[model].Name
-		if _, mlserverErr = s.ModelRepoClient.RepositoryModelUnload(ctx, &modelrepo.RepositoryModelUnloadRequest{
+		if _, mlserverErr = s.Client.RepositoryModelUnload(ctx, &mlserver.RepositoryModelUnloadRequest{
 			ModelName: modelId,
 		}); mlserverErr != nil {
 			log.Info("MLServer runtime status, unload model failed", "error", mlserverErr, "model", modelId)
