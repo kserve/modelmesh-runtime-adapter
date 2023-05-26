@@ -142,8 +142,16 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	// build and execute the pull command
 
 	// name the local files based on the last element of the paths
-	// TODO: should have some sanitization for filenames
-	modelPathFilename := filepath.Base(req.ModelPath)
+	// or set a default if the ModelPath is empty or just /'s
+	var modelPathFilename string
+	switch basePath := filepath.Base(req.ModelPath); basePath {
+	case ".", string(filepath.Separator):
+		modelPathFilename = "_model"
+	default:
+		// TODO: should have some sanitization for filenames
+		modelPathFilename = basePath
+	}
+
 	targets := []pullman.Target{
 		{
 			RemotePath: req.ModelPath,
