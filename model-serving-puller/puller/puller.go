@@ -184,12 +184,10 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	}
 
 	// update model path to an absolute path in the local filesystem
-	// commment out SecureJoin since it doesn't handle symlinks well
-	// modelFullPath, joinErr := util.SecureJoin(modelDir, modelPathFilename)
-	// if joinErr != nil {
-	// 	return nil, fmt.Errorf("Error joining paths '%s' and '%s': %w", modelDir, modelPathFilename, joinErr)
-	// }
-	modelFullPath := modelDir + string(filepath.Separator) + modelPathFilename
+
+	// SecureJoin doesn't allow symlinks pointing outside the scope of the first element, which breaks PVC support since
+	// pullman will create a symlink to the mounted PVC in /pvc_mounts
+	modelFullPath := filepath.Join(modelDir, modelPathFilename)
 
 	req.ModelPath = modelFullPath
 
