@@ -116,6 +116,35 @@ func Test_Download_SimpleFile(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func Test_Download_RenameFile(t *testing.T) {
+	_, _, testRepo, mockClient, _ := newTestMocks(t)
+
+	testURL := "http://someurl:8080"
+	c := pullman.NewRepositoryConfig("http", nil)
+	c.Set("url", testURL)
+
+	downloadDir := filepath.Join("test", "output")
+	inputPullCommand := pullman.PullCommand{
+		RepositoryConfig: c,
+		Directory:        downloadDir,
+		Targets: []pullman.Target{
+			{
+				RemotePath: "models/some_model_file",
+				LocalPath:  "local/path/my-model",
+			},
+		},
+	}
+
+	expectedURL := testURL + "/models/some_model_file"
+	expectedFile := filepath.Join(downloadDir, "local", "path", "my-model")
+	mockClient.EXPECT().download(gomock.Any(), newHttpRequestMatcher("GET", expectedURL), gomock.Eq(expectedFile)).
+		Return(nil).
+		Times(1)
+
+	err := testRepo.Pull(context.Background(), inputPullCommand)
+	assert.NoError(t, err)
+}
+
 func Test_GetKey(t *testing.T) {
 	provider := httpProvider{}
 
