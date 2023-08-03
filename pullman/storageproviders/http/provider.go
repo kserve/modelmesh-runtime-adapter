@@ -160,9 +160,9 @@ func (r *httpRepository) Pull(ctx context.Context, pc pullman.PullCommand) error
 			localPath = path.Base(pt.RemotePath)
 		}
 
-		filePath, joinErr := util.SecureJoin(destDir, pt.LocalPath, localPath)
+		filePath, joinErr := util.SecureJoin(destDir, localPath)
 		if joinErr != nil {
-			return fmt.Errorf("error joining filepaths '%s' and '%s': %w", pt.LocalPath, localPath, joinErr)
+			return fmt.Errorf("error joining filepaths '%s' and '%s': %w", destDir, localPath, joinErr)
 		}
 		r.log.V(1).Info("constructed local path to download file", "local", filePath, "remote", pt.RemotePath)
 

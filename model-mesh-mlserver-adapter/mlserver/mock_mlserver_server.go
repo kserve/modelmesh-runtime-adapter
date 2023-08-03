@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/golang/mock/gomock"
 	mlserver "github.com/kserve/modelmesh-runtime-adapter/internal/proto/mlserver/dataplane"
-	modelrepo "github.com/kserve/modelmesh-runtime-adapter/internal/proto/mlserver/modelrepo"
 	mock "github.com/kserve/modelmesh-runtime-adapter/model-mesh-mlserver-adapter/generated/mocks"
 	"google.golang.org/grpc"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -30,16 +29,10 @@ import (
 // wrap unimplemented structs to embed deeper than the mocks
 type unimplementedServer struct {
 	mlserver.UnimplementedGRPCInferenceServiceServer
-	modelrepo.UnimplementedModelRepositoryServiceServer
 }
 
 type mockInferenceServiceWithUnimplemented struct {
 	*mock.MockGRPCInferenceServiceServer
-	unimplementedServer
-}
-
-type mockModelRepoServiceWithUnimplemented struct {
-	*mock.MockModelRepositoryServiceServer
 	unimplementedServer
 }
 
@@ -66,17 +59,11 @@ func main() {
 	i.EXPECT().ServerLive(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.ServerLiveResponse{Live: true}, nil)
 	i.EXPECT().ServerReady(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.ServerReadyResponse{Ready: true}, nil)
 	i.EXPECT().ServerMetadata(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.ServerMetadataResponse{}, nil)
+	i.EXPECT().RepositoryIndex(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.RepositoryIndexResponse{}, nil)
+	i.EXPECT().RepositoryModelLoad(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.RepositoryModelLoadResponse{}, nil)
+	i.EXPECT().RepositoryModelUnload(gomock.Any(), gomock.Any()).AnyTimes().Return(&mlserver.RepositoryModelUnloadResponse{}, nil)
 
 	mlserver.RegisterGRPCInferenceServiceServer(grpcServer, mockInferenceServiceWithUnimplemented{i, unimplementedServer{}})
-
-	// Mock ModelRepository Service
-
-	mr := mock.NewMockModelRepositoryServiceServer(ctrl)
-	mr.EXPECT().RepositoryIndex(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryIndexResponse{}, nil)
-	mr.EXPECT().RepositoryModelLoad(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryModelLoadResponse{}, nil)
-	mr.EXPECT().RepositoryModelUnload(gomock.Any(), gomock.Any()).AnyTimes().Return(&modelrepo.RepositoryModelUnloadResponse{}, nil)
-
-	modelrepo.RegisterModelRepositoryServiceServer(grpcServer, mockModelRepoServiceWithUnimplemented{mr, unimplementedServer{}})
 
 	err = grpcServer.Serve(lis)
 
@@ -89,10 +76,10 @@ func main() {
 
 // Implements gomock TestReporter interface:
 //
-// type TestReporter interface {
-// 	Errorf(format string, args ...interface{})
-// 	Fatalf(format string, args ...interface{})
-// }
+//	type TestReporter interface {
+//		Errorf(format string, args ...interface{})
+//		Fatalf(format string, args ...interface{})
+//	}
 type CustomReporter struct {
 	log logr.Logger
 }
