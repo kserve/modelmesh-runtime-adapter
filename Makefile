@@ -25,22 +25,22 @@ endif
 all: build
 
 .PHONY: build
-## Build runtime docker image
+## Build runtime Docker image
 build:
 	./scripts/build_docker.sh --target runtime
 
 .PHONY: build.develop
-## Build develop docker image
+## Build developer container image
 build.develop:
 	./scripts/build_docker.sh --target develop
 
 .PHONY: develop
-## Build develop docker image and run an interactive shell in the develop envionment
+## Run interactive shell inside developer container
 develop: build.develop
 	./scripts/develop.sh
 
 .PHONY: run
-## Build develop docker image and run a make command in the develop envionment (e.g. `make run fmt` will execute `make fmt` within the docker container)
+## Run make target inside developer container (e.g. `make run fmt`)
 run: build.develop
 	./scripts/develop.sh make $(RUN_ARGS)
 
@@ -50,7 +50,7 @@ test:
 	./scripts/run_tests.sh
 
 .PHONY: fmt
-## Run formatting
+## Auto-format source code and report code-style violations (lint)
 fmt:
 	./scripts/fmt.sh
 
@@ -62,7 +62,7 @@ proto.compile:
 .PHONY: help
 ## Print Makefile documentation
 help:
-	@perl -0 -nle 'printf("%-25s - %s\n", "$$2", "$$1") while m/^##\s*([^\r\n]+)\n^([\w-]+):[^=]/gm' $(MAKEFILE_LIST) | sort
+	@perl -0 -nle 'printf("\033[36m  %-15s\033[0m %s\n", "$$2", "$$1") while m/^##\s*([^\r\n]+)\n^([\w.-]+):[^=]/gm' $(MAKEFILE_LIST) | sort
 .DEFAULT_GOAL := help
 
 # Override targets if they are included in RUN_ARGs so it doesn't run them twice
