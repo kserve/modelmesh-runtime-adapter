@@ -21,35 +21,49 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
 endif
 
 .PHONY: all
+## Alias for `build`
 all: build
 
 .PHONY: build
+## Build runtime Docker image
 build:
 	./scripts/build_docker.sh --target runtime
 
 .PHONY: build.develop
+## Build developer container image
 build.develop:
 	./scripts/build_docker.sh --target develop
 
 .PHONY: develop
+## Run interactive shell inside developer container
 develop: build.develop
 	./scripts/develop.sh
 
 .PHONY: run
+## Run make target inside developer container (e.g. `make run fmt`)
 run: build.develop
 	./scripts/develop.sh make $(RUN_ARGS)
 
 .PHONY: test
+## Run tests
 test:
 	./scripts/run_tests.sh
 
 .PHONY: fmt
+## Auto-format source code and report code-style violations (lint)
 fmt:
 	./scripts/fmt.sh
 
 .PHONY: proto.compile
+## Compile protos
 proto.compile:
 	./scripts/compile_protos.sh
+
+.DEFAULT_GOAL := help
+.PHONY: help
+## Print Makefile documentation
+help:
+	@perl -0 -nle 'printf("\033[36m  %-15s\033[0m %s\n", "$$2", "$$1") while m/^##\s*([^\r\n]+)\n^([\w.-]+):[^=]/gm' $(MAKEFILE_LIST) | sort
 
 # Override targets if they are included in RUN_ARGs so it doesn't run them twice
 $(eval $(RUN_ARGS):;@:)
