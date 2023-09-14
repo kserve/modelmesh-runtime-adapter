@@ -605,6 +605,10 @@ func Test_getModelDiskSize(t *testing.T) {
 		{"testModelSize/1/airbnb.model.lr.zip", 15259},
 		{"testModelSize/1", 15259},
 		{"testModelSize/2", 39375276},
+		{"testModelSize/symlink/1/airbnb.model.lr.zip.lnk", 15259},
+		{"testModelSize/symlink/1", 15259},
+		{"testModelSize/symlink/1.lnk", 15259},
+		{"testModelSize/symlink/2.lnk", 39375276},
 	}
 
 	for _, tt := range diskSizeTests {
