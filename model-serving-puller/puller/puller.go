@@ -212,7 +212,7 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	if size, err1 := getModelDiskSize(modelFullPath); err1 != nil {
 		s.Log.Error(err1, "Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey)
 	} else {
-		s.Log.Info("Calculated disk size", "model_key", modelKey, "disk_size", size)
+		s.Log.Info("Calculated disk size", "modelFullPath", modelFullPath, "disk_size", size)
 		modelKey.DiskSizeBytes = size
 	}
 
