@@ -242,7 +242,7 @@ func getModelDiskSize(modelPath string) (int64, error) {
 		}
 
 		// Calculating the size of the resolved path (for pvc) instead of the symlink itself.
-		// We are not expecting to have infinite recursions since the model would not be able to be loaded by the serving runtime
+		// We are not expecting to have infinite recursion since otherwise the serving runtime would not be able to load the model
 		if info.Mode()&os.ModeSymlink != 0 {
 			if resolvedPath, evalErr := os.Readlink(path); evalErr == nil {
 				if symlinkSize, err1 := getModelDiskSize(resolvedPath); err1 == nil {

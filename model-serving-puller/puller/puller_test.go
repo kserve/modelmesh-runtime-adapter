@@ -605,18 +605,31 @@ func Test_getModelDiskSize(t *testing.T) {
 		{"testModelSize/1/airbnb.model.lr.zip", 15259},
 		{"testModelSize/1", 15259},
 		{"testModelSize/2", 39375276},
-		{"testModelSize/symlink/1/airbnb.model.lr.zip.lnk", 15259},
-		{"testModelSize/symlink/1", 15259},
-		{"testModelSize/symlink/1.lnk", 15259},
-		{"testModelSize/symlink/2.lnk", 39375276},
 	}
+
+	// creating symlinks on runtime since git is not managing symlinks by default
+	symlinkName := "symlink"
+	symlinkPath := filepath.Join(RootModelDir, symlinkName)
 
 	for _, tt := range diskSizeTests {
 		t.Run("", func(t *testing.T) {
 			fullPath := filepath.Join(RootModelDir, tt.modelPath)
-			diskSize, err := getModelDiskSize(fullPath)
+			validatePathDiskSize(t, fullPath, tt.expectedSize)
+
+			// testing symlink to the same path
+			err := os.Symlink(fullPath, symlinkPath)
 			assert.NoError(t, err)
-			assert.EqualValues(t, tt.expectedSize, diskSize)
+
+			validatePathDiskSize(t, symlinkPath, tt.expectedSize)
+
+			err = os.Remove(symlinkPath)
+			assert.NoError(t, err)
 		})
 	}
+}
+
+func validatePathDiskSize(t *testing.T, path string, expectedSize int64) {
+	diskSize, err := getModelDiskSize(path)
+	assert.NoError(t, err)
+	assert.EqualValues(t, expectedSize, diskSize)
 }
