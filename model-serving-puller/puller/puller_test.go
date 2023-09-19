@@ -607,6 +607,8 @@ func Test_getModelDiskSize(t *testing.T) {
 		{"testModelSize/2", 39375276},
 	}
 
+	p, _ := newPullerWithMock(t)
+
 	// creating symlinks on runtime since git is not managing symlinks by default
 	symlinkName := "symlink"
 	symlinkPath := filepath.Join(RootModelDir, symlinkName)
@@ -614,13 +616,13 @@ func Test_getModelDiskSize(t *testing.T) {
 	for _, tt := range diskSizeTests {
 		t.Run("", func(t *testing.T) {
 			fullPath := filepath.Join(RootModelDir, tt.modelPath)
-			validatePathDiskSize(t, fullPath, tt.expectedSize)
+			validatePathDiskSize(t, p, fullPath, tt.expectedSize)
 
 			// testing symlink to the same path
 			err := os.Symlink(fullPath, symlinkPath)
 			assert.NoError(t, err)
 
-			validatePathDiskSize(t, symlinkPath, tt.expectedSize)
+			validatePathDiskSize(t, p, symlinkPath, tt.expectedSize)
 
 			err = os.Remove(symlinkPath)
 			assert.NoError(t, err)
@@ -628,8 +630,8 @@ func Test_getModelDiskSize(t *testing.T) {
 	}
 }
 
-func validatePathDiskSize(t *testing.T, path string, expectedSize int64) {
-	diskSize, err := getModelDiskSize(path)
+func validatePathDiskSize(t *testing.T, p *Puller, path string, expectedSize int64) {
+	diskSize, err := p.getModelDiskSize(path)
 	assert.NoError(t, err)
 	assert.EqualValues(t, expectedSize, diskSize)
 }

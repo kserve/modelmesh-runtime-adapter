@@ -209,7 +209,7 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	}
 
 	// update the model key to add the disk size
-	if size, err1 := getModelDiskSize(modelFullPath); err1 != nil {
+	if size, err1 := s.getModelDiskSize(modelFullPath); err1 != nil {
 		s.Log.Error(err1, "Model disk size will not be included in the LoadModelRequest due to error", "model_key", modelKey)
 	} else {
 		s.Log.Info("Calculated disk size", "modelFullPath", modelFullPath, "disk_size", size)
@@ -231,7 +231,7 @@ func (s *Puller) ProcessLoadModelRequest(ctx context.Context, req *mmesh.LoadMod
 	return req, nil
 }
 
-func getModelDiskSize(modelPath string) (int64, error) {
+func (s *Puller) getModelDiskSize(modelPath string) (int64, error) {
 	// This walks the local filesystem and accumulates the size of the model
 	// It would be more efficient to accumulate the size as the files are downloaded,
 	// but this would require refactoring because the s3 download iterator does not return a size.
@@ -244,10 +244,18 @@ func getModelDiskSize(modelPath string) (int64, error) {
 		// Calculating the size of the resolved path (for pvc) instead of the symlink itself.
 		// We are not expecting to have infinite recursion since otherwise the serving runtime would not be able to load the model
 		if info.Mode()&os.ModeSymlink != 0 {
-			if resolvedPath, evalErr := os.Readlink(path); evalErr == nil {
-				if symlinkSize, err1 := getModelDiskSize(resolvedPath); err1 == nil {
-					size += symlinkSize
+			resolvedPath, resolveErr := os.Readlink(path)
+
+			if resolveErr != nil {
+				s.Log.Error(resolveErr, "Failed to resolve symlink path", "path", path)
+			} else {
+				symlinkTargetSize, symlinkTargetSizeErr := s.getModelDiskSize(resolvedPath)
+
+				if symlinkTargetSizeErr != nil {
+					return symlinkTargetSizeErr
 				}
+
+				size += symlinkTargetSize
 			}
 		} else if !info.IsDir() {
 			size += info.Size()
