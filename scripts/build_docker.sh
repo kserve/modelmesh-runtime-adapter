@@ -29,6 +29,8 @@ usage() {
   exit 1
 }
 
+DOCKER_USER=${DOCKER_USER:-"kserve"}
+IMAGE_TAG=${IMAGE_TAG:-"latest"}
 DOCKER_TARGET="runtime"
 DOCKER_TAG="$(git rev-parse --abbrev-ref HEAD)-$(date +"%Y%m%dT%H%M%S%Z")"
 
@@ -75,8 +77,8 @@ fi
 
 declare -a docker_args=(
   --target "${DOCKER_TARGET}"
-  -t "kserve/modelmesh-runtime-adapter${IMAGE_SUFFIX}:${DOCKER_TAG}"
-  -t "kserve/modelmesh-runtime-adapter${IMAGE_SUFFIX}:latest"
+  -t "${DOCKER_USER}/modelmesh-runtime-adapter${IMAGE_SUFFIX}:${DOCKER_TAG}"
+  -t "${DOCKER_USER}/modelmesh-runtime-adapter${IMAGE_SUFFIX}:${IMAGE_TAG}"
 )
 
 if [[ $DOCKER_TARGET == 'runtime' ]]; then
