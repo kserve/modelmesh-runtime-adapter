@@ -4,7 +4,7 @@
 
 This repo contains the unified puller/runtime-adapter image of the sidecar containers
 which run in the ModelMesh Serving model server Pods. Take a look at the main
-[modelmesh-serving](https://github.com/kserve/modelmesh-serving) repo for more details.
+[ModelMesh Serving](https://github.com/kserve/modelmesh-serving) repo for more details.
 
 Logical subcomponents within the image:
 
