@@ -134,27 +134,6 @@ ARG USER=2000
 
 USER root
 
-# install python to convert keras to tf
-# NOTE: tensorflow not supported on PowerPC (ppc64le) or System Z (s390x) https://github.com/tensorflow/tensorflow/issues/46181
-RUN --mount=type=cache,target=/root/.cache/microdnf:rw \
-    microdnf install --setopt=cachedir=/root/.cache/microdnf \
-       gcc \
-       gcc-c++ \
-       python38-devel \
-       python38 \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip \
-    && true
-
-# need to upgrade pip and install wheel before installing grpcio, before installing tensorflow on aarch64
-# use caching to speed up multi-platform builds
-ENV PIP_CACHE_DIR=/root/.cache/pip
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip && \
-    pip install wheel && \
-    pip install grpcio && \
-    pip install tensorflow
-
 USER ${USER}
 
 # Copy over the binary and use it as the entrypoint
