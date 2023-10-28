@@ -11,7 +11,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.#
+# limitations under the License.
 
 USAGE="$(
   cat <<EOF
@@ -22,10 +22,14 @@ usage: $0 [optional command]
   [-h | --help]    Display this help
 EOF
 )"
+
 usage() {
   echo "$USAGE" >&2
   exit 1
 }
+
+DOCKER_USER=${DOCKER_USER:-"kserve"}
+IMAGE_TAG=${IMAGE_TAG:-"latest"}
 
 # PARAMS=""
 
@@ -50,7 +54,7 @@ usage() {
 # eval set -- "$PARAMS"
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd "${DIR}/.." ||
+cd "${DIR}/.."
 
 # Make sure .bash_history exists and is a file
 touch .bash_history
@@ -73,4 +77,4 @@ fi
 # Run the develop container with local source mounted in
 docker run --rm \
   "${docker_run_args[@]}" \
-  kserve/modelmesh-runtime-adapter-develop:latest "$@"
+  "${DOCKER_USER}/modelmesh-runtime-adapter-develop:${IMAGE_TAG}" "$@"
