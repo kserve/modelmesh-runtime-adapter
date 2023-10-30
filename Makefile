@@ -34,14 +34,19 @@ build:
 build.develop:
 	./scripts/build_docker.sh --target develop
 
+.PHONY: use.develop
+## Check if developer image exists, build it if it doesn't
+use.develop:
+	./scripts/build_docker.sh --target develop --use-existing
+
 .PHONY: develop
 ## Run interactive shell inside developer container
-develop: build.develop
+develop: use.develop
 	./scripts/develop.sh
 
 .PHONY: run
 ## Run make target inside developer container (e.g. `make run fmt`)
-run: build.develop
+run: use.develop
 	./scripts/develop.sh make $(RUN_ARGS)
 
 .PHONY: test

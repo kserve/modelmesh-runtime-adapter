@@ -11,7 +11,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.#
+# limitations under the License.
 
 USAGE="$(
   cat <<EOF
@@ -40,6 +40,10 @@ while (("$#")); do
   -h | --help)
     usage
     ;;
+  --use-existing)
+    use_existing=true
+    shift 1
+    ;;
   -t | --target)
     if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
       DOCKER_TARGET=$2
@@ -67,12 +71,20 @@ done
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
-cd "$DIR/.." ||
+cd "$DIR/.."
 
 IMAGE_SUFFIX=""
 
 if [ "${DOCKER_TARGET}" != "runtime" ]; then
   IMAGE_SUFFIX="-${DOCKER_TARGET}"
+fi
+
+if [[ $use_existing == "true" ]]; then
+  DOCKER_IMAGE="${DOCKER_USER}/modelmesh-runtime-adapter${IMAGE_SUFFIX}:${IMAGE_TAG}"
+  if docker image inspect "${DOCKER_IMAGE}" >/dev/null 2>&1; then
+    echo "Using existing image: ${DOCKER_IMAGE}"
+    exit 0
+  fi
 fi
 
 declare -a docker_args=(
