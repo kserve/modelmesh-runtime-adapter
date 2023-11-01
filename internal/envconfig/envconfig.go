@@ -52,9 +52,8 @@ func GetEnvInt32(key string, defaultValue int32, log logr.Logger) int32 {
 		if err != nil {
 			log.Error(err, "Environment variable must be of type int32", "env_var", key, "value", strVal)
 			os.Exit(1)
-		} else {
-			return int32(val)
 		}
+		return int32(val)
 	}
 	return defaultValue
 }
