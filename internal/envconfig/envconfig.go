@@ -48,10 +48,12 @@ func GetEnvInt(key string, defaultValue int, log logr.Logger) int {
 
 func GetEnvInt32(key string, defaultValue int32, log logr.Logger) int32 {
 	if strVal, found := os.LookupEnv(key); found {
-		if valueInt, err := strconv.ParseInt(strVal, 10, 32); err != nil {
-			log.Error(err, "Environment variable must be an int32", "env_var", key, "value", strVal)
+		val, err := strconv.ParseInt(strVal, 10, 32)
+		if err != nil {
+			log.Error(err, "Environment variable must be of type int32", "env_var", key, "value", strVal)
+			os.Exit(1)
 		} else {
-			return int32(valueInt)
+			return int32(val)
 		}
 	}
 	return defaultValue
