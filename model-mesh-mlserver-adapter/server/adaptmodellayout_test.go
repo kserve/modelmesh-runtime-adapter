@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,7 +97,7 @@ func (tt adaptModelLayoutTestCase) writeConfigFile(t *testing.T) {
 	if jerr != nil {
 		t.Fatal("Error marshalling config JSON", jerr)
 	}
-	if err := ioutil.WriteFile(configFullPath, jsonBytes, 0644); err != nil {
+	if err := os.WriteFile(configFullPath, jsonBytes, 0644); err != nil {
 		t.Fatalf("Unable to write config JSON: %v", err)
 	}
 }
@@ -110,7 +109,7 @@ func (tt adaptModelLayoutTestCase) writeSchemaFile(t *testing.T) {
 	}
 
 	schemaFullPath := filepath.Join(tt.getSourceDir(), tt.SchemaPath)
-	if werr := ioutil.WriteFile(schemaFullPath, jsonBytes, 0644); werr != nil {
+	if werr := os.WriteFile(schemaFullPath, jsonBytes, 0644); werr != nil {
 		t.Fatal("Error writing JSON to schema file", werr)
 	}
 }
@@ -533,7 +532,7 @@ func TestAdaptModelLayoutForRuntime(t *testing.T) {
 			}
 
 			// read in the config to assert on it
-			configJSON, err2 := ioutil.ReadFile(configFilePath)
+			configJSON, err2 := os.ReadFile(configFilePath)
 			if err2 != nil {
 				t.Fatalf("Unable to read config file %s: %v", configFilePath, err2)
 			}
@@ -635,7 +634,7 @@ func assertCreateEmptyFile(path string, t *testing.T) {
 
 func createFile(path, contents string) error {
 	os.MkdirAll(filepath.Dir(path), 0755)
-	err := ioutil.WriteFile(path, []byte(contents), 0644)
+	err := os.WriteFile(path, []byte(contents), 0644)
 	return err
 }
 

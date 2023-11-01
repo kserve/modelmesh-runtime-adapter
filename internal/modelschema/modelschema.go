@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@ package modelschema
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // Filename for the schema JSON
@@ -55,7 +55,7 @@ const (
 )
 
 func NewFromFile(schemaFilename string) (*ModelSchema, error) {
-	jsonBytes, err := ioutil.ReadFile(schemaFilename)
+	jsonBytes, err := os.ReadFile(schemaFilename)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read model schema file %s: %w", schemaFilename, err)
 	}

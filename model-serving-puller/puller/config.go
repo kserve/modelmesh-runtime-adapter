@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,13 @@ package puller
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/go-logr/logr"
 
-	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
 	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
+
+	. "github.com/kserve/modelmesh-runtime-adapter/internal/envconfig"
 )
 
 // PullerConfiguration stores configuration variables for the puller server
@@ -72,7 +72,7 @@ func (config *PullerConfiguration) GetStorageConfiguration(storageKey string, lo
 		return nil, fmt.Errorf("Storage secretKey not found: %s", storageKey)
 	}
 
-	bytes, err := ioutil.ReadFile(configPath)
+	bytes, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read storage configuration from %s: %v", configPath, err)
 	}

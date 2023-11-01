@@ -51,7 +51,7 @@ run: use.develop
 
 .PHONY: test
 ## Run tests
-test:
+test: fmt
 	./scripts/run_tests.sh
 
 .PHONY: fmt

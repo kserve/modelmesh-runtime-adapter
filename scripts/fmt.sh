@@ -13,8 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.#
 
+# Fix: 'fatal: detected dubious ownership in repository',
+# only do this if it is running into the develop image
+if [ "${PWD}" == "/opt/app" ]; then
+  git config --global --add safe.directory "*"
+fi
+
 pre-commit run --all-files
 RETURN_CODE=$?
+
+## cat this file for helping on identifying the root cause when some issue happens
+if [ -f /$USER/.cache/pre-commit/pre-commit.log ]; then
+  cat /$USER/.cache/pre-commit/pre-commit.log
+fi
 
 function echoError() {
   LIGHT_YELLOW='\033[1;33m'

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
@@ -65,7 +65,7 @@ func main() {
 	manager := pullman.NewPullManager(zapr.NewLogger(zaplog))
 
 	// create repository from the config file
-	configMapJSON, err := ioutil.ReadFile(configFilename)
+	configMapJSON, err := os.ReadFile(configFilename)
 	if err != nil {
 		fmt.Printf("Error reading config file [%s]: %v\n", configFilename, err)
 		return

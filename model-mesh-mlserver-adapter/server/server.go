@@ -17,7 +17,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,7 +179,7 @@ func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, sch
 		err = adaptModelLayout(modelID, modelType, modelPath, schemaPath, mlserverModelIDDir, false, log)
 	} else {
 		// model path is a directory, inspect the files
-		files, err1 := ioutil.ReadDir(modelPath)
+		files, err1 := os.ReadDir(modelPath)
 		if err1 != nil {
 			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err)
 		}
@@ -216,7 +215,7 @@ func adaptModelLayoutForRuntime(rootModelDir, modelID, modelType, modelPath, sch
 // Only minimal changes should be made to the model repo to get it to load. For
 // MLServer, this means writing the model ID into the configuration file and
 // just symlinking all other files
-func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath, targetDir string, log logr.Logger) error {
+func adaptNativeModelLayout(files []os.DirEntry, modelID, modelPath, schemaPath, targetDir string, log logr.Logger) error {
 	for _, f := range files {
 		filename := f.Name()
 		source, err := util.SecureJoin(modelPath, filename)
@@ -226,9 +225,9 @@ func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath,
 		}
 		// special handling of the config file
 		if filename == mlserverRepositoryConfigFilename {
-			configJSON, err1 := ioutil.ReadFile(source)
+			configJSON, err1 := os.ReadFile(source)
 			if err1 != nil {
-				return fmt.Errorf("Could not read model config file %s: %w", source, err1)
+				return fmt.Errorf("could not read model config file %s: %w", source, err1)
 			}
 
 			// process the config to set the model's `name` to the model-mesh model id
@@ -243,9 +242,11 @@ func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath,
 					"mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename)
 				return jerr
 			}
-			err1 = ioutil.WriteFile(target, processedConfigJSON, f.Mode())
+
+			fInfo, _ := f.Info()
+			err1 = os.WriteFile(target, processedConfigJSON, fInfo.Mode())
 			if err1 != nil {
-				return fmt.Errorf("Error writing config file %s: %w", source, err1)
+				return fmt.Errorf("error writing config file %s: %w", source, err1)
 			}
 			continue
 		}
@@ -257,7 +258,7 @@ func adaptNativeModelLayout(files []os.FileInfo, modelID, modelPath, schemaPath,
 		}
 		err = os.Symlink(source, link)
 		if err != nil {
-			return fmt.Errorf("Error creating symlink to %s: %w", source, err)
+			return fmt.Errorf("error creating symlink to %s: %w", source, err)
 		}
 	}
 
@@ -346,7 +347,7 @@ func adaptModelLayout(modelID, modelType, modelPath, schemaPath, targetDir strin
 			"mlserverRepositoryConfigFilename", mlserverRepositoryConfigFilename)
 		return err
 	}
-	if err = ioutil.WriteFile(target, configJSON, 0664); err != nil {
+	if err = os.WriteFile(target, configJSON, 0664); err != nil {
 		return fmt.Errorf("Error writing generated config file for %s: %w", modelID, err)
 	}
 
