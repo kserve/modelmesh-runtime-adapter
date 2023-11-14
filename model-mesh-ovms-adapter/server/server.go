@@ -126,7 +126,7 @@ func (s *OvmsAdapterServer) LoadModel(ctx context.Context, req *mmesh.LoadModelR
 		return nil, err
 	}
 
-	loadErr := s.ModelManager.LoadModel(ctx, adaptedModelPath, req.ModelId)
+	loadErr := s.ModelManager.LoadModel(ctx, adaptedModelPath, req.ModelId, modelType)
 	if loadErr != nil {
 		log.Error(loadErr, "OVMS failed to load model")
 		return nil, status.Errorf(status.Code(loadErr), "Failed to load model due to error: %s", loadErr)

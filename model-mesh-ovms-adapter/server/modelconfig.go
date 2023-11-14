@@ -36,7 +36,8 @@ package server
 //   ]
 // }
 type OvmsMultiModelRepositoryConfig struct {
-	ModelConfigList []OvmsMultiModelConfigListEntry `json:"model_config_list"`
+	ModelConfigList     []OvmsMultiModelConfigListEntry `json:"model_config_list"`
+	MediapipeConfigList []OvmsMediapipeConfigListEntry  `json:"mediapipe_config_list"`
 }
 
 type OvmsMultiModelModelConfig struct {
@@ -46,6 +47,13 @@ type OvmsMultiModelModelConfig struct {
 
 type OvmsMultiModelConfigListEntry struct {
 	Config OvmsMultiModelModelConfig `json:"config"`
+}
+
+type OvmsMediapipeConfigListEntry struct {
+	Name      string `json:"name"`
+	BasePath  string `json:"base_path"`
+	GraphPath string `json:"graph_path"`
+	Subconfig string `json:"subconfig"`
 }
 
 // Types defining the REST response containing the model config

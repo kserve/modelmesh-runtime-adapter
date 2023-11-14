@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kserve/modelmesh-runtime-adapter/internal/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -45,12 +46,14 @@ type OvmsModelManager struct {
 	cachedModelConfigResponse OvmsConfigResponse
 	client                    *http.Client
 	loadedModelsMap           map[string]OvmsMultiModelConfigListEntry
+	loadedMediapipeGraphsMap  map[string]OvmsMediapipeConfigListEntry
 	requests                  chan *request
 
 	// optimizations
 	// keep reference to temporary map to avoid re-allocating arrays each
 	// time the config is written out
-	modelRepositoryConfigList []OvmsMultiModelConfigListEntry
+	modelRepositoryConfigList     []OvmsMultiModelConfigListEntry
+	mediapipeRepositoryConfigList []OvmsMediapipeConfigListEntry
 	// build HTTP requests once and re-use them (this is safe only because
 	// they do not have a body)
 	configRequest *http.Request
@@ -106,6 +109,8 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 	// try to load the initial config from disk, if it exists
 	// this handles the case where the adapter crashes
 	multiModelConfig := map[string]OvmsMultiModelConfigListEntry{}
+	mediapipeConfig := map[string]OvmsMediapipeConfigListEntry{}
+
 	if configBytes, err := os.ReadFile(multiModelConfigFilename); err != nil {
 		// if there is any error in initialization from an existing file, just continue with an empty config
 		// but log if there was an error reading an existing file
@@ -120,6 +125,11 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 			multiModelConfig = make(map[string]OvmsMultiModelConfigListEntry, len(modelRepositoryConfig.ModelConfigList))
 			for _, mc := range modelRepositoryConfig.ModelConfigList {
 				multiModelConfig[mc.Config.Name] = mc
+			}
+
+			mediapipeConfig = make(map[string]OvmsMediapipeConfigListEntry, len(modelRepositoryConfig.MediapipeConfigList))
+			for _, mc := range modelRepositoryConfig.MediapipeConfigList {
+				mediapipeConfig[mc.Name] = mc
 			}
 		}
 	}
@@ -147,11 +157,13 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 				MaxIdleConnsPerHost: mmConfig.HttpClientMaxConns,
 			},
 		},
-		log:                       log,
-		loadedModelsMap:           multiModelConfig,
-		modelConfigFilename:       multiModelConfigFilename,
-		requests:                  make(chan *request, mmConfig.RequestChannelSize),
-		modelRepositoryConfigList: make([]OvmsMultiModelConfigListEntry, 0, len(multiModelConfig)),
+		log:                           log,
+		loadedModelsMap:               multiModelConfig,
+		loadedMediapipeGraphsMap:      mediapipeConfig,
+		modelConfigFilename:           multiModelConfigFilename,
+		requests:                      make(chan *request, mmConfig.RequestChannelSize),
+		modelRepositoryConfigList:     make([]OvmsMultiModelConfigListEntry, 0, len(multiModelConfig)),
+		mediapipeRepositoryConfigList: make([]OvmsMediapipeConfigListEntry, 0, len(mediapipeConfig)),
 	}
 
 	// write the config out on boot because OVMS needs it to exist
@@ -168,7 +180,7 @@ func NewOvmsModelManager(address string, multiModelConfigFilename string, log lo
 }
 
 // "Client" API
-func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, modelId string) error {
+func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, modelId string, modelType string) error {
 
 	// BasePath must be a directory
 	var basePath string
@@ -186,6 +198,7 @@ func (mm *OvmsModelManager) LoadModel(ctx context.Context, modelPath string, mod
 		requestType: load,
 		modelId:     modelId,
 		basePath:    basePath,
+		modelType:   modelType,
 	}
 
 	if err := mm.handleRequest(ctx, req); err != nil {
@@ -252,8 +265,9 @@ const (
 type request struct {
 	requestType requestType
 
-	modelId  string // for load and unload
-	basePath string // for load
+	modelId   string // for load and unload
+	basePath  string // for load
+	modelType string // for load and unload
 
 	ctx context.Context
 	c   chan<- error
@@ -316,8 +330,9 @@ func (mm *OvmsModelManager) run() {
 			var code codes.Code
 			var message string
 			if !statusExists {
-				code = codes.Internal
-				message = "Expected model to load, but no status entry found in the config"
+				code = codes.OK
+				//code = codes.Internal
+				//message = "Expected model to load, but no status entry found in the config"
 			} else if modelStatus.State == "AVAILABLE" {
 				code = codes.OK
 			} else {
@@ -396,6 +411,7 @@ func (mm *OvmsModelManager) gatherLoadRequests() map[string]*request {
 
 				// reset the desired model state to be empty
 				mm.loadedModelsMap = map[string]OvmsMultiModelConfigListEntry{}
+				mm.loadedMediapipeGraphsMap = map[string]OvmsMediapipeConfigListEntry{}
 
 				// reset the stop timer
 				if stopChan == nil {
@@ -411,7 +427,11 @@ func (mm *OvmsModelManager) gatherLoadRequests() map[string]*request {
 					delete(requestMap, req.modelId)
 				}
 
-				delete(mm.loadedModelsMap, req.modelId)
+				if req.modelType == "mediapipe_graph" {
+					delete(mm.loadedMediapipeGraphsMap, req.modelId)
+				} else {
+					delete(mm.loadedModelsMap, req.modelId)
+				}
 				// an Unload does not need to trigger a config reload, we can report
 				// success and will sync state with the model server on the next reload
 				completeRequest(req, codes.OK, "")
@@ -435,11 +455,22 @@ func (mm *OvmsModelManager) gatherLoadRequests() map[string]*request {
 				}
 
 				requestMap[req.modelId] = req
-				mm.loadedModelsMap[req.modelId] = OvmsMultiModelConfigListEntry{
-					Config: OvmsMultiModelModelConfig{
-						Name:     req.modelId,
-						BasePath: req.basePath,
-					},
+				if req.modelType == "mediapipe_graph" {
+					graphPath, _ := util.SecureJoin(req.basePath, "graph.pbtxt")
+					subconfigPath, _ := util.SecureJoin(req.basePath, "config.json")
+					mm.loadedMediapipeGraphsMap[req.modelId] = OvmsMediapipeConfigListEntry{
+						Name:      req.modelId,
+						BasePath:  req.basePath,
+						GraphPath: graphPath,
+						Subconfig: subconfigPath,
+					}
+				} else {
+					mm.loadedModelsMap[req.modelId] = OvmsMultiModelConfigListEntry{
+						Config: OvmsMultiModelModelConfig{
+							Name:     req.modelId,
+							BasePath: req.basePath,
+						},
+					}
 				}
 			}
 		}
@@ -507,7 +538,19 @@ func (mm *OvmsModelManager) writeConfig() error {
 		listIndex++
 	}
 
-	modelRepositoryConfigJSON, err := json.Marshal(OvmsMultiModelRepositoryConfig{mm.modelRepositoryConfigList})
+	if cap(mm.mediapipeRepositoryConfigList) < len(mm.loadedMediapipeGraphsMap) {
+		mm.mediapipeRepositoryConfigList = make([]OvmsMediapipeConfigListEntry, len(mm.loadedMediapipeGraphsMap))
+	} else {
+		mm.mediapipeRepositoryConfigList = mm.mediapipeRepositoryConfigList[:len(mm.loadedMediapipeGraphsMap)]
+	}
+
+	listIndex = 0
+	for _, model := range mm.loadedMediapipeGraphsMap {
+		mm.mediapipeRepositoryConfigList[listIndex] = model
+		listIndex++
+	}
+
+	modelRepositoryConfigJSON, err := json.Marshal(OvmsMultiModelRepositoryConfig{mm.modelRepositoryConfigList, mm.mediapipeRepositoryConfigList})
 	if err != nil {
 		return fmt.Errorf("Error marshalling config file: %w", err)
 	}

@@ -89,5 +89,15 @@ if [[ $DOCKER_TARGET == 'runtime' ]]; then
   docker_args+=("--build-arg=IMAGE_VERSION=${DOCKER_TAG}")
 fi
 
+if [[ -v http_proxy ]]; then
+  docker_args+=("--build-arg=http_proxy=${http_proxy}")
+fi
+if [[ -v https_proxy ]]; then
+  docker_args+=("--build-arg=https_proxy=${https_proxy}")
+fi
+if [[ -v no_proxy ]]; then
+  docker_args+=("--build-arg=no_proxy=${no_proxy}")
+fi
+
 docker build . \
   "${docker_args[@]}"
