@@ -259,9 +259,8 @@ type request struct {
 	c   chan<- error
 }
 
-// Run loop for the manager's internal actor that owns the model repository config
-//
-// # Maintains a slice of batched requests that are in process in the reload
+// run loop for the manager's internal actor that owns the model repository config
+// Maintains a slice of batched requests that are in process in the reload
 //
 // Returns results from the reload operation once it completes
 // Receives a stream of requests from its channel
