@@ -24,17 +24,19 @@ USER root
 ENV HOME=/root
 
 # Install build and dev tools
+# NOTE: Require python38 to install pre-commit
 RUN --mount=type=cache,target=/root/.cache/dnf:rw \
     dnf install --setopt=cachedir=/root/.cache/dnf -y --nodocs \
-        python3 \
-        python3-pip \
         nodejs \
+        python38 \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && true
 
 # Install pre-commit
 ENV PIP_CACHE_DIR=/root/.cache/pip
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install pre-commit
+    pip install pre-commit
 
 # When using the BuildKit backend, Docker predefines a set of ARG variables with
 # information on the platform of the node performing the build (build platform)
