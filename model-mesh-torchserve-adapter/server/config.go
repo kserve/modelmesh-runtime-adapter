@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -81,8 +81,8 @@ func GetAdapterConfigurationFromEnv(log logr.Logger) (*AdapterConfiguration, err
 		return nil, fmt.Errorf("Could not construct torchserve model store path: %w", err)
 	}
 
-	adapterConfig.RequestBatchSize = int32(GetEnvInt(requestBatchSize, defaultRequestBatchSize, log))
-	adapterConfig.MaxBatchDelaySecs = int32(GetEnvInt(maxBatchDelaySecs, defaultMaxBatchDelaySecs, log))
+	adapterConfig.RequestBatchSize = GetEnvInt32(requestBatchSize, defaultRequestBatchSize, log)
+	adapterConfig.MaxBatchDelaySecs = GetEnvInt32(maxBatchDelaySecs, defaultMaxBatchDelaySecs, log)
 
 	if adapterConfig.TorchServeContainerMemReqBytes < 0 {
 		return nil, fmt.Errorf("%s environment variable must be set to a positive integer, found value %v",

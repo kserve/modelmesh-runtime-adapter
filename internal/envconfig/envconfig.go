@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,6 +42,18 @@ func GetEnvInt(key string, defaultValue int, log logr.Logger) int {
 			os.Exit(1)
 		}
 		return val
+	}
+	return defaultValue
+}
+
+func GetEnvInt32(key string, defaultValue int32, log logr.Logger) int32 {
+	if strVal, found := os.LookupEnv(key); found {
+		val, err := strconv.ParseInt(strVal, 10, 32)
+		if err != nil {
+			log.Error(err, "Environment variable must be of type int32", "env_var", key, "value", strVal)
+			os.Exit(1)
+		}
+		return int32(val)
 	}
 	return defaultValue
 }
