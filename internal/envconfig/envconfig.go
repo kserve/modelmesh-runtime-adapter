@@ -21,7 +21,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// GetEnvString Returns the string value of environment variable "key" or the default value
+// Returns the string value of environment variable "key" or the default value
 // if "key" is not set. Note if the environment variable is set to an empty
 // string, this will return an empty string, not defaultValue.
 func GetEnvString(key string, defaultValue string) string {
@@ -31,7 +31,7 @@ func GetEnvString(key string, defaultValue string) string {
 	return defaultValue
 }
 
-// GetEnvInt Returns the integer of value environment variable "key" or the default value
+// Returns the integer of value environment variable "key" or the default value
 // if "key" is not set. Note if the environment variable is set to a non
 // integer, including an empty string, this will fail and exit.
 func GetEnvInt(key string, defaultValue int, log logr.Logger) int {
@@ -70,7 +70,7 @@ func GetEnvFloat(key string, defaultValue float64, log logr.Logger) float64 {
 	return defaultValue
 }
 
-// GetEnvBool Returns the bool value of environment variable "key" or the default value
+// Returns the bool value of environment variable "key" or the default value
 // if "key" is not set. Note if the environment variable is set to a non
 // boolean, including an empty string, this will fail and exit.
 func GetEnvBool(key string, defaultValue bool, log logr.Logger) bool {
@@ -85,7 +85,7 @@ func GetEnvBool(key string, defaultValue bool, log logr.Logger) bool {
 	return defaultValue
 }
 
-// GetEnvDuration Returns the duration value of environment variable "key" or a default value
+// Returns the duration value of environment variable "key" or a default value
 // Note if the environment variable cannot be parsed as a duration, including an
 // empty string, this will fail and exit.
 func GetEnvDuration(key string, defaultValue time.Duration, log logr.Logger) time.Duration {

@@ -39,7 +39,7 @@ func RemoveFileFromListOfFileInfo(filename string, files []os.DirEntry) (bool, [
 	return true, files[:len(files)-1]
 }
 
-// FileExists Check if a file exists at path
+// Check if a file exists at path
 func FileExists(path string) (bool, error) {
 	if _, err := os.Stat(path); err == nil {
 		return true, nil
