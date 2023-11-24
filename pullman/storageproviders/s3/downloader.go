@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,16 @@ package s3provider
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/IBM/ibm-cos-sdk-go/aws"
 	"github.com/IBM/ibm-cos-sdk-go/aws/credentials"
+	"github.com/IBM/ibm-cos-sdk-go/aws/credentials/stscreds"
 	"github.com/IBM/ibm-cos-sdk-go/aws/session"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3/s3manager"
+	"github.com/IBM/ibm-cos-sdk-go/service/sts"
 	"github.com/go-logr/logr"
 
 	"github.com/kserve/modelmesh-runtime-adapter/pullman"
@@ -36,14 +39,6 @@ type ibmS3DownloaderFactory struct {
 var _ s3DownloaderFactory = (*ibmS3DownloaderFactory)(nil)
 
 func (f ibmS3DownloaderFactory) newDownloader(log logr.Logger, accessKeyID, secretAccessKey, endpoint, region, certificate string) s3Downloader {
-	s3Config := aws.NewConfig().
-		WithS3ForcePathStyle(true).
-		WithEndpoint(endpoint).
-		WithRegion(region).
-		WithCredentials(credentials.NewStaticCredentialsFromCreds(credentials.Value{
-			AccessKeyID:     accessKeyID,
-			SecretAccessKey: secretAccessKey,
-		}))
 
 	var s3Session *session.Session
 	if certificate != "" {
@@ -52,6 +47,34 @@ func (f ibmS3DownloaderFactory) newDownloader(log logr.Logger, accessKeyID, secr
 		}))
 	} else {
 		s3Session = session.Must(session.NewSession())
+	}
+
+	var s3Config *aws.Config
+	if os.Getenv("AWS_ROLE_ARN") != "" {
+		s3Config = aws.NewConfig().
+			WithS3ForcePathStyle(true).
+			WithEndpoint(endpoint).
+			WithRegion(region).
+			WithCredentials(
+				credentials.NewCredentials(
+					stscreds.NewWebIdentityRoleProviderWithOptions(
+						sts.New(s3Session),
+						os.Getenv("AWS_ROLE_ARN"),
+						"",
+						stscreds.FetchTokenPath(os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")),
+					)))
+		fmt.Printf("Created Web Identity Config with role: %v identity file: %v", os.Getenv("AWS_ROLE_ARN"), os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE"))
+
+	} else {
+		s3Config = aws.NewConfig().
+			WithS3ForcePathStyle(true).
+			WithEndpoint(endpoint).
+			WithRegion(region).
+			WithCredentials(credentials.NewStaticCredentialsFromCreds(credentials.Value{
+				AccessKeyID:     accessKeyID,
+				SecretAccessKey: secretAccessKey,
+			}))
+		fmt.Printf("Created static credentials access key: %v, secret_key: %v", accessKeyID, secretAccessKey)
 	}
 
 	return &ibmS3Downloader{

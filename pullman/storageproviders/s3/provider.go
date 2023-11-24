@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -76,14 +76,8 @@ func (p s3Provider) NewRepository(config pullman.Config, log logr.Logger) (pullm
 	missingRequiredStringConfigTemplate := "missing required string configuration '%s'"
 
 	accessKeyID, ok := pullman.GetString(config, configAccessKeyID)
-	if !ok {
-		return nil, fmt.Errorf(missingRequiredStringConfigTemplate, configAccessKeyID)
-	}
 
 	secretAccessKey, ok := pullman.GetString(config, configSecretAccessKey)
-	if !ok {
-		return nil, fmt.Errorf(missingRequiredStringConfigTemplate, configSecretAccessKey)
-	}
 
 	endpoint, ok := pullman.GetString(config, configEndpoint)
 	if !ok {
