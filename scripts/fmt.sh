@@ -17,8 +17,8 @@ pre-commit run --all-files
 RETURN_CODE=$?
 
 # cat this file for helping on identifying the root cause when some issue happens
-if [ -f /tmp/pre-commit.log ]; then
-  cat /tmp/pre-commit.log
+if [ -f .pre-commit.log ]; then
+  cat .pre-commit.log
 fi
 
 function echoError() {

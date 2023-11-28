@@ -8,3 +8,6 @@
 *.iml
 
 public/
+
+.pre-commit.log
+
