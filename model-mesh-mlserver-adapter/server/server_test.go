@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -215,7 +214,7 @@ func TestProcessConfigJSON(t *testing.T) {
 }
 
 func assertGeneratedModelDirIsCorrect(sourceDir string, generatedDir string, modelID string, t *testing.T) {
-	generatedFiles, err := ioutil.ReadDir(generatedDir)
+	generatedFiles, err := os.ReadDir(generatedDir)
 	if err != nil {
 		t.Errorf("Could not read files in generated dir [%s]: %v", generatedDir, err)
 	}
@@ -227,7 +226,7 @@ func assertGeneratedModelDirIsCorrect(sourceDir string, generatedDir string, mod
 		if f.Name() == mlserverRepositoryConfigFilename {
 			configFileFound = true
 			// should have `name` field matching the modelID
-			configJSON, err := ioutil.ReadFile(filePath)
+			configJSON, err := os.ReadFile(filePath)
 			if err != nil {
 				t.Errorf("Unable to read config file %s: %v", filePath, err)
 			}
@@ -245,7 +244,7 @@ func assertGeneratedModelDirIsCorrect(sourceDir string, generatedDir string, mod
 
 		// if not the config file, it should be a symlink pointing to a file in the
 		// source dir that exists
-		if f.Mode()&os.ModeSymlink != os.ModeSymlink {
+		if f.Type()&os.ModeSymlink != os.ModeSymlink {
 			t.Errorf("Expected [%s] to be a symlink.", filePath)
 		}
 

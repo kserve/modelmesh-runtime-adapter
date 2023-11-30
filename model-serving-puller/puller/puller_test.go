@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -99,7 +98,7 @@ func eqPullCommand(pc *pullman.PullCommand) gomock.Matcher {
 // helper to create a RepositoryConfig from the testdata storage config dir
 func readStorageConfig(key string) (*pullman.RepositoryConfig, error) {
 
-	j, err := ioutil.ReadFile(filepath.Join(StorageConfigDir, key))
+	j, err := os.ReadFile(filepath.Join(StorageConfigDir, key))
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +427,7 @@ func Test_ProcessLoadModelRequest_SuccessStorageTypeOnly(t *testing.T) {
 func Test_ProcessLoadModelRequest_DefaultStorageKey(t *testing.T) {
 	// create a typeless default storage config file for this test
 	defaultConfigFile := filepath.Join(StorageConfigDir, "default")
-	err := ioutil.WriteFile(defaultConfigFile, []byte(`{"type": "typeless-default"}`), 0555)
+	err := os.WriteFile(defaultConfigFile, []byte(`{"type": "typeless-default"}`), 0555)
 	assert.NoError(t, err)
 	defer func() {
 		errd := os.Remove(defaultConfigFile)

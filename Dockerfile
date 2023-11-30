@@ -15,7 +15,7 @@
 ###############################################################################
 # Stage 1: Create the developer image for the BUILDPLATFORM only
 ###############################################################################
-ARG GOLANG_VERSION=1.17
+ARG GOLANG_VERSION=1.19
 FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi8/go-toolset:$GOLANG_VERSION AS develop
 
 ARG PROTOC_VERSION=21.5
@@ -93,6 +93,8 @@ RUN true \
 COPY .pre-commit-config.yaml ./
 RUN git init && \
     pre-commit install-hooks && \
+    # Fix: 'fatal: detected dubious ownership in repository' \
+    git config --global --add safe.directory "*" && \
     rm -rf .git
 
 # Download dependencies before copying the source so they will be cached

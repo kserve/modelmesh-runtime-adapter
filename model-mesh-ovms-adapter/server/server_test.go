@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -255,7 +254,7 @@ func TestAdapter(t *testing.T) {
 }
 
 func checkEntryExistsInModelConfig(modelid string, path string) error {
-	configBytes, err := ioutil.ReadFile(testModelConfigFile)
+	configBytes, err := os.ReadFile(testModelConfigFile)
 	if err != nil {
 		return fmt.Errorf("Unable to read config file: %w", err)
 	}

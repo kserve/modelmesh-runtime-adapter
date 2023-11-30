@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -53,7 +52,7 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 		// simple case if ModelPath points to a file
 		err = createOvmsModelRepositoryFromPath(modelPath, "1", schemaPath, modelType, ovmsModelIDDir, log)
 	} else {
-		files, err1 := ioutil.ReadDir(modelPath)
+		files, err1 := os.ReadDir(modelPath)
 		if err1 != nil {
 			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err1)
 		}
@@ -68,7 +67,7 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 
 // Creates the ovms model structure /models/_ovms_models/model-id/1/<model files>
 // Within this path there will be a symlink back to the original /models/model-id directory tree.
-func createOvmsModelRepositoryFromDirectory(files []os.FileInfo, modelPath, schemaPath, modelType, ovmsModelIDDir string, log logr.Logger) error {
+func createOvmsModelRepositoryFromDirectory(files []os.DirEntry, modelPath, schemaPath, modelType, ovmsModelIDDir string, log logr.Logger) error {
 	var err error
 
 	// allow the directory to contain version directories
@@ -126,8 +125,8 @@ func createOvmsModelRepositoryFromPath(modelPath, versionNumber, schemaPath, mod
 }
 
 // Returns the largest positive int dir as long as all fileInfo dirs are integers (files are ignored).
-// If fileInfos is empty or contains any any non-integer dirs, this will return the empty string.
-func largestNumberDir(fileInfos []os.FileInfo) string {
+// If fileInfos is empty or contains any non-integer dirs, this will return the empty string.
+func largestNumberDir(fileInfos []os.DirEntry) string {
 	largestInt := 0
 	largestDir := ""
 	for _, f := range fileInfos {

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -58,7 +57,8 @@ type Puller struct {
 }
 
 // PullerInterface is the interface for `pullman`
-//  useful to mock for testing
+//
+//	useful to mock for testing
 type PullerInterface interface {
 	Pull(context.Context, pullman.PullCommand) error
 }
@@ -291,7 +291,7 @@ func (p *Puller) ClearLocalModelStorage(exclude string) error {
 }
 
 func (p *Puller) ListModels() ([]string, error) {
-	entries, err := ioutil.ReadDir(p.PullerConfig.RootModelDir)
+	entries, err := os.ReadDir(p.PullerConfig.RootModelDir)
 	if err != nil {
 		return nil, err
 	}

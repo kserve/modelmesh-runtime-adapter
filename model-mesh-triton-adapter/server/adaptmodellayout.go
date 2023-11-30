@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -100,7 +99,7 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 		// simple case if ModelPath points to a file
 		err = createTritonModelRepositoryFromPath(modelPath, "1", schemaPath, modelType, tritonModelIDDir, log)
 	} else {
-		files, err1 := ioutil.ReadDir(modelPath)
+		files, err1 := os.ReadDir(modelPath)
 		if err1 != nil {
 			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err1)
 		}
@@ -121,7 +120,7 @@ func adaptModelLayoutForRuntime(ctx context.Context, rootModelDir, modelID, mode
 // Creates the triton model structure /models/_triton_models/model-id/1/model.X where
 // model.X is a file or directory with a name defined by the model type (see modelTypeToDirNameMapping and modelTypeToFileNameMapping).
 // Within this path there will be a symlink back to the original /models/model-id directory tree.
-func createTritonModelRepositoryFromDirectory(files []os.FileInfo, modelPath, schemaPath, modelType, tritonModelIDDir string, log logr.Logger) error {
+func createTritonModelRepositoryFromDirectory(files []os.DirEntry, modelPath, schemaPath, modelType, tritonModelIDDir string, log logr.Logger) error {
 	var err error
 
 	// for backwards compatibility, remove any file called _schema.json from
@@ -138,7 +137,7 @@ func createTritonModelRepositoryFromDirectory(files []os.FileInfo, modelPath, sc
 			return err
 		}
 
-		if files, err = ioutil.ReadDir(modelPath); err != nil {
+		if files, err = os.ReadDir(modelPath); err != nil {
 			return fmt.Errorf("Could not read files in dir %s: %w", modelPath, err)
 		}
 	} else {
@@ -233,7 +232,7 @@ func createTritonModelRepositoryFromPath(modelPath, versionNumber, schemaPath, m
 // If the Triton specific config file exists, assume the model files has the
 // proper structure, but process the config.pbtxt to remove the `name` field.
 // All other files are symlinked to their source
-func adaptNativeModelLayout(files []os.FileInfo, sourceModelIDDir, schemaPath, tritonModelIDDir string, log logr.Logger) error {
+func adaptNativeModelLayout(files []os.DirEntry, sourceModelIDDir, schemaPath, tritonModelIDDir string, log logr.Logger) error {
 	for _, f := range files {
 		var err1 error
 		filename := f.Name()
@@ -245,7 +244,7 @@ func adaptNativeModelLayout(files []os.FileInfo, sourceModelIDDir, schemaPath, t
 
 		// special handling of the config file
 		if filename == tritonRepositoryConfigFilename {
-			pbtxt, err2 := ioutil.ReadFile(source)
+			pbtxt, err2 := os.ReadFile(source)
 			if err2 != nil {
 				return fmt.Errorf("Error reading config file %s: %w", source, err2)
 			}
@@ -261,7 +260,8 @@ func adaptNativeModelLayout(files []os.FileInfo, sourceModelIDDir, schemaPath, t
 				return err2
 			}
 
-			if err2 = ioutil.WriteFile(target, processedPbtxt, f.Mode()); err2 != nil {
+			info, _ := f.Info()
+			if err2 = os.WriteFile(target, processedPbtxt, info.Mode()); err2 != nil {
 				return fmt.Errorf("Error writing config file %s: %w", source, err2)
 			}
 
@@ -283,8 +283,8 @@ func adaptNativeModelLayout(files []os.FileInfo, sourceModelIDDir, schemaPath, t
 }
 
 // Returns the largest positive int dir as long as all fileInfo dirs are integers (files are ignored).
-// If fileInfos is empty or contains any any non-integer dirs, this will return the empty string.
-func largestNumberDir(fileInfos []os.FileInfo) string {
+// If fileInfos is empty or contains any non-integer dirs, this will return the empty string.
+func largestNumberDir(fileInfos []os.DirEntry) string {
 	largestInt := 0
 	largestDir := ""
 	for _, f := range fileInfos {
@@ -307,8 +307,8 @@ func largestNumberDir(fileInfos []os.FileInfo) string {
 // Returns true if these the files make up the top level of a triton model repository.
 // In other words, the parent of the files is the root of the triton repository (we don't pass the parent path
 // because then we'd have to read the filesystem more than once).
-// Currently this is using the existence of file 'config.pbtxt' to determine it is a triton repository.
-func isTritonModelRepository(files []os.FileInfo) bool {
+// Currently, this is using the existence of file 'config.pbtxt' to determine it is a triton repository.
+func isTritonModelRepository(files []os.DirEntry) bool {
 	for _, f := range files {
 		if f.Name() == tritonRepositoryConfigFilename {
 			return true

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -259,8 +258,7 @@ type request struct {
 	c   chan<- error
 }
 
-// Run loop for the manager's internal actor that owns the model repository config
-//
+// run loop for the manager's internal actor that owns the model repository config
 // Maintains a slice of batched requests that are in process in the reload
 //
 // Returns results from the reload operation once it completes
@@ -342,7 +340,6 @@ func (mm *OvmsModelManager) run() {
 // This handles deciding which requests will require a reload, completing
 // requests that will not change the state and ignoring requests that are
 // cancelled.
-//
 //
 // We need a criteria to determine when to stop grabbing requests after a reload
 // is needed; here we take the approach of waiting for a period of time after a
@@ -512,7 +509,7 @@ func (mm *OvmsModelManager) writeConfig() error {
 		return fmt.Errorf("Error marshalling config file: %w", err)
 	}
 
-	if err := ioutil.WriteFile(mm.modelConfigFilename, modelRepositoryConfigJSON, mm.config.ModelConfigFilePerms); err != nil {
+	if err := os.WriteFile(mm.modelConfigFilename, modelRepositoryConfigJSON, mm.config.ModelConfigFilePerms); err != nil {
 		return fmt.Errorf("Error writing config file: %w", err)
 	}
 

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,7 +171,7 @@ func (tt adaptModelLayoutTestCase) writeSchemaFile(t *testing.T) {
 	}
 
 	schemaFullpath := filepath.Join(tt.getSourceDir(), tt.SchemaPath)
-	if werr := ioutil.WriteFile(schemaFullpath, jsonBytes, 0644); werr != nil {
+	if werr := os.WriteFile(schemaFullpath, jsonBytes, 0644); werr != nil {
 		t.Fatal("Error writing JSON to schema file", werr)
 	}
 }
@@ -278,7 +277,7 @@ func assertConfigFileContents(t *testing.T, tt adaptModelLayoutTestCase) {
 
 	// read in the generated config file
 	configFilePath := filepath.Join(tt.getTargetDir(), "config.pbtxt")
-	configFileContents, err := ioutil.ReadFile(configFilePath)
+	configFileContents, err := os.ReadFile(configFilePath)
 	if err != nil {
 		t.Fatalf("Unable to read config file [%s]: %v", configFilePath, err)
 	}
@@ -379,9 +378,7 @@ func findSymlinks(root string) []string {
 	return result
 }
 
-//
 // Definition of writeModelLayoutForRuntime test cases
-//
 var adaptModelLayoutTests = []adaptModelLayoutTestCase{
 	// Group: file layout / model path support
 	{
