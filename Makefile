@@ -56,8 +56,12 @@ test:
 
 .PHONY: fmt
 ## Auto-format source code and report code-style violations (lint)
-fmt:
+fmt: addheaders
 	./scripts/fmt.sh
+
+.PHONY: addheaders
+addheaders:
+	./scripts/addheaders.sh
 
 .PHONY: proto.compile
 ## Compile protos
