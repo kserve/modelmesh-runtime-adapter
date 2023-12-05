@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
 
 package server
 
-// Types defining the structure of the OVMS Multi-Model config file
+// OvmsMultiModelRepositoryConfig Types defining the structure of the OVMS Multi-Model config file
 //
 // Doc: https://github.com/openvinotoolkit/model_server/blob/main/docs/multiple_models_mode.md
 // JSON Schema: https://github.com/openvinotoolkit/model_server/blob/eab97207fbe9078f83a3f85b468418555b02959a/src/schema.cpp#L28
