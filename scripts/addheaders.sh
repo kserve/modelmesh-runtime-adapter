@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2023 IBM Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,12 @@ if ! hash addlicense 2>/dev/null; then
 fi
 
 # adds a new line between the header and the package keyword when it does not exists.
-find . -type f -name "*.go" -exec sed -i '/\/\/ limitations under the License\.$/{N; s/\(\/\/ limitations under the License.\)\n\(package\)/\1\n\n\2/}' {} \;
+sedparam=""
+if [[ $OSTYPE == "darwin"* ]]; then
+  sedparam="''"
+fi
+find . -type f -name "*.go" -exec /usr/bin/sed -i ${sedparam} -e '/\/\/ limitations under the License\.$/{' -e 'N' -e 's/\(\/\/ limitations under the License.\)\n\(package\)/\1\n\n\2/;}' {} \;
 
 # add license to new files that does not contains it
 addlicense  -v -c "IBM Corporation" -l=apache Dockerfile ./**/*.go scripts
+
