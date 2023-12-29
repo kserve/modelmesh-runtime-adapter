@@ -55,8 +55,8 @@ require (
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
@@ -71,8 +71,8 @@ require (
 )
 
 replace (
-	// Update to avoid CVE-2022-27191, CVE-2021-43565, CVE-2020-29652
-	golang.org/x/crypto => golang.org/x/crypto v0.14.0
+	// Update to avoid CVE-2022-27191, CVE-2021-43565, CVE-2020-29652, CVE-2023-48795
+	golang.org/x/crypto => golang.org/x/crypto v0.17.0
 	// Update to avoid CVE-2023-3978, CVE-2023-39325, CVE-2023-44487
 	golang.org/x/net => golang.org/x/net v0.17.0
 	// remove when upgrade to controller-runtime 0.15.x or apimachinery to 0.27.x
