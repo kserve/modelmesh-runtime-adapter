@@ -18,12 +18,19 @@ if ! hash addlicense 2>/dev/null; then
 fi
 
 # adds a new line between the header and the package keyword when it does not exists.
-sedparam=""
-if [[ $OSTYPE == "darwin"* ]]; then
-  sedparam="''"
+# we use sed to make in-file text replacements, but sed works differently depending on the version
+if ! sed -i '1s/^/test/' $(mktemp) 2> /dev/null; then
+    # macOS (BSD) version of sed
+    alias gsed="sed -i ''"
+else
+    # POSIX compliant version of sed
+    alias gsed="sed -i"
 fi
-find . -type f -name "*.go" -exec /usr/bin/sed -i ${sedparam} -e '/\/\/ limitations under the License\.$/{' -e 'N' -e 's/\(\/\/ limitations under the License.\)\n\(package\)/\1\n\n\2/;}' {} \;
+export gsed
+
+find . -type f -name "*.go" -exec gsed -e '/\/\/ limitations under the License\.$/{' -e 'N' -e 's/\(\/\/ limitations under the License.\)\n\(package\)/\1\n\n\2/;}' {} \;
 
 # add license to new files that does not contains it
-addlicense  -v -c "IBM Corporation" -l=apache Dockerfile ./**/*.go scripts
+shopt -s globstar
+"${GOPATH}"/bin/addlicense  -v -c "IBM Corporation" -l=apache Dockerfile ./**/*.go scripts
 
