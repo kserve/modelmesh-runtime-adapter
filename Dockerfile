@@ -81,7 +81,8 @@ COPY go.mod go.sum ./
 # Install go protoc plugins
 # no required module provides package google.golang.org/grpc/cmd/protoc-gen-go-grpc
 # to add it run `go get google.golang.org/grpc/cmd/protoc-gen-go-grpc`
-ENV PATH $HOME/go/bin:$PATH
+ENV GOPATH $HOME/go
+ENV PATH $GOPATH/bin:$PATH
 RUN true \
     && go get google.golang.org/grpc/cmd/protoc-gen-go-grpc \
     && go install google.golang.org/protobuf/cmd/protoc-gen-go \

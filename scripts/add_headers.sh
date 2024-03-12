@@ -15,20 +15,23 @@
 
 if ! hash addlicense 2>/dev/null; then
   go install github.com/google/addlicense@latest
+  # make sure we can actually use the newly install addlicense script
+  if ! command -v addlicense >/dev/null 2>&1; then
+    echo "Can not find 'addlicense' after running 'go install github.com/google/addlicense'."
+    echo "GOPATH - $GOPATH"
+    echo 'Did you forget to export PATH=$PATH:$GOPATH/bin'
+    exit 1
+  fi
 fi
 
-# adds a new line between the header and the package keyword when it does not exists.
-# we use sed to make in-file text replacements, but sed works differently depending on the version
-if ! sed -i '1s/^/test/' $(mktemp) 2> /dev/null; then
-    # macOS (BSD) version of sed
-    alias gsed="sed -i ''"
-else
-    # POSIX compliant version of sed
-    alias gsed="sed -i"
-fi
-export gsed
-
-find . -type f -name "*.go" -exec gsed -e '/\/\/ limitations under the License\.$/{' -e 'N' -e 's/\(\/\/ limitations under the License.\)\n\(package\)/\1\n\n\2/;}' {} \;
+for file in $(find . -type f -name "*.go"); do
+  sed -i.bak \
+    -e '/\/\/ limitations under the License\.$/{' \
+    -e 'N' \
+    -e 's/\(\/\/ limitations under the License.\)\n\(package\)/\1\n\n\2/;}' \
+    $file
+  rm -rf ${file}.bak
+done
 
 # add license to new files that does not contains it
 shopt -s globstar
