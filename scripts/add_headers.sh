@@ -18,7 +18,7 @@ if ! hash addlicense 2>/dev/null; then
   # make sure we can actually use the newly install addlicense script
   if ! command -v addlicense >/dev/null 2>&1; then
     echo "Can not find 'addlicense' after running 'go install github.com/google/addlicense'."
-    echo "GOPATH - $GOPATH"
+    echo "GOPATH=$GOPATH"
     echo 'Did you forget to export PATH=$PATH:$GOPATH/bin'
     exit 1
   fi
@@ -35,5 +35,5 @@ done
 
 # add license to new files that does not contains it
 shopt -s globstar
-"${GOPATH}"/bin/addlicense  -v -c "IBM Corporation" -l=apache Dockerfile ./**/*.go scripts
+addlicense  -v -c "IBM Corporation" -l=apache Dockerfile ./**/*.go scripts
 
