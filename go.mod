@@ -17,7 +17,7 @@ require (
 	golang.org/x/sync v0.1.0
 	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.56.3
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 	// controller-runtime dependency is only used for logging
 	sigs.k8s.io/controller-runtime v0.14.6
 )
