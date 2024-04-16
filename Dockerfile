@@ -162,6 +162,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
     pip install wheel && \
     pip install grpcio && \
+    # pin to 3.10.0 to avoid error: libhdf5.so: cannot open shared object file: No such file or directory \
+    # if not version is set, it will install the 3.11.0 version which, seems that does not have the h5py dependencies \
+    # for arm yet.
+    pip install h5py==3.10.0 && \
     pip install tensorflow
 
 USER ${USER}
