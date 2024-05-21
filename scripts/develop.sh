@@ -75,6 +75,6 @@ else
 fi
 
 # Run the develop container with local source mounted in
-docker run --rm \
+${ENGINE:-docker} run --rm \
   "${docker_run_args[@]}" \
   "${DOCKER_USER}/modelmesh-runtime-adapter-develop:${IMAGE_TAG}" "$@"
