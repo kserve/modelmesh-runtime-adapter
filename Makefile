@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# make builder configurable, default to docker.
+ENGINE ?= docker
+
 # collect args from `make run` so that they don't run twice
 ifeq (run,$(firstword $(MAKECMDGOALS)))
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   ifneq ("$(wildcard /.dockerenv)","")
-    $(error Inside docker container, run 'make $(RUN_ARGS)')
+    $(error Inside the developer container, run 'make $(RUN_ARGS)')
   endif
 endif
 
@@ -25,29 +28,29 @@ endif
 all: build
 
 .PHONY: build
-## Build runtime Docker image
+## Build runtime container image
 build:
-	./scripts/build_docker.sh --target runtime
+	ENGINE=${ENGINE} && ./scripts/build_docker.sh --target runtime
 
 .PHONY: build.develop
 ## Build developer container image
 build.develop:
-	./scripts/build_docker.sh --target develop
+	ENGINE=${ENGINE} && ./scripts/build_docker.sh --target develop
 
 .PHONY: use.develop
-## Check if developer image exists, build it if it doesn't
+## Check if developer container image exists, build it if it doesn't
 use.develop:
-	./scripts/build_docker.sh --target develop --use-existing
+	ENGINE=${ENGINE} && ./scripts/build_docker.sh --target develop --use-existing
 
 .PHONY: develop
-## Run interactive shell inside developer container
+## Run interactive shell inside developer container image
 develop: use.develop
-	./scripts/develop.sh
+	ENGINE=${ENGINE} && ./scripts/develop.sh
 
 .PHONY: run
 ## Run make target inside developer container (e.g. `make run fmt`)
 run: use.develop
-	./scripts/develop.sh make $(RUN_ARGS)
+	ENGINE=${ENGINE} &&  ./scripts/develop.sh make $(RUN_ARGS)
 
 .PHONY: test
 ## Run tests

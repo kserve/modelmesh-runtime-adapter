@@ -103,5 +103,5 @@ if [[ $DOCKER_TARGET == 'runtime' ]]; then
   docker_args+=("--build-arg=IMAGE_VERSION=${DOCKER_TAG}")
 fi
 
-docker build . \
+${ENGINE:-docker} build . \
   "${docker_args[@]}"
