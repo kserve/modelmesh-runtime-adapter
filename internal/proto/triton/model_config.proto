@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright 2018-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -71,6 +71,9 @@ enum DataType {
 
   //@@  .. cpp:enumerator:: DataType::STRING = 13
   TYPE_STRING = 13;
+
+  //@@  .. cpp:enumerator:: DataType::BF16 = 14
+  TYPE_BF16 = 14;
 }
 
 //@@
@@ -115,17 +118,18 @@ message ModelRateLimiter
   //@@
   //@@     The resources required to execute the request on a model instance.
   //@@     Resources are just names with a corresponding count. The execution
-  //@@     of the instance will be blocked until the specificied resources are
+  //@@     of the instance will be blocked until the specified resources are
   //@@     available. By default an instance uses no rate-limiter resources.
   //@@
   repeated Resource resources = 1;
 
   //@@  .. cpp:var:: uint32 priority
   //@@
-  //@@     The weighting value to be used for prioritizing across instances.
-  //@@     An instance with priority 2 will be given 1/2 the number of
-  //@@     scheduling chances as an instance_group with priority 1. The
-  //@@     default priority is 1.
+  //@@     The optional weighting value to be used for prioritizing across
+  //@@     instances. An instance with priority 2 will be given 1/2 the
+  //@@     number of scheduling chances as an instance_group with priority
+  //@@     1. The default priority is 1. The priority of value 0 will be
+  //@@     treated as priority 1.
   //@@
   uint32 priority = 2;
 }
@@ -173,9 +177,42 @@ message ModelInstanceGroup
     //@@       CPU and/or GPU(s) as specified by the model or backend itself.
     //@@       The inference server will not override the model/backend
     //@@       settings.
-    //@@       Currently, this option is supported only for Tensorflow models.
     //@@
     KIND_MODEL = 3;
+  }
+
+  //@@
+  //@@  .. cpp:var:: message SecondaryDevice
+  //@@
+  //@@     A secondary device required for a model instance.
+  //@@
+  message SecondaryDevice
+  {
+    //@@
+    //@@  .. cpp:enum:: SecondaryDeviceKind
+    //@@
+    //@@     The kind of the secondary device.
+    //@@
+    enum SecondaryDeviceKind {
+      //@@    .. cpp:enumerator:: SecondaryDeviceKind::KIND_NVDLA = 0
+      //@@
+      //@@       An NVDLA core. http://nvdla.org
+      //@@       Currently KIND_NVDLA is only supported by the TensorRT backend.
+      //@@
+      KIND_NVDLA = 0;
+    }
+
+    //@@  .. cpp:var:: SecondaryDeviceKind kind
+    //@@
+    //@@     The secondary device kind.
+    //@@
+    SecondaryDeviceKind kind = 1;
+
+    //@@  .. cpp:var:: int64 device_id
+    //@@
+    //@@     Identifier for the secondary device.
+    //@@
+    int64 device_id = 2;
   }
 
   //@@  .. cpp:var:: string name
@@ -215,10 +252,17 @@ message ModelInstanceGroup
   //@@
   //@@     GPU(s) where instances should be available. For each GPU listed,
   //@@     'count' instances of the model will be available. Setting 'gpus'
-  //@@     to empty (or not specifying at all) is eqivalent to listing all
+  //@@     to empty (or not specifying at all) is equivalent to listing all
   //@@     available GPUs.
   //@@
   repeated int32 gpus = 3;
+
+  //@@  .. cpp:var:: SecondaryDevice secondary_devices (repeated)
+  //@@
+  //@@     Secondary devices that are required by instances specified by this
+  //@@     instance group. Optional.
+  //@@
+  repeated SecondaryDevice secondary_devices = 8;
 
   //@@  .. cpp:var:: string profile (repeated)
   //@@
@@ -232,6 +276,23 @@ message ModelInstanceGroup
   //@@     optimization profile by default.
   //@@
   repeated string profile = 5;
+
+  //@@  .. cpp:var:: bool passive
+  //@@
+  //@@     Whether the instances within this instance group will be accepting
+  //@@     inference requests from the scheduler. If true, the instances will
+  //@@     not be added to the scheduler. Default value is false.
+  //@@
+  bool passive = 7;
+
+  //@@  .. cpp:var:: string host_policy
+  //@@
+  //@@     The host policy name that the instance to be associated with.
+  //@@     The default value is set to reflect the device kind of the instance,
+  //@@     for instance, KIND_CPU is "cpu", KIND_MODEL is "model" and
+  //@@     KIND_GPU is "gpu_<gpu_id>".
+  //@@
+  string host_policy = 9;
 }
 
 //@@
@@ -337,10 +398,26 @@ message ModelInput
   //@@     created batch. Default is false indicating that two requests will
   //@@     only be batched if this tensor has the same shape in both requests.
   //@@     True indicates that two requests can be batched even if this tensor
-  //@@     has a different shape in each request. A true value is currently
-  //@@     supported only for custom models.
+  //@@     has a different shape in each request.
   //@@
   bool allow_ragged_batch = 7;
+
+  //@@  .. cpp:var:: bool optional
+  //@@
+  //@@     Whether or not the input is optional for the model execution.
+  //@@     If true, the input is not required in the inference request.
+  //@@     Default value is false.
+  //@@
+  bool optional = 8;
+
+  //@@  .. cpp:var:: bool is_non_linear_format_io
+  //@@
+  //@@     Indicates whether the input tensor uses a non-linear IO format. This
+  //@@     field is currently supported only for TensorRT models. An error will
+  //@@     be generated if this specification does not comply with the
+  //@@     underlying model.
+  //@@
+  bool is_non_linear_format_io = 9;
 }
 
 //@@
@@ -371,7 +448,7 @@ message ModelOutput
   //@@  .. cpp:var:: ModelTensorReshape reshape
   //@@
   //@@     The shape produced for this output by the backend. The output will
-  //@@     be reshaped from this to the shape specifed in 'dims' before being
+  //@@     be reshaped from this to the shape specified in 'dims' before being
   //@@     returned in the inference response. The reshape must have the same
   //@@     number of elements as the output shape specified by 'dims'. Optional.
   //@@
@@ -393,6 +470,15 @@ message ModelOutput
   //@@     model.
   //@@
   bool is_shape_tensor = 6;
+
+  //@@  .. cpp:var:: bool is_non_linear_format_io
+  //@@
+  //@@     Indicates whether the output tensor uses a non-linear IO format. This
+  //@@     field is currently supported only for TensorRT models. An error will
+  //@@     be generated if this specification does not comply with the
+  //@@     underlying model.
+  //@@
+  bool is_non_linear_format_io = 7;
 }
 
 //@@  .. cpp:var:: message BatchInput
@@ -444,6 +530,28 @@ message BatchInput
     //@@         The data of the tensor will be uninitialized.
     //@@
     BATCH_MAX_ELEMENT_COUNT_AS_SHAPE = 3;
+
+    //@@      .. cpp:enumerator:: Kind::BATCH_ITEM_SHAPE = 4
+    //@@
+    //@@         Among the requests in the batch, the shape of the
+    //@@         'source_input' will be added as input with shape
+    //@@         [batch_size, len(input_dim)]. For example, if one
+    //@@         batch-2 input with shape [3, 1] and batch-1 input
+    //@@         with shape [2, 2] are batched, the batch input will
+    //@@         have shape [3, 2] and value [ [3, 1], [3, 1], [2, 2]].
+    //@@
+    BATCH_ITEM_SHAPE = 4;
+
+    //@@      .. cpp:enumerator:: Kind::BATCH_ITEM_SHAPE_FLATTEN = 5
+    //@@
+    //@@         Among the requests in the batch, the shape of the
+    //@@         'source_input' will be added as input with single dimensional
+    //@@         shape [batch_size * len(input_dim)]. For example, if one
+    //@@         batch-2 input with shape [3, 1] and batch-1 input
+    //@@         with shape [2, 2] are batched, the batch input will
+    //@@         have shape [6] and value [3, 1, 3, 1, 2, 2].
+    //@@
+    BATCH_ITEM_SHAPE_FLATTEN = 5;
   }
 
   //@@    .. cpp:var:: Kind kind
@@ -749,6 +857,17 @@ message ModelOptimizationPolicy
     //@@       Currently only recognized by TensorRT backend.
     //@@
     repeated GraphSpec graph_spec = 3;
+
+    //@@    .. cpp:var:: bool output_copy_stream
+    //@@
+    //@@       Uses a CUDA stream separate from the inference stream to copy the
+    //@@       output to host. However, be aware that setting this option to
+    //@@       true will lead to an increase in the memory consumption of the
+    //@@       model as Triton will allocate twice as much GPU memory for its
+    //@@       I/O tensor buffers. Default value is false.
+    //@@       Currently only recognized by TensorRT backend.
+    //@@
+    bool output_copy_stream = 4;
   }
 
   //@@
@@ -786,7 +905,7 @@ message ModelOptimizationPolicy
 
       //@@    .. cpp:var:: map<string, string> parameters
       //@@
-      //@@       Additional paremeters used to configure the accelerator.
+      //@@       Additional parameters used to configure the accelerator.
       //@@
       map<string, string> parameters = 2;
     }
@@ -903,6 +1022,29 @@ message ModelOptimizationPolicy
   //@@     Default is true.
   //@@
   PinnedMemoryBuffer output_pinned_memory = 6;
+
+  //@@  .. cpp:var:: uint32 gather_kernel_buffer_threshold
+  //@@
+  //@@     The backend may use a gather kernel to gather input data if the
+  //@@     device has direct access to the source buffer and the destination
+  //@@     buffer. In such case, the gather kernel will be used only if the
+  //@@     number of buffers to be gathered is greater or equal to
+  //@@     the specified value. If 0, the gather kernel will be disabled.
+  //@@     Default value is 0.
+  //@@     Currently only recognized by TensorRT backend.
+  //@@
+  uint32 gather_kernel_buffer_threshold = 7;
+
+  //@@  .. cpp:var:: bool eager_batching
+  //@@
+  //@@     Start preparing the next batch before the model instance is ready
+  //@@     for the next inference. This option can be used to overlap the
+  //@@     batch preparation with model execution, with the trade-off that
+  //@@     the next batch might be smaller than what it could have been.
+  //@@     Default value is false.
+  //@@     Currently only recognized by TensorRT backend.
+  //@@
+  bool eager_batching = 8;
 }
 
 //@@
@@ -1010,7 +1152,7 @@ message ModelDynamicBatching
   //@@
   bool preserve_ordering = 3;
 
-  //@@  .. cpp:var:: uint32 priority_levels
+  //@@  .. cpp:var:: uint64 priority_levels
   //@@
   //@@     The number of priority levels to be enabled for the model,
   //@@     the priority level starts from 1 and 1 is the highest priority.
@@ -1019,14 +1161,14 @@ message ModelDynamicBatching
   //@@     priority 3, etc. Requests with the same priority level will be
   //@@     handled in the order that they are received.
   //@@
-  uint32 priority_levels = 4;
+  uint64 priority_levels = 4;
 
-  //@@  .. cpp:var:: uint32 default_priority_level
+  //@@  .. cpp:var:: uint64 default_priority_level
   //@@
   //@@     The priority level used for requests that don't specify their
   //@@     priority. The value must be in the range [ 1, 'priority_levels' ].
   //@@
-  uint32 default_priority_level = 5;
+  uint64 default_priority_level = 5;
 
   //@@  .. cpp:var:: ModelQueuePolicy default_queue_policy
   //@@
@@ -1037,13 +1179,13 @@ message ModelDynamicBatching
   //@@
   ModelQueuePolicy default_queue_policy = 6;
 
-  //@@  .. cpp:var:: map<uint32, ModelQueuePolicy> priority_queue_policy
+  //@@  .. cpp:var:: map<uint64, ModelQueuePolicy> priority_queue_policy
   //@@
   //@@     Specify the queue policy for the priority level. The default queue
   //@@     policy will be used if a priority level doesn't specify a queue
   //@@     policy.
   //@@
-  map<uint32, ModelQueuePolicy> priority_queue_policy = 7;
+  map<uint64, ModelQueuePolicy> priority_queue_policy = 7;
 }
 
 //@@
@@ -1071,8 +1213,8 @@ message ModelSequenceBatching
       //@@
       //@@         A new sequence is/is-not starting. If true a sequence is
       //@@         starting, if false a sequence is continuing. Must
-      //@@         specify either int32_false_true or fp32_false_true for
-      //@@         this control. This control is optional.
+      //@@         specify either int32_false_true, fp32_false_true or
+      //@@         bool_false_true for this control. This control is optional.
       //@@
       CONTROL_SEQUENCE_START = 0;
 
@@ -1081,17 +1223,18 @@ message ModelSequenceBatching
       //@@         A sequence is/is-not ready for inference. If true the
       //@@         input tensor data is valid and should be used. If false
       //@@         the input tensor data is invalid and inferencing should
-      //@@         be "skipped".  Must specify either int32_false_true or
-      //@@         fp32_false_true for this control. This control is optional.
+      //@@         be "skipped". Must specify either int32_false_true,
+      //@@         fp32_false_true or bool_false_true for this control. This
+      //@@         control is optional.
       //@@
       CONTROL_SEQUENCE_READY = 1;
 
       //@@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_END = 2
       //@@
       //@@         A sequence is/is-not ending. If true a sequence is
-      //@@         ending, if false a sequence is continuing. Must
-      //@@         specify either int32_false_true or fp32_false_true for
-      //@@         this control. This control is optional.
+      //@@         ending, if false a sequence is continuing. Must specify
+      //@@         either int32_false_true, fp32_false_true or bool_false_true
+      //@@         for this control. This control is optional.
       //@@
       CONTROL_SEQUENCE_END = 2;
 
@@ -1134,6 +1277,16 @@ message ModelSequenceBatching
     //@@
     repeated float fp32_false_true = 3;
 
+    //@@    .. cpp:var:: bool bool_false_true (repeated)
+    //@@
+    //@@       The control's true and false setting is indicated by setting
+    //@@       a value in a bool tensor. The tensor must be a
+    //@@       1-dimensional tensor with size equal to the batch size of
+    //@@       the request. 'bool_false_true' must have two entries: the
+    //@@       first the false value and the second the true value.
+    //@@
+    repeated bool bool_false_true = 5;
+
     //@@    .. cpp:var:: DataType data_type
     //@@
     //@@       The control's datatype.
@@ -1161,6 +1314,128 @@ message ModelSequenceBatching
     repeated Control control = 2;
   }
 
+  //@@
+  //@@  .. cpp:var:: message InitialState
+  //@@
+  //@@     Settings used to initialize data for implicit state.
+  //@@
+  message InitialState
+  {
+    //@@      .. cpp:var:: DataType data_type
+    //@@
+    //@@         The data-type of the state.
+    //@@
+    DataType data_type = 1;
+
+    //@@      .. cpp:var:: int64 dims (repeated)
+    //@@
+    //@@         The shape of the state tensor, not including the batch
+    //@@         dimension.
+    //@@
+    repeated int64 dims = 2;
+
+    //@@      .. cpp:var:: oneof state_data
+    //@@
+    //@@         Specify how the initial state data is generated.
+    //@@
+    oneof state_data
+    {
+      //@@
+      //@@      .. cpp:var:: bool zero_data
+      //@@
+      //@@         The identifier for using zeros as initial state data.
+      //@@         Note that the value of 'zero_data' will not be checked,
+      //@@         instead, zero data will be used as long as the field is set.
+      //@@
+      bool zero_data = 3;
+
+      //@@      .. cpp:var:: string data_file
+      //@@
+      //@@         The file whose content will be used as the initial data for
+      //@@         the state in row-major order. The file must be provided in
+      //@@         sub-directory 'initial_state' under the model directory.
+      //@@
+      string data_file = 4;
+    }
+
+    //@@  .. cpp:var:: string name
+    //@@
+    //@@     The name of the state initialization.
+    //@@
+    string name = 5;
+  }
+
+  //@@  .. cpp:var:: message State
+  //@@
+  //@@     An input / output pair of tensors that carry state for the sequence.
+  //@@
+  message State
+  {
+    //@@    .. cpp:var:: string input_name
+    //@@
+    //@@       The name of the model state input.
+    //@@
+    string input_name = 1;
+
+    //@@    .. cpp:var:: string output_name
+    //@@
+    //@@       The name of the model state output.
+    //@@
+    string output_name = 2;
+
+    //@@    .. cpp:var:: DataType data_type
+    //@@
+    //@@       The data-type of the state.
+    //@@
+    DataType data_type = 3;
+
+    //@@    .. cpp:var:: int64 dim (repeated)
+    //@@
+    //@@       The dimension.
+    //@@
+    repeated int64 dims = 4;
+
+    //@@  .. cpp:var:: InitialState initial_state (repeated)
+    //@@
+    //@@     The optional field to specify the initial state for the model.
+    //@@
+    repeated InitialState initial_state = 5;
+
+    //@@  .. cpp:var:: bool use_same_buffer_for_input_output
+    //@@
+    //@@     The optional field to use a single buffer for both input and output
+    //@@     state. Without this option, Triton allocates separate buffers
+    //@@     for input and output state
+    //@@     which can be problematic if the state size is
+    //@@     large. This option reduces the memory usage by allocating a single
+    //@@     buffer. Enabling this option is recommended whenever
+    //@@     the input state is processed before the output state is written.
+    //@@     When enabled the state
+    //@@     will always be updated independent of whether
+    //@@     TRITONBACKEND_StateUpdate is called
+    //@@     (however TRITONBACKEND_StateUpdate should still be called for
+    //@@     completeness).
+    //@@
+    //@@     The default value is false.
+    //@@
+    bool use_same_buffer_for_input_output = 6;
+
+    //@@  .. cpp:var:: bool use_growable_memory
+    //@@
+    //@@     The optional field to enable an implicit state buffer to grow
+    //@@     without reallocating or copying existing memory.
+    //@@     Additional memory will be appended to the end of the buffer and
+    //@@     existing data will be preserved.
+    //@@     This option is only available for CUDA memory and requires enabling
+    //@@     use_same_buffer_for_input_output. When using this option,
+    //@@     StateBuffer call will always return CUDA memory even if CPU memory
+    //@@     is requested.
+    //@@
+    //@@     The default value is false.
+    //@@
+    bool use_growable_memory = 7;
+  }
+
   //@@  .. cpp:var:: message StrategyDirect
   //@@
   //@@     The sequence batcher uses a specific, unique batch
@@ -1169,7 +1444,31 @@ message ModelSequenceBatching
   //@@     model instance over the lifetime of the sequence. This
   //@@     is the default strategy.
   //@@
-  message StrategyDirect {}
+  message StrategyDirect
+  {
+    //@@    .. cpp:var:: uint64 max_queue_delay_microseconds
+    //@@
+    //@@       The maximum time, in microseconds, a candidate request
+    //@@       will be delayed in the sequence batch scheduling queue to
+    //@@       wait for additional requests for batching. Default is 0.
+    //@@
+    uint64 max_queue_delay_microseconds = 1;
+
+    //@@    .. cpp:var:: float minimum_slot_utilization
+    //@@
+    //@@       The minimum slot utilization that must be satisfied to
+    //@@       execute the batch before 'max_queue_delay_microseconds' expires.
+    //@@       For example, a value of 0.5 indicates that the batch should be
+    //@@       executed as soon as 50% or more of the slots are ready even if
+    //@@       the 'max_queue_delay_microseconds' timeout has not expired.
+    //@@       The default is 0.0, indicating that a batch will be executed
+    //@@       before 'max_queue_delay_microseconds' timeout expires if at least
+    //@@       one batch slot is ready. 'max_queue_delay_microseconds' will be
+    //@@       ignored unless minimum_slot_utilization is set to a non-zero
+    //@@       value.
+    //@@
+    float minimum_slot_utilization = 2;
+  }
 
   //@@  .. cpp:var:: message StrategyOldest
   //@@
@@ -1187,7 +1486,7 @@ message ModelSequenceBatching
     //@@    .. cpp:var:: int32 max_candidate_sequences
     //@@
     //@@       Maximum number of candidate sequences that the batcher
-    //@@       maintains. Excess seqences are kept in an ordered backlog
+    //@@       maintains. Excess sequences are kept in an ordered backlog
     //@@       and become candidates when existing candidate sequences
     //@@       complete.
     //@@
@@ -1197,7 +1496,7 @@ message ModelSequenceBatching
     //@@
     //@@       Preferred batch sizes for dynamic batching of candidate
     //@@       sequences. If a batch of one of these sizes can be formed
-    //@@       it will be executed immediately.  If not specified a
+    //@@       it will be executed immediately. If not specified a
     //@@       preferred batch size will be chosen automatically
     //@@       based on model and GPU characteristics.
     //@@
@@ -1210,6 +1509,29 @@ message ModelSequenceBatching
     //@@       wait for additional requests for batching. Default is 0.
     //@@
     uint64 max_queue_delay_microseconds = 3;
+
+    //@@    .. cpp:var:: bool preserve_ordering
+    //@@
+    //@@       Should the dynamic batcher preserve the ordering of responses to
+    //@@       match the order of requests received by the scheduler. Default is
+    //@@       false. If true, the responses will be returned in the same order
+    //@@       as the order of requests sent to the scheduler. If false, the
+    //@@       responses may be returned in arbitrary order. This option is
+    //@@       specifically needed when a sequence of related inference requests
+    //@@       (i.e. inference requests with the same correlation ID) are sent
+    //@@       to the dynamic batcher to ensure that the sequence responses are
+    //@@       in the correct order.
+    //@@
+    //@@       When using decoupled models, setting this to true may block the
+    //@@       responses from independent sequences from being returned to the
+    //@@       client until the previous request completes, hurting overall
+    //@@       performance. If using GRPC streaming protocol, the stream
+    //@@       ordering guarantee may be sufficient alone to ensure the
+    //@@       responses for each sequence are returned in sequence-order
+    //@@       without blocking based on independent requests, depending on the
+    //@@       use case.
+    //@@
+    bool preserve_ordering = 4;
   }
 
   //@@  .. cpp:var:: oneof strategy_choice
@@ -1251,6 +1573,28 @@ message ModelSequenceBatching
   //@@     model.
   //@@
   repeated ControlInput control_input = 2;
+
+  //@@  .. cpp:var:: State state (repeated)
+  //@@
+  //@@     The optional state that can be stored in Triton for performing
+  //@@     inference requests on a sequence. Each sequence holds an implicit
+  //@@     state local to itself. The output state tensor provided by the
+  //@@     model in 'output_name' field of the current inference request will
+  //@@     be transferred as an input tensor named 'input_name' in the next
+  //@@     request of the same sequence. The input state of the first request
+  //@@     in the sequence contains garbage data.
+  //@@
+  repeated State state = 5;
+
+  //@@  .. cpp:var:: bool iterative_sequence
+  //@@
+  //@@     Requests for iterative sequences are processed over a number
+  //@@     of iterations. An iterative sequence is initiated by a single
+  //@@     request and is "rescheduled" by the model until completion.
+  //@@     Requests for inflight requests will be batched together
+  //@@     and can complete independently. Note this feature
+  //@@     requires backend support. Default value is false.
+  bool iterative_sequence = 6;
 }
 
 //@@
@@ -1301,6 +1645,13 @@ message ModelEnsembling
     //@@     can appear in an output map only once.
     //@@
     map<string, string> output_map = 4;
+
+    //@@  .. cpp:var:: string model_namespace
+    //@@
+    //@@     [RESERVED] currently this field is reserved for internal use, users
+    //@@     must not set any value to this field to avoid unexpected behavior.
+    //@@
+    string model_namespace = 5;
   }
 
   //@@  .. cpp:var:: Step step (repeated)
@@ -1380,7 +1731,10 @@ message ModelWarmup
       //@@
       //@@       The file whose content will be used as raw input data in
       //@@       row-major order. The file must be provided in a sub-directory
-      //@@       'warmup' under the model directory.
+      //@@       'warmup' under the model directory. The file contents should be
+      //@@       in binary format. For TYPE_STRING data-type, an element is
+      //@@       represented by a 4-byte unsigned integer giving the length
+      //@@       followed by the actual bytes.
       //@@
       string input_data_file = 5;
     }
@@ -1407,6 +1761,20 @@ message ModelWarmup
   //@@     control tensors.
   //@@
   map<string, Input> inputs = 3;
+
+  //@@  .. cpp:var:: uint32 count
+  //@@
+  //@@     The number of iterations that this warmup sample will be executed.
+  //@@     For example, if this field is set to 2, 2 model executions using this
+  //@@     sample will be scheduled for warmup. Default value is 0 which
+  //@@     indicates that this sample will be used only once.
+  //@@     Note that for sequence model, 'count' may not work well
+  //@@     because the model often expect a valid sequence of requests which
+  //@@     should be represented by a series of warmup samples. 'count > 1'
+  //@@     essentially "resends" one of the sample, which may invalidate the
+  //@@     sequence and result in unexpected warmup failure.
+  //@@
+  uint32 count = 4;
 }
 
 //@@
@@ -1416,7 +1784,7 @@ message ModelWarmup
 //@@
 message ModelOperations
 {
-  //@@  .. cpp:var:: string op_library_filename
+  //@@  .. cpp:var:: string op_library_filename (repeated)
   //@@
   //@@     Optional paths of the libraries providing custom operations for
   //@@     this model. Valid only for ONNX models.
@@ -1445,6 +1813,63 @@ message ModelTransactionPolicy
 }
 
 //@@
+//@@.. cpp:var:: message ModelRepositoryAgents
+//@@
+//@@   The repository agents for the model.
+//@@
+message ModelRepositoryAgents
+{
+  //@@
+  //@@  .. cpp:var:: message Agent
+  //@@
+  //@@     A repository agent that should be invoked for the specified
+  //@@     repository actions for this model.
+  //@@
+  message Agent
+  {
+    //@@    .. cpp:var:: string name
+    //@@
+    //@@       The name of the agent.
+    //@@
+    string name = 1;
+
+    //@@    .. cpp:var:: map<string, string> parameters
+    //@@
+    //@@       The parameters for the agent.
+    //@@
+    map<string, string> parameters = 2;
+  }
+
+  //@@
+  //@@  .. cpp:var:: Agent agents (repeated)
+  //@@
+  //@@     The ordered list of agents for the model. These agents will be
+  //@@     invoked in order to respond to repository actions occurring for the
+  //@@     model.
+  //@@
+  repeated Agent agents = 1;
+}
+
+//@@
+//@@.. cpp:var:: message ModelResponseCache
+//@@
+//@@   The response cache setting for the model.
+//@@
+message ModelResponseCache
+{
+  //@@
+  //@@  .. cpp::var:: bool enable
+  //@@
+  //@@     Whether or not to use response cache for the model. If True, the
+  //@@     responses from the model are cached and when identical request
+  //@@     is encountered, instead of going through the model execution,
+  //@@     the response from the cache is utilized. By default, response
+  //@@     cache is disabled for the models.
+  //@@
+  bool enable = 1;
+}
+
+//@@
 //@@.. cpp:var:: message ModelConfig
 //@@
 //@@   A model configuration.
@@ -1459,10 +1884,9 @@ message ModelConfig
 
   //@@  .. cpp:var:: string platform
   //@@
-  //@@     The framework for the model. Possible values are
-  //@@     "tensorrt_plan", "tensorflow_graphdef",
-  //@@     "tensorflow_savedmodel", "caffe2_netdef",
-  //@@     "onnxruntime_onnx", "pytorch_libtorch" and "custom".
+  //@@     Additional backend-specific configuration for the model.
+  //@@     Please refer to the backend documentation on whether this field
+  //@@     should be specified.
   //@@
   string platform = 2;
 
@@ -1471,6 +1895,12 @@ message ModelConfig
   //@@     The backend used by the model.
   //@@
   string backend = 17;
+
+  //@@  .. cpp:var:: string runtime
+  //@@
+  //@@     The name of the backend library file used by the model.
+  //@@
+  string runtime = 25;
 
   //@@  .. cpp:var:: ModelVersionPolicy version_policy
   //@@
@@ -1583,7 +2013,7 @@ message ModelConfig
   //@@     compute-capability specific model is not specified in
   //@@     :cpp:var:`cc_model_filenames`. If not specified the default name
   //@@     is 'model.graphdef', 'model.savedmodel', 'model.plan' or
-  //@@     'model.netdef' depending on the model type.
+  //@@     'model.pt' depending on the model type.
   //@@
   string default_model_filename = 8;
 
@@ -1605,8 +2035,7 @@ message ModelConfig
 
   //@@  .. cpp:var:: map<string,ModelParameter> parameters
   //@@
-  //@@     Optional model parameters. User-specified parameter values that
-  //@@     are made available to custom backends.
+  //@@     Optional model parameters. User-specified parameter values.
   //@@
   map<string, ModelParameter> parameters = 14;
 
@@ -1633,4 +2062,18 @@ message ModelConfig
   //@@     to be expected from the model.
   //@@
   ModelTransactionPolicy model_transaction_policy = 19;
+
+  //@@  .. cpp:var:: ModelRepositoryAgents model_repository_agents
+  //@@
+  //@@     Optional specification of the agent(s) that should be invoked
+  //@@     with repository actions are performed for this model.
+  //@@
+  ModelRepositoryAgents model_repository_agents = 23;
+
+  //@@  .. cpp:var:: ModelResponseCache response_cache
+  //@@
+  //@@     Optional setting for utilizing the response cache for this
+  //@@     model.
+  //@@
+  ModelResponseCache response_cache = 24;
 }
