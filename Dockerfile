@@ -19,6 +19,9 @@ ARG GOLANG_VERSION=1.21
 FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi8/go-toolset:$GOLANG_VERSION AS develop
 
 ARG PROTOC_VERSION=21.5
+ARG PROTOC_GEN_GO_VERSION=1.28.1
+ARG PROTOC_GEN_GO_GRPC_VERSION=1.3.0
+
 
 USER root
 ENV HOME=/root
@@ -84,9 +87,8 @@ COPY go.mod go.sum ./
 ENV GOPATH $HOME/go
 ENV PATH $GOPATH/bin:$PATH
 RUN true \
-    && go get google.golang.org/grpc/cmd/protoc-gen-go-grpc \
-    && go install google.golang.org/protobuf/cmd/protoc-gen-go \
-                  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+    && go install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GEN_GO_VERSION} \
+                  google.golang.org/grpc/cmd/protoc-gen-go-grpc@v@{PROTOC_GEN_GO_GRPC_VERSION} \
     && protoc-gen-go --version \
     && true
 
