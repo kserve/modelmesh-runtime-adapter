@@ -48,41 +48,41 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-//@@
-//@@.. cpp:enum:: DataType
-//@@
-//@@   Data types supported for input and output tensors.
-//@@
+// @@
+// @@.. cpp:enum:: DataType
+// @@
+// @@   Data types supported for input and output tensors.
+// @@
 type DataType int32
 
 const (
-	//@@  .. cpp:enumerator:: DataType::INVALID = 0
+	// @@  .. cpp:enumerator:: DataType::INVALID = 0
 	DataType_TYPE_INVALID DataType = 0
-	//@@  .. cpp:enumerator:: DataType::BOOL = 1
+	// @@  .. cpp:enumerator:: DataType::BOOL = 1
 	DataType_TYPE_BOOL DataType = 1
-	//@@  .. cpp:enumerator:: DataType::UINT8 = 2
+	// @@  .. cpp:enumerator:: DataType::UINT8 = 2
 	DataType_TYPE_UINT8 DataType = 2
-	//@@  .. cpp:enumerator:: DataType::UINT16 = 3
+	// @@  .. cpp:enumerator:: DataType::UINT16 = 3
 	DataType_TYPE_UINT16 DataType = 3
-	//@@  .. cpp:enumerator:: DataType::UINT32 = 4
+	// @@  .. cpp:enumerator:: DataType::UINT32 = 4
 	DataType_TYPE_UINT32 DataType = 4
-	//@@  .. cpp:enumerator:: DataType::UINT64 = 5
+	// @@  .. cpp:enumerator:: DataType::UINT64 = 5
 	DataType_TYPE_UINT64 DataType = 5
-	//@@  .. cpp:enumerator:: DataType::INT8 = 6
+	// @@  .. cpp:enumerator:: DataType::INT8 = 6
 	DataType_TYPE_INT8 DataType = 6
-	//@@  .. cpp:enumerator:: DataType::INT16 = 7
+	// @@  .. cpp:enumerator:: DataType::INT16 = 7
 	DataType_TYPE_INT16 DataType = 7
-	//@@  .. cpp:enumerator:: DataType::INT32 = 8
+	// @@  .. cpp:enumerator:: DataType::INT32 = 8
 	DataType_TYPE_INT32 DataType = 8
-	//@@  .. cpp:enumerator:: DataType::INT64 = 9
+	// @@  .. cpp:enumerator:: DataType::INT64 = 9
 	DataType_TYPE_INT64 DataType = 9
-	//@@  .. cpp:enumerator:: DataType::FP16 = 10
+	// @@  .. cpp:enumerator:: DataType::FP16 = 10
 	DataType_TYPE_FP16 DataType = 10
-	//@@  .. cpp:enumerator:: DataType::FP32 = 11
+	// @@  .. cpp:enumerator:: DataType::FP32 = 11
 	DataType_TYPE_FP32 DataType = 11
-	//@@  .. cpp:enumerator:: DataType::FP64 = 12
+	// @@  .. cpp:enumerator:: DataType::FP64 = 12
 	DataType_TYPE_FP64 DataType = 12
-	//@@  .. cpp:enumerator:: DataType::STRING = 13
+	// @@  .. cpp:enumerator:: DataType::STRING = 13
 	DataType_TYPE_STRING DataType = 13
 )
 
@@ -149,42 +149,42 @@ func (DataType) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{0}
 }
 
-//@@
-//@@  .. cpp:enum:: Kind
-//@@
-//@@     Kind of this instance group.
-//@@
+// @@
+// @@  .. cpp:enum:: Kind
+// @@
+// @@     Kind of this instance group.
+// @@
 type ModelInstanceGroup_Kind int32
 
 const (
-	//@@    .. cpp:enumerator:: Kind::KIND_AUTO = 0
-	//@@
-	//@@       This instance group represents instances that can run on either
-	//@@       CPU or GPU. If all GPUs listed in 'gpus' are available then
-	//@@       instances will be created on GPU(s), otherwise instances will
-	//@@       be created on CPU.
-	//@@
+	// @@    .. cpp:enumerator:: Kind::KIND_AUTO = 0
+	// @@
+	// @@       This instance group represents instances that can run on either
+	// @@       CPU or GPU. If all GPUs listed in 'gpus' are available then
+	// @@       instances will be created on GPU(s), otherwise instances will
+	// @@       be created on CPU.
+	// @@
 	ModelInstanceGroup_KIND_AUTO ModelInstanceGroup_Kind = 0
-	//@@    .. cpp:enumerator:: Kind::KIND_GPU = 1
-	//@@
-	//@@       This instance group represents instances that must run on the
-	//@@       GPU.
-	//@@
+	// @@    .. cpp:enumerator:: Kind::KIND_GPU = 1
+	// @@
+	// @@       This instance group represents instances that must run on the
+	// @@       GPU.
+	// @@
 	ModelInstanceGroup_KIND_GPU ModelInstanceGroup_Kind = 1
-	//@@    .. cpp:enumerator:: Kind::KIND_CPU = 2
-	//@@
-	//@@       This instance group represents instances that must run on the
-	//@@       CPU.
-	//@@
+	// @@    .. cpp:enumerator:: Kind::KIND_CPU = 2
+	// @@
+	// @@       This instance group represents instances that must run on the
+	// @@       CPU.
+	// @@
 	ModelInstanceGroup_KIND_CPU ModelInstanceGroup_Kind = 2
-	//@@    .. cpp:enumerator:: Kind::KIND_MODEL = 3
-	//@@
-	//@@       This instance group represents instances that should run on the
-	//@@       CPU and/or GPU(s) as specified by the model or backend itself.
-	//@@       The inference server will not override the model/backend
-	//@@       settings.
-	//@@       Currently, this option is supported only for Tensorflow models.
-	//@@
+	// @@    .. cpp:enumerator:: Kind::KIND_MODEL = 3
+	// @@
+	// @@       This instance group represents instances that should run on the
+	// @@       CPU and/or GPU(s) as specified by the model or backend itself.
+	// @@       The inference server will not override the model/backend
+	// @@       settings.
+	// @@       Currently, this option is supported only for Tensorflow models.
+	// @@
 	ModelInstanceGroup_KIND_MODEL ModelInstanceGroup_Kind = 3
 )
 
@@ -231,36 +231,36 @@ func (ModelInstanceGroup_Kind) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{1, 0}
 }
 
-//@@
-//@@  .. cpp:enum:: Format
-//@@
-//@@     The format for the input.
-//@@
+// @@
+// @@  .. cpp:enum:: Format
+// @@
+// @@     The format for the input.
+// @@
 type ModelInput_Format int32
 
 const (
-	//@@    .. cpp:enumerator:: Format::FORMAT_NONE = 0
-	//@@
-	//@@       The input has no specific format. This is the default.
-	//@@
+	// @@    .. cpp:enumerator:: Format::FORMAT_NONE = 0
+	// @@
+	// @@       The input has no specific format. This is the default.
+	// @@
 	ModelInput_FORMAT_NONE ModelInput_Format = 0
-	//@@    .. cpp:enumerator:: Format::FORMAT_NHWC = 1
-	//@@
-	//@@       HWC image format. Tensors with this format require 3 dimensions
-	//@@       if the model does not support batching (max_batch_size = 0) or 4
-	//@@       dimensions if the model does support batching (max_batch_size
-	//@@       >= 1). In either case the 'dims' below should only specify the
-	//@@       3 non-batch dimensions (i.e. HWC or CHW).
-	//@@
+	// @@    .. cpp:enumerator:: Format::FORMAT_NHWC = 1
+	// @@
+	// @@       HWC image format. Tensors with this format require 3 dimensions
+	// @@       if the model does not support batching (max_batch_size = 0) or 4
+	// @@       dimensions if the model does support batching (max_batch_size
+	// @@       >= 1). In either case the 'dims' below should only specify the
+	// @@       3 non-batch dimensions (i.e. HWC or CHW).
+	// @@
 	ModelInput_FORMAT_NHWC ModelInput_Format = 1
-	//@@    .. cpp:enumerator:: Format::FORMAT_NCHW = 2
-	//@@
-	//@@       CHW image format. Tensors with this format require 3 dimensions
-	//@@       if the model does not support batching (max_batch_size = 0) or 4
-	//@@       dimensions if the model does support batching (max_batch_size
-	//@@       >= 1). In either case the 'dims' below should only specify the
-	//@@       3 non-batch dimensions (i.e. HWC or CHW).
-	//@@
+	// @@    .. cpp:enumerator:: Format::FORMAT_NCHW = 2
+	// @@
+	// @@       CHW image format. Tensors with this format require 3 dimensions
+	// @@       if the model does not support batching (max_batch_size = 0) or 4
+	// @@       dimensions if the model does support batching (max_batch_size
+	// @@       >= 1). In either case the 'dims' below should only specify the
+	// @@       3 non-batch dimensions (i.e. HWC or CHW).
+	// @@
 	ModelInput_FORMAT_NCHW ModelInput_Format = 2
 )
 
@@ -305,46 +305,46 @@ func (ModelInput_Format) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{3, 0}
 }
 
-//@@
-//@@    .. cpp:enum:: Kind
-//@@
-//@@       The kind of the batch input.
-//@@
+// @@
+// @@    .. cpp:enum:: Kind
+// @@
+// @@       The kind of the batch input.
+// @@
 type BatchInput_Kind int32
 
 const (
-	//@@      .. cpp:enumerator:: Kind::BATCH_ELEMENT_COUNT = 0
-	//@@
-	//@@         The element count of the 'source_input' will be added as
-	//@@         input with shape [1].
-	//@@
+	// @@      .. cpp:enumerator:: Kind::BATCH_ELEMENT_COUNT = 0
+	// @@
+	// @@         The element count of the 'source_input' will be added as
+	// @@         input with shape [1].
+	// @@
 	BatchInput_BATCH_ELEMENT_COUNT BatchInput_Kind = 0
-	//@@      .. cpp:enumerator:: Kind::BATCH_ACCUMULATED_ELEMENT_COUNT = 1
-	//@@
-	//@@         The accumulated element count of the 'source_input' will be
-	//@@         added as input with shape [1]. For example, if there is a
-	//@@         batch of two request, each with 2 elements, an input of value
-	//@@         2 will be added to the first request, and an input of value
-	//@@         4 will be added to the second request.
-	//@@
+	// @@      .. cpp:enumerator:: Kind::BATCH_ACCUMULATED_ELEMENT_COUNT = 1
+	// @@
+	// @@         The accumulated element count of the 'source_input' will be
+	// @@         added as input with shape [1]. For example, if there is a
+	// @@         batch of two request, each with 2 elements, an input of value
+	// @@         2 will be added to the first request, and an input of value
+	// @@         4 will be added to the second request.
+	// @@
 	BatchInput_BATCH_ACCUMULATED_ELEMENT_COUNT BatchInput_Kind = 1
-	//@@      .. cpp:enumerator::
-	//@@         Kind::BATCH_ACCUMULATED_ELEMENT_COUNT_WITH_ZERO = 2
-	//@@
-	//@@         The accumulated element count of the 'source_input' will be
-	//@@         added as input with shape [1], except for the first request
-	//@@         in the batch. For the first request in the batch, the input
-	//@@         will have shape [2] where the first element is value 0.
-	//@@
+	// @@      .. cpp:enumerator::
+	// @@         Kind::BATCH_ACCUMULATED_ELEMENT_COUNT_WITH_ZERO = 2
+	// @@
+	// @@         The accumulated element count of the 'source_input' will be
+	// @@         added as input with shape [1], except for the first request
+	// @@         in the batch. For the first request in the batch, the input
+	// @@         will have shape [2] where the first element is value 0.
+	// @@
 	BatchInput_BATCH_ACCUMULATED_ELEMENT_COUNT_WITH_ZERO BatchInput_Kind = 2
-	//@@      .. cpp:enumerator:: Kind::BATCH_MAX_ELEMENT_COUNT_AS_SHAPE = 3
-	//@@
-	//@@         Among the requests in the batch, the max element count of the
-	//@@         'source_input' will be added as input with shape
-	//@@         [max_element_count] for the first request in the batch.
-	//@@         For other requests, such input will be with shape [0].
-	//@@         The data of the tensor will be uninitialized.
-	//@@
+	// @@      .. cpp:enumerator:: Kind::BATCH_MAX_ELEMENT_COUNT_AS_SHAPE = 3
+	// @@
+	// @@         Among the requests in the batch, the max element count of the
+	// @@         'source_input' will be added as input with shape
+	// @@         [max_element_count] for the first request in the batch.
+	// @@         For other requests, such input will be with shape [0].
+	// @@         The data of the tensor will be uninitialized.
+	// @@
 	BatchInput_BATCH_MAX_ELEMENT_COUNT_AS_SHAPE BatchInput_Kind = 3
 )
 
@@ -391,20 +391,20 @@ func (BatchInput_Kind) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{5, 0}
 }
 
-//@@
-//@@  .. cpp:enum:: Kind
-//@@
-//@@     The kind of the batch output.
-//@@
+// @@
+// @@  .. cpp:enum:: Kind
+// @@
+// @@     The kind of the batch output.
+// @@
 type BatchOutput_Kind int32
 
 const (
-	//@@    .. cpp:enumerator:: Kind::BATCH_SCATTER_WITH_INPUT_SHAPE = 0
-	//@@
-	//@@       The output should be scattered according to the shape of
-	//@@       'source_input'. The dynamic dimension of the output will
-	//@@       be set to the value of the same dimension in the input.
-	//@@
+	// @@    .. cpp:enumerator:: Kind::BATCH_SCATTER_WITH_INPUT_SHAPE = 0
+	// @@
+	// @@       The output should be scattered according to the shape of
+	// @@       'source_input'. The dynamic dimension of the output will
+	// @@       be set to the value of the same dimension in the input.
+	// @@
 	BatchOutput_BATCH_SCATTER_WITH_INPUT_SHAPE BatchOutput_Kind = 0
 )
 
@@ -445,30 +445,30 @@ func (BatchOutput_Kind) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{6, 0}
 }
 
-//@@
-//@@  .. cpp:enum:: ModelPriority
-//@@
-//@@     Model priorities. A model will be given scheduling and execution
-//@@     preference over models at lower priorities. Current model
-//@@     priorities only work for TensorRT models.
-//@@
+// @@
+// @@  .. cpp:enum:: ModelPriority
+// @@
+// @@     Model priorities. A model will be given scheduling and execution
+// @@     preference over models at lower priorities. Current model
+// @@     priorities only work for TensorRT models.
+// @@
 type ModelOptimizationPolicy_ModelPriority int32
 
 const (
-	//@@    .. cpp:enumerator:: ModelPriority::PRIORITY_DEFAULT = 0
-	//@@
-	//@@       The default model priority.
-	//@@
+	// @@    .. cpp:enumerator:: ModelPriority::PRIORITY_DEFAULT = 0
+	// @@
+	// @@       The default model priority.
+	// @@
 	ModelOptimizationPolicy_PRIORITY_DEFAULT ModelOptimizationPolicy_ModelPriority = 0
-	//@@    .. cpp:enumerator:: ModelPriority::PRIORITY_MAX = 1
-	//@@
-	//@@       The maximum model priority.
-	//@@
+	// @@    .. cpp:enumerator:: ModelPriority::PRIORITY_MAX = 1
+	// @@
+	// @@       The maximum model priority.
+	// @@
 	ModelOptimizationPolicy_PRIORITY_MAX ModelOptimizationPolicy_ModelPriority = 1
-	//@@    .. cpp:enumerator:: ModelPriority::PRIORITY_MIN = 2
-	//@@
-	//@@       The minimum model priority.
-	//@@
+	// @@    .. cpp:enumerator:: ModelPriority::PRIORITY_MIN = 2
+	// @@
+	// @@       The minimum model priority.
+	// @@
 	ModelOptimizationPolicy_PRIORITY_MIN ModelOptimizationPolicy_ModelPriority = 2
 )
 
@@ -513,26 +513,26 @@ func (ModelOptimizationPolicy_ModelPriority) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{8, 0}
 }
 
-//@@
-//@@  .. cpp:enum:: TimeoutAction
-//@@
-//@@     The action applied to timed-out requests.
-//@@
+// @@
+// @@  .. cpp:enum:: TimeoutAction
+// @@
+// @@     The action applied to timed-out requests.
+// @@
 type ModelQueuePolicy_TimeoutAction int32
 
 const (
-	//@@    .. cpp:enumerator:: Action::REJECT = 0
-	//@@
-	//@@       Reject the request and return error message accordingly.
-	//@@
+	// @@    .. cpp:enumerator:: Action::REJECT = 0
+	// @@
+	// @@       Reject the request and return error message accordingly.
+	// @@
 	ModelQueuePolicy_REJECT ModelQueuePolicy_TimeoutAction = 0
-	//@@    .. cpp:enumerator:: Action::DELAY = 1
-	//@@
-	//@@       Delay the request until all other requests at the same
-	//@@       (or higher) priority levels that have not reached their timeouts
-	//@@       are processed. A delayed request will eventually be processed,
-	//@@       but may be delayed indefinitely due to newly arriving requests.
-	//@@
+	// @@    .. cpp:enumerator:: Action::DELAY = 1
+	// @@
+	// @@       Delay the request until all other requests at the same
+	// @@       (or higher) priority levels that have not reached their timeouts
+	// @@       are processed. A delayed request will eventually be processed,
+	// @@       but may be delayed indefinitely due to newly arriving requests.
+	// @@
 	ModelQueuePolicy_DELAY ModelQueuePolicy_TimeoutAction = 1
 )
 
@@ -575,49 +575,49 @@ func (ModelQueuePolicy_TimeoutAction) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{9, 0}
 }
 
-//@@
-//@@    .. cpp:enum:: Kind
-//@@
-//@@       The kind of the control.
-//@@
+// @@
+// @@    .. cpp:enum:: Kind
+// @@
+// @@       The kind of the control.
+// @@
 type ModelSequenceBatching_Control_Kind int32
 
 const (
-	//@@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_START = 0
-	//@@
-	//@@         A new sequence is/is-not starting. If true a sequence is
-	//@@         starting, if false a sequence is continuing. Must
-	//@@         specify either int32_false_true or fp32_false_true for
-	//@@         this control. This control is optional.
-	//@@
+	// @@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_START = 0
+	// @@
+	// @@         A new sequence is/is-not starting. If true a sequence is
+	// @@         starting, if false a sequence is continuing. Must
+	// @@         specify either int32_false_true or fp32_false_true for
+	// @@         this control. This control is optional.
+	// @@
 	ModelSequenceBatching_Control_CONTROL_SEQUENCE_START ModelSequenceBatching_Control_Kind = 0
-	//@@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_READY = 1
-	//@@
-	//@@         A sequence is/is-not ready for inference. If true the
-	//@@         input tensor data is valid and should be used. If false
-	//@@         the input tensor data is invalid and inferencing should
-	//@@         be "skipped".  Must specify either int32_false_true or
-	//@@         fp32_false_true for this control. This control is optional.
-	//@@
+	// @@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_READY = 1
+	// @@
+	// @@         A sequence is/is-not ready for inference. If true the
+	// @@         input tensor data is valid and should be used. If false
+	// @@         the input tensor data is invalid and inferencing should
+	// @@         be "skipped".  Must specify either int32_false_true or
+	// @@         fp32_false_true for this control. This control is optional.
+	// @@
 	ModelSequenceBatching_Control_CONTROL_SEQUENCE_READY ModelSequenceBatching_Control_Kind = 1
-	//@@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_END = 2
-	//@@
-	//@@         A sequence is/is-not ending. If true a sequence is
-	//@@         ending, if false a sequence is continuing. Must
-	//@@         specify either int32_false_true or fp32_false_true for
-	//@@         this control. This control is optional.
-	//@@
+	// @@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_END = 2
+	// @@
+	// @@         A sequence is/is-not ending. If true a sequence is
+	// @@         ending, if false a sequence is continuing. Must
+	// @@         specify either int32_false_true or fp32_false_true for
+	// @@         this control. This control is optional.
+	// @@
 	ModelSequenceBatching_Control_CONTROL_SEQUENCE_END ModelSequenceBatching_Control_Kind = 2
-	//@@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_CORRID = 3
-	//@@
-	//@@         The correlation ID of the sequence. The correlation ID
-	//@@         is an uint64_t value that is communicated in whole or
-	//@@         in part by the tensor. The tensor's datatype must be
-	//@@         specified by data_type and must be TYPE_UINT64, TYPE_INT64,
-	//@@         TYPE_UINT32 or TYPE_INT32. If a 32-bit datatype is specified
-	//@@         the correlation ID will be truncated to the low-order 32
-	//@@         bits. This control is optional.
-	//@@
+	// @@      .. cpp:enumerator:: Kind::CONTROL_SEQUENCE_CORRID = 3
+	// @@
+	// @@         The correlation ID of the sequence. The correlation ID
+	// @@         is an uint64_t value that is communicated in whole or
+	// @@         in part by the tensor. The tensor's datatype must be
+	// @@         specified by data_type and must be TYPE_UINT64, TYPE_INT64,
+	// @@         TYPE_UINT32 or TYPE_INT32. If a 32-bit datatype is specified
+	// @@         the correlation ID will be truncated to the low-order 32
+	// @@         bits. This control is optional.
+	// @@
 	ModelSequenceBatching_Control_CONTROL_SEQUENCE_CORRID ModelSequenceBatching_Control_Kind = 3
 )
 
@@ -664,33 +664,33 @@ func (ModelSequenceBatching_Control_Kind) EnumDescriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{11, 0, 0}
 }
 
-//@@
-//@@  .. cpp:var:: message ModelRateLimiter
-//@@
-//@@     The specifications required by the rate limiter to properly
-//@@     schedule the inference requests across the different models
-//@@     and their instances.
-//@@
+// @@
+// @@  .. cpp:var:: message ModelRateLimiter
+// @@
+// @@     The specifications required by the rate limiter to properly
+// @@     schedule the inference requests across the different models
+// @@     and their instances.
+// @@
 type ModelRateLimiter struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: Resource resources (repeated)
-	//@@
-	//@@     The resources required to execute the request on a model instance.
-	//@@     Resources are just names with a corresponding count. The execution
-	//@@     of the instance will be blocked until the specificied resources are
-	//@@     available. By default an instance uses no rate-limiter resources.
-	//@@
+	// @@  .. cpp:var:: Resource resources (repeated)
+	// @@
+	// @@     The resources required to execute the request on a model instance.
+	// @@     Resources are just names with a corresponding count. The execution
+	// @@     of the instance will be blocked until the specificied resources are
+	// @@     available. By default an instance uses no rate-limiter resources.
+	// @@
 	Resources []*ModelRateLimiter_Resource `protobuf:"bytes,1,rep,name=resources,proto3" json:"resources,omitempty"`
-	//@@  .. cpp:var:: uint32 priority
-	//@@
-	//@@     The weighting value to be used for prioritizing across instances.
-	//@@     An instance with priority 2 will be given 1/2 the number of
-	//@@     scheduling chances as an instance_group with priority 1. The
-	//@@     default priority is 1.
-	//@@
+	// @@  .. cpp:var:: uint32 priority
+	// @@
+	// @@     The weighting value to be used for prioritizing across instances.
+	// @@     An instance with priority 2 will be given 1/2 the number of
+	// @@     scheduling chances as an instance_group with priority 1. The
+	// @@     default priority is 1.
+	// @@
 	Priority uint32 `protobuf:"varint,2,opt,name=priority,proto3" json:"priority,omitempty"`
 }
 
@@ -740,65 +740,65 @@ func (x *ModelRateLimiter) GetPriority() uint32 {
 	return 0
 }
 
-//@@
-//@@.. cpp:var:: message ModelInstanceGroup
-//@@
-//@@   A group of one or more instances of a model and resources made
-//@@   available for those instances.
-//@@
+// @@
+// @@.. cpp:var:: message ModelInstanceGroup
+// @@
+// @@   A group of one or more instances of a model and resources made
+// @@   available for those instances.
+// @@
 type ModelInstanceGroup struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string name
-	//@@
-	//@@     Optional name of this group of instances. If not specified the
-	//@@     name will be formed as <model name>_<group number>. The name of
-	//@@     individual instances will be further formed by a unique instance
-	//@@     number and GPU index:
-	//@@
+	// @@  .. cpp:var:: string name
+	// @@
+	// @@     Optional name of this group of instances. If not specified the
+	// @@     name will be formed as <model name>_<group number>. The name of
+	// @@     individual instances will be further formed by a unique instance
+	// @@     number and GPU index:
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@  .. cpp:var:: Kind kind
-	//@@
-	//@@     The kind of this instance group. Default is KIND_AUTO. If
-	//@@     KIND_AUTO or KIND_GPU then both 'count' and 'gpu' are valid and
-	//@@     may be specified. If KIND_CPU or KIND_MODEL only 'count' is valid
-	//@@     and 'gpu' cannot be specified.
-	//@@
+	// @@  .. cpp:var:: Kind kind
+	// @@
+	// @@     The kind of this instance group. Default is KIND_AUTO. If
+	// @@     KIND_AUTO or KIND_GPU then both 'count' and 'gpu' are valid and
+	// @@     may be specified. If KIND_CPU or KIND_MODEL only 'count' is valid
+	// @@     and 'gpu' cannot be specified.
+	// @@
 	Kind ModelInstanceGroup_Kind `protobuf:"varint,4,opt,name=kind,proto3,enum=inference.ModelInstanceGroup_Kind" json:"kind,omitempty"`
-	//@@  .. cpp:var:: int32 count
-	//@@
-	//@@     For a group assigned to GPU, the number of instances created for
-	//@@     each GPU listed in 'gpus'. For a group assigned to CPU the number
-	//@@     of instances created. Default is 1.
+	// @@  .. cpp:var:: int32 count
+	// @@
+	// @@     For a group assigned to GPU, the number of instances created for
+	// @@     each GPU listed in 'gpus'. For a group assigned to CPU the number
+	// @@     of instances created. Default is 1.
 	Count int32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	//@@  .. cpp:var:: ModelRateLimiter rate_limiter
-	//@@
-	//@@     The rate limiter specific settings to be associated with this
-	//@@     instance group. Optional, if not specified no rate limiting
-	//@@     will be applied to this instance group.
-	//@@
+	// @@  .. cpp:var:: ModelRateLimiter rate_limiter
+	// @@
+	// @@     The rate limiter specific settings to be associated with this
+	// @@     instance group. Optional, if not specified no rate limiting
+	// @@     will be applied to this instance group.
+	// @@
 	RateLimiter *ModelRateLimiter `protobuf:"bytes,6,opt,name=rate_limiter,json=rateLimiter,proto3" json:"rate_limiter,omitempty"`
-	//@@  .. cpp:var:: int32 gpus (repeated)
-	//@@
-	//@@     GPU(s) where instances should be available. For each GPU listed,
-	//@@     'count' instances of the model will be available. Setting 'gpus'
-	//@@     to empty (or not specifying at all) is eqivalent to listing all
-	//@@     available GPUs.
-	//@@
+	// @@  .. cpp:var:: int32 gpus (repeated)
+	// @@
+	// @@     GPU(s) where instances should be available. For each GPU listed,
+	// @@     'count' instances of the model will be available. Setting 'gpus'
+	// @@     to empty (or not specifying at all) is eqivalent to listing all
+	// @@     available GPUs.
+	// @@
 	Gpus []int32 `protobuf:"varint,3,rep,packed,name=gpus,proto3" json:"gpus,omitempty"`
-	//@@  .. cpp:var:: string profile (repeated)
-	//@@
-	//@@     For TensorRT models containing multiple optimization profile, this
-	//@@     parameter specifies a set of optimization profiles available to this
-	//@@     instance group. The inference server will choose the optimal profile
-	//@@     based on the shapes of the input tensors. This field should lie
-	//@@     between 0 and <TotalNumberOfOptimizationProfilesInPlanModel> - 1
-	//@@     and be specified only for TensorRT backend, otherwise an error will
-	//@@     be generated. If not specified, the server will select the first
-	//@@     optimization profile by default.
-	//@@
+	// @@  .. cpp:var:: string profile (repeated)
+	// @@
+	// @@     For TensorRT models containing multiple optimization profile, this
+	// @@     parameter specifies a set of optimization profiles available to this
+	// @@     instance group. The inference server will choose the optimal profile
+	// @@     based on the shapes of the input tensors. This field should lie
+	// @@     between 0 and <TotalNumberOfOptimizationProfilesInPlanModel> - 1
+	// @@     and be specified only for TensorRT backend, otherwise an error will
+	// @@     be generated. If not specified, the server will select the first
+	// @@     optimization profile by default.
+	// @@
 	Profile []string `protobuf:"bytes,5,rep,name=profile,proto3" json:"profile,omitempty"`
 }
 
@@ -876,20 +876,20 @@ func (x *ModelInstanceGroup) GetProfile() []string {
 	return nil
 }
 
-//@@
-//@@.. cpp:var:: message ModelTensorReshape
-//@@
-//@@   Reshape specification for input and output tensors.
-//@@
+// @@
+// @@.. cpp:var:: message ModelTensorReshape
+// @@
+// @@   Reshape specification for input and output tensors.
+// @@
 type ModelTensorReshape struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: int64 shape (repeated)
-	//@@
-	//@@     The shape to use for reshaping.
-	//@@
+	// @@  .. cpp:var:: int64 shape (repeated)
+	// @@
+	// @@     The shape to use for reshaping.
+	// @@
 	Shape []int64 `protobuf:"varint,1,rep,packed,name=shape,proto3" json:"shape,omitempty"`
 }
 
@@ -932,62 +932,62 @@ func (x *ModelTensorReshape) GetShape() []int64 {
 	return nil
 }
 
-//@@
-//@@.. cpp:var:: message ModelInput
-//@@
-//@@   An input required by the model.
-//@@
+// @@
+// @@.. cpp:var:: message ModelInput
+// @@
+// @@   An input required by the model.
+// @@
 type ModelInput struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string name
-	//@@
-	//@@     The name of the input.
-	//@@
+	// @@  .. cpp:var:: string name
+	// @@
+	// @@     The name of the input.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@  .. cpp:var:: DataType data_type
-	//@@
-	//@@     The data-type of the input.
-	//@@
+	// @@  .. cpp:var:: DataType data_type
+	// @@
+	// @@     The data-type of the input.
+	// @@
 	DataType DataType `protobuf:"varint,2,opt,name=data_type,json=dataType,proto3,enum=inference.DataType" json:"data_type,omitempty"`
-	//@@  .. cpp:var:: Format format
-	//@@
-	//@@     The format of the input. Optional.
-	//@@
+	// @@  .. cpp:var:: Format format
+	// @@
+	// @@     The format of the input. Optional.
+	// @@
 	Format ModelInput_Format `protobuf:"varint,3,opt,name=format,proto3,enum=inference.ModelInput_Format" json:"format,omitempty"`
-	//@@  .. cpp:var:: int64 dims (repeated)
-	//@@
-	//@@     The dimensions/shape of the input tensor that must be provided
-	//@@     when invoking the inference API for this model.
-	//@@
+	// @@  .. cpp:var:: int64 dims (repeated)
+	// @@
+	// @@     The dimensions/shape of the input tensor that must be provided
+	// @@     when invoking the inference API for this model.
+	// @@
 	Dims []int64 `protobuf:"varint,4,rep,packed,name=dims,proto3" json:"dims,omitempty"`
-	//@@  .. cpp:var:: ModelTensorReshape reshape
-	//@@
-	//@@     The shape expected for this input by the backend. The input will
-	//@@     be reshaped to this before being presented to the backend. The
-	//@@     reshape must have the same number of elements as the input shape
-	//@@     specified by 'dims'. Optional.
-	//@@
+	// @@  .. cpp:var:: ModelTensorReshape reshape
+	// @@
+	// @@     The shape expected for this input by the backend. The input will
+	// @@     be reshaped to this before being presented to the backend. The
+	// @@     reshape must have the same number of elements as the input shape
+	// @@     specified by 'dims'. Optional.
+	// @@
 	Reshape *ModelTensorReshape `protobuf:"bytes,5,opt,name=reshape,proto3" json:"reshape,omitempty"`
-	//@@  .. cpp:var:: bool is_shape_tensor
-	//@@
-	//@@     Whether or not the input is a shape tensor to the model. This field
-	//@@     is currently supported only for the TensorRT model. An error will be
-	//@@     generated if this specification does not comply with underlying
-	//@@     model.
-	//@@
+	// @@  .. cpp:var:: bool is_shape_tensor
+	// @@
+	// @@     Whether or not the input is a shape tensor to the model. This field
+	// @@     is currently supported only for the TensorRT model. An error will be
+	// @@     generated if this specification does not comply with underlying
+	// @@     model.
+	// @@
 	IsShapeTensor bool `protobuf:"varint,6,opt,name=is_shape_tensor,json=isShapeTensor,proto3" json:"is_shape_tensor,omitempty"`
-	//@@  .. cpp:var:: bool allow_ragged_batch
-	//@@
-	//@@     Whether or not the input is allowed to be "ragged" in a dynamically
-	//@@     created batch. Default is false indicating that two requests will
-	//@@     only be batched if this tensor has the same shape in both requests.
-	//@@     True indicates that two requests can be batched even if this tensor
-	//@@     has a different shape in each request. A true value is currently
-	//@@     supported only for custom models.
-	//@@
+	// @@  .. cpp:var:: bool allow_ragged_batch
+	// @@
+	// @@     Whether or not the input is allowed to be "ragged" in a dynamically
+	// @@     created batch. Default is false indicating that two requests will
+	// @@     only be batched if this tensor has the same shape in both requests.
+	// @@     True indicates that two requests can be batched even if this tensor
+	// @@     has a different shape in each request. A true value is currently
+	// @@     supported only for custom models.
+	// @@
 	AllowRaggedBatch bool `protobuf:"varint,7,opt,name=allow_ragged_batch,json=allowRaggedBatch,proto3" json:"allow_ragged_batch,omitempty"`
 }
 
@@ -1072,52 +1072,52 @@ func (x *ModelInput) GetAllowRaggedBatch() bool {
 	return false
 }
 
-//@@
-//@@.. cpp:var:: message ModelOutput
-//@@
-//@@   An output produced by the model.
-//@@
+// @@
+// @@.. cpp:var:: message ModelOutput
+// @@
+// @@   An output produced by the model.
+// @@
 type ModelOutput struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string name
-	//@@
-	//@@     The name of the output.
-	//@@
+	// @@  .. cpp:var:: string name
+	// @@
+	// @@     The name of the output.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@  .. cpp:var:: DataType data_type
-	//@@
-	//@@     The data-type of the output.
-	//@@
+	// @@  .. cpp:var:: DataType data_type
+	// @@
+	// @@     The data-type of the output.
+	// @@
 	DataType DataType `protobuf:"varint,2,opt,name=data_type,json=dataType,proto3,enum=inference.DataType" json:"data_type,omitempty"`
-	//@@  .. cpp:var:: int64 dims (repeated)
-	//@@
-	//@@     The dimensions/shape of the output tensor.
-	//@@
+	// @@  .. cpp:var:: int64 dims (repeated)
+	// @@
+	// @@     The dimensions/shape of the output tensor.
+	// @@
 	Dims []int64 `protobuf:"varint,3,rep,packed,name=dims,proto3" json:"dims,omitempty"`
-	//@@  .. cpp:var:: ModelTensorReshape reshape
-	//@@
-	//@@     The shape produced for this output by the backend. The output will
-	//@@     be reshaped from this to the shape specifed in 'dims' before being
-	//@@     returned in the inference response. The reshape must have the same
-	//@@     number of elements as the output shape specified by 'dims'. Optional.
-	//@@
+	// @@  .. cpp:var:: ModelTensorReshape reshape
+	// @@
+	// @@     The shape produced for this output by the backend. The output will
+	// @@     be reshaped from this to the shape specifed in 'dims' before being
+	// @@     returned in the inference response. The reshape must have the same
+	// @@     number of elements as the output shape specified by 'dims'. Optional.
+	// @@
 	Reshape *ModelTensorReshape `protobuf:"bytes,5,opt,name=reshape,proto3" json:"reshape,omitempty"`
-	//@@  .. cpp:var:: string label_filename
-	//@@
-	//@@     The label file associated with this output. Should be specified only
-	//@@     for outputs that represent classifications. Optional.
-	//@@
+	// @@  .. cpp:var:: string label_filename
+	// @@
+	// @@     The label file associated with this output. Should be specified only
+	// @@     for outputs that represent classifications. Optional.
+	// @@
 	LabelFilename string `protobuf:"bytes,4,opt,name=label_filename,json=labelFilename,proto3" json:"label_filename,omitempty"`
-	//@@  .. cpp:var:: bool is_shape_tensor
-	//@@
-	//@@     Whether or not the output is a shape tensor to the model. This field
-	//@@     is currently supported only for the TensorRT model. An error will be
-	//@@     generated if this specification does not comply with underlying
-	//@@     model.
-	//@@
+	// @@  .. cpp:var:: bool is_shape_tensor
+	// @@
+	// @@     Whether or not the output is a shape tensor to the model. This field
+	// @@     is currently supported only for the TensorRT model. An error will be
+	// @@     generated if this specification does not comply with underlying
+	// @@     model.
+	// @@
 	IsShapeTensor bool `protobuf:"varint,6,opt,name=is_shape_tensor,json=isShapeTensor,proto3" json:"is_shape_tensor,omitempty"`
 }
 
@@ -1195,39 +1195,39 @@ func (x *ModelOutput) GetIsShapeTensor() bool {
 	return false
 }
 
-//@@  .. cpp:var:: message BatchInput
-//@@
-//@@     A batch input is an additional input that must be added by
-//@@     the backend based on all the requests in a batch.
-//@@
+// @@  .. cpp:var:: message BatchInput
+// @@
+// @@     A batch input is an additional input that must be added by
+// @@     the backend based on all the requests in a batch.
+// @@
 type BatchInput struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: Kind kind
-	//@@
-	//@@       The kind of this batch input.
-	//@@
+	// @@    .. cpp:var:: Kind kind
+	// @@
+	// @@       The kind of this batch input.
+	// @@
 	Kind BatchInput_Kind `protobuf:"varint,1,opt,name=kind,proto3,enum=inference.BatchInput_Kind" json:"kind,omitempty"`
-	//@@    .. cpp:var:: string target_name (repeated)
-	//@@
-	//@@       The name of the model inputs that the backend will create
-	//@@       for this batch input.
-	//@@
+	// @@    .. cpp:var:: string target_name (repeated)
+	// @@
+	// @@       The name of the model inputs that the backend will create
+	// @@       for this batch input.
+	// @@
 	TargetName []string `protobuf:"bytes,2,rep,name=target_name,json=targetName,proto3" json:"target_name,omitempty"`
-	//@@    .. cpp:var:: DataType data_type
-	//@@
-	//@@       The input's datatype. The data type can be TYPE_INT32 or
-	//@@       TYPE_FP32.
-	//@@
+	// @@    .. cpp:var:: DataType data_type
+	// @@
+	// @@       The input's datatype. The data type can be TYPE_INT32 or
+	// @@       TYPE_FP32.
+	// @@
 	DataType DataType `protobuf:"varint,3,opt,name=data_type,json=dataType,proto3,enum=inference.DataType" json:"data_type,omitempty"`
-	//@@    .. cpp:var:: string source_input (repeated)
-	//@@
-	//@@       The backend derives the value for each batch input from one or
-	//@@       more other inputs. 'source_input' gives the names of those
-	//@@       inputs.
-	//@@
+	// @@    .. cpp:var:: string source_input (repeated)
+	// @@
+	// @@       The backend derives the value for each batch input from one or
+	// @@       more other inputs. 'source_input' gives the names of those
+	// @@       inputs.
+	// @@
 	SourceInput []string `protobuf:"bytes,4,rep,name=source_input,json=sourceInput,proto3" json:"source_input,omitempty"`
 }
 
@@ -1291,32 +1291,32 @@ func (x *BatchInput) GetSourceInput() []string {
 	return nil
 }
 
-//@@.. cpp:var:: message BatchOutput
-//@@
-//@@   A batch output is an output produced by the model that must be handled
-//@@   differently by the backend based on all the requests in a batch.
-//@@
+// @@.. cpp:var:: message BatchOutput
+// @@
+// @@   A batch output is an output produced by the model that must be handled
+// @@   differently by the backend based on all the requests in a batch.
+// @@
 type BatchOutput struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string target_name (repeated)
-	//@@
-	//@@     The name of the outputs to be produced by this batch output
-	//@@     specification.
-	//@@
+	// @@  .. cpp:var:: string target_name (repeated)
+	// @@
+	// @@     The name of the outputs to be produced by this batch output
+	// @@     specification.
+	// @@
 	TargetName []string `protobuf:"bytes,1,rep,name=target_name,json=targetName,proto3" json:"target_name,omitempty"`
-	//@@  .. cpp:var:: Kind kind
-	//@@
-	//@@     The kind of this batch output.
-	//@@
+	// @@  .. cpp:var:: Kind kind
+	// @@
+	// @@     The kind of this batch output.
+	// @@
 	Kind BatchOutput_Kind `protobuf:"varint,2,opt,name=kind,proto3,enum=inference.BatchOutput_Kind" json:"kind,omitempty"`
-	//@@  .. cpp:var:: string source_input (repeated)
-	//@@
-	//@@     The backend derives each batch output from one or more inputs.
-	//@@     'source_input' gives the names of those inputs.
-	//@@
+	// @@  .. cpp:var:: string source_input (repeated)
+	// @@
+	// @@     The backend derives each batch output from one or more inputs.
+	// @@     'source_input' gives the names of those inputs.
+	// @@
 	SourceInput []string `protobuf:"bytes,3,rep,name=source_input,json=sourceInput,proto3" json:"source_input,omitempty"`
 }
 
@@ -1373,24 +1373,25 @@ func (x *BatchOutput) GetSourceInput() []string {
 	return nil
 }
 
-//@@
-//@@.. cpp:var:: message ModelVersionPolicy
-//@@
-//@@   Policy indicating which versions of a model should be made
-//@@   available by the inference server.
-//@@
+// @@
+// @@.. cpp:var:: message ModelVersionPolicy
+// @@
+// @@   Policy indicating which versions of a model should be made
+// @@   available by the inference server.
+// @@
 type ModelVersionPolicy struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: oneof policy_choice
-	//@@
-	//@@     Each model must implement only a single version policy. The
-	//@@     default policy is 'Latest'.
-	//@@
+	// @@  .. cpp:var:: oneof policy_choice
+	// @@
+	// @@     Each model must implement only a single version policy. The
+	// @@     default policy is 'Latest'.
+	// @@
 	//
 	// Types that are assignable to PolicyChoice:
+	//
 	//	*ModelVersionPolicy_Latest_
 	//	*ModelVersionPolicy_All_
 	//	*ModelVersionPolicy_Specific_
@@ -1462,26 +1463,26 @@ type isModelVersionPolicy_PolicyChoice interface {
 }
 
 type ModelVersionPolicy_Latest_ struct {
-	//@@    .. cpp:var:: Latest latest
-	//@@
-	//@@       Serve only latest version(s) of the model.
-	//@@
+	// @@    .. cpp:var:: Latest latest
+	// @@
+	// @@       Serve only latest version(s) of the model.
+	// @@
 	Latest *ModelVersionPolicy_Latest `protobuf:"bytes,1,opt,name=latest,proto3,oneof"`
 }
 
 type ModelVersionPolicy_All_ struct {
-	//@@    .. cpp:var:: All all
-	//@@
-	//@@       Serve all versions of the model.
-	//@@
+	// @@    .. cpp:var:: All all
+	// @@
+	// @@       Serve all versions of the model.
+	// @@
 	All *ModelVersionPolicy_All `protobuf:"bytes,2,opt,name=all,proto3,oneof"`
 }
 
 type ModelVersionPolicy_Specific_ struct {
-	//@@    .. cpp:var:: Specific specific
-	//@@
-	//@@       Serve only specific version(s) of the model.
-	//@@
+	// @@    .. cpp:var:: Specific specific
+	// @@
+	// @@       Serve only specific version(s) of the model.
+	// @@
 	Specific *ModelVersionPolicy_Specific `protobuf:"bytes,3,opt,name=specific,proto3,oneof"`
 }
 
@@ -1491,51 +1492,51 @@ func (*ModelVersionPolicy_All_) isModelVersionPolicy_PolicyChoice() {}
 
 func (*ModelVersionPolicy_Specific_) isModelVersionPolicy_PolicyChoice() {}
 
-//@@
-//@@.. cpp:var:: message ModelOptimizationPolicy
-//@@
-//@@   Optimization settings for a model. These settings control if/how a
-//@@   model is optimized and prioritized by the backend framework when
-//@@   it is loaded.
-//@@
+// @@
+// @@.. cpp:var:: message ModelOptimizationPolicy
+// @@
+// @@   Optimization settings for a model. These settings control if/how a
+// @@   model is optimized and prioritized by the backend framework when
+// @@   it is loaded.
+// @@
 type ModelOptimizationPolicy struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: Graph graph
-	//@@
-	//@@     The graph optimization setting for the model. Optional.
-	//@@
+	// @@  .. cpp:var:: Graph graph
+	// @@
+	// @@     The graph optimization setting for the model. Optional.
+	// @@
 	Graph *ModelOptimizationPolicy_Graph `protobuf:"bytes,1,opt,name=graph,proto3" json:"graph,omitempty"`
-	//@@  .. cpp:var:: ModelPriority priority
-	//@@
-	//@@     The priority setting for the model. Optional.
-	//@@
+	// @@  .. cpp:var:: ModelPriority priority
+	// @@
+	// @@     The priority setting for the model. Optional.
+	// @@
 	Priority ModelOptimizationPolicy_ModelPriority `protobuf:"varint,2,opt,name=priority,proto3,enum=inference.ModelOptimizationPolicy_ModelPriority" json:"priority,omitempty"`
-	//@@  .. cpp:var:: Cuda cuda
-	//@@
-	//@@     CUDA-specific optimization settings. Optional.
-	//@@
+	// @@  .. cpp:var:: Cuda cuda
+	// @@
+	// @@     CUDA-specific optimization settings. Optional.
+	// @@
 	Cuda *ModelOptimizationPolicy_Cuda `protobuf:"bytes,3,opt,name=cuda,proto3" json:"cuda,omitempty"`
-	//@@  .. cpp:var:: ExecutionAccelerators execution_accelerators
-	//@@
-	//@@     The accelerators used for the model. Optional.
-	//@@
+	// @@  .. cpp:var:: ExecutionAccelerators execution_accelerators
+	// @@
+	// @@     The accelerators used for the model. Optional.
+	// @@
 	ExecutionAccelerators *ModelOptimizationPolicy_ExecutionAccelerators `protobuf:"bytes,4,opt,name=execution_accelerators,json=executionAccelerators,proto3" json:"execution_accelerators,omitempty"`
-	//@@  .. cpp:var:: PinnedMemoryBuffer input_pinned_memory
-	//@@
-	//@@     Use pinned memory buffer when the data transfer for inputs
-	//@@     is between GPU memory and non-pinned system memory.
-	//@@     Default is true.
-	//@@
+	// @@  .. cpp:var:: PinnedMemoryBuffer input_pinned_memory
+	// @@
+	// @@     Use pinned memory buffer when the data transfer for inputs
+	// @@     is between GPU memory and non-pinned system memory.
+	// @@     Default is true.
+	// @@
 	InputPinnedMemory *ModelOptimizationPolicy_PinnedMemoryBuffer `protobuf:"bytes,5,opt,name=input_pinned_memory,json=inputPinnedMemory,proto3" json:"input_pinned_memory,omitempty"`
-	//@@  .. cpp:var:: PinnedMemoryBuffer output_pinned_memory
-	//@@
-	//@@     Use pinned memory buffer when the data transfer for outputs
-	//@@     is between GPU memory and non-pinned system memory.
-	//@@     Default is true.
-	//@@
+	// @@  .. cpp:var:: PinnedMemoryBuffer output_pinned_memory
+	// @@
+	// @@     Use pinned memory buffer when the data transfer for outputs
+	// @@     is between GPU memory and non-pinned system memory.
+	// @@     Default is true.
+	// @@
 	OutputPinnedMemory *ModelOptimizationPolicy_PinnedMemoryBuffer `protobuf:"bytes,6,opt,name=output_pinned_memory,json=outputPinnedMemory,proto3" json:"output_pinned_memory,omitempty"`
 }
 
@@ -1613,47 +1614,47 @@ func (x *ModelOptimizationPolicy) GetOutputPinnedMemory() *ModelOptimizationPoli
 	return nil
 }
 
-//@@
-//@@.. cpp:var:: message ModelQueuePolicy
-//@@
-//@@   Queue policy for inference requests.
-//@@
+// @@
+// @@.. cpp:var:: message ModelQueuePolicy
+// @@
+// @@   Queue policy for inference requests.
+// @@
 type ModelQueuePolicy struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@
-	//@@  .. cpp:var:: TimeoutAction timeout_action
-	//@@
-	//@@     The action applied to timed-out request.
-	//@@     The default action is REJECT.
-	//@@
+	// @@
+	// @@  .. cpp:var:: TimeoutAction timeout_action
+	// @@
+	// @@     The action applied to timed-out request.
+	// @@     The default action is REJECT.
+	// @@
 	TimeoutAction ModelQueuePolicy_TimeoutAction `protobuf:"varint,1,opt,name=timeout_action,json=timeoutAction,proto3,enum=inference.ModelQueuePolicy_TimeoutAction" json:"timeout_action,omitempty"`
-	//@@
-	//@@  .. cpp:var:: uint64 default_timeout_microseconds
-	//@@
-	//@@     The default timeout for every request, in microseconds.
-	//@@     The default value is 0 which indicates that no timeout is set.
-	//@@
+	// @@
+	// @@  .. cpp:var:: uint64 default_timeout_microseconds
+	// @@
+	// @@     The default timeout for every request, in microseconds.
+	// @@     The default value is 0 which indicates that no timeout is set.
+	// @@
 	DefaultTimeoutMicroseconds uint64 `protobuf:"varint,2,opt,name=default_timeout_microseconds,json=defaultTimeoutMicroseconds,proto3" json:"default_timeout_microseconds,omitempty"`
-	//@@
-	//@@  .. cpp:var:: bool allow_timeout_override
-	//@@
-	//@@     Whether individual request can override the default timeout value.
-	//@@     When true, individual requests can set a timeout that is less than
-	//@@     the default timeout value but may not increase the timeout.
-	//@@     The default value is false.
-	//@@
+	// @@
+	// @@  .. cpp:var:: bool allow_timeout_override
+	// @@
+	// @@     Whether individual request can override the default timeout value.
+	// @@     When true, individual requests can set a timeout that is less than
+	// @@     the default timeout value but may not increase the timeout.
+	// @@     The default value is false.
+	// @@
 	AllowTimeoutOverride bool `protobuf:"varint,3,opt,name=allow_timeout_override,json=allowTimeoutOverride,proto3" json:"allow_timeout_override,omitempty"`
-	//@@
-	//@@  .. cpp:var:: uint32 max_queue_size
-	//@@
-	//@@     The maximum queue size for holding requests. A request will be
-	//@@     rejected immediately if it can't be enqueued because the queue is
-	//@@     full. The default value is 0 which indicates that no maximum
-	//@@     queue size is enforced.
-	//@@
+	// @@
+	// @@  .. cpp:var:: uint32 max_queue_size
+	// @@
+	// @@     The maximum queue size for holding requests. A request will be
+	// @@     rejected immediately if it can't be enqueued because the queue is
+	// @@     full. The default value is 0 which indicates that no maximum
+	// @@     queue size is enforced.
+	// @@
 	MaxQueueSize uint32 `protobuf:"varint,4,opt,name=max_queue_size,json=maxQueueSize,proto3" json:"max_queue_size,omitempty"`
 }
 
@@ -1717,75 +1718,75 @@ func (x *ModelQueuePolicy) GetMaxQueueSize() uint32 {
 	return 0
 }
 
-//@@
-//@@.. cpp:var:: message ModelDynamicBatching
-//@@
-//@@   Dynamic batching configuration. These settings control how dynamic
-//@@   batching operates for the model.
-//@@
+// @@
+// @@.. cpp:var:: message ModelDynamicBatching
+// @@
+// @@   Dynamic batching configuration. These settings control how dynamic
+// @@   batching operates for the model.
+// @@
 type ModelDynamicBatching struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: int32 preferred_batch_size (repeated)
-	//@@
-	//@@     Preferred batch sizes for dynamic batching. If a batch of one of
-	//@@     these sizes can be formed it will be executed immediately.  If
-	//@@     not specified a preferred batch size will be chosen automatically
-	//@@     based on model and GPU characteristics.
-	//@@
+	// @@  .. cpp:var:: int32 preferred_batch_size (repeated)
+	// @@
+	// @@     Preferred batch sizes for dynamic batching. If a batch of one of
+	// @@     these sizes can be formed it will be executed immediately.  If
+	// @@     not specified a preferred batch size will be chosen automatically
+	// @@     based on model and GPU characteristics.
+	// @@
 	PreferredBatchSize []int32 `protobuf:"varint,1,rep,packed,name=preferred_batch_size,json=preferredBatchSize,proto3" json:"preferred_batch_size,omitempty"`
-	//@@  .. cpp:var:: uint64 max_queue_delay_microseconds
-	//@@
-	//@@     The maximum time, in microseconds, a request will be delayed in
-	//@@     the scheduling queue to wait for additional requests for
-	//@@     batching. Default is 0.
-	//@@
+	// @@  .. cpp:var:: uint64 max_queue_delay_microseconds
+	// @@
+	// @@     The maximum time, in microseconds, a request will be delayed in
+	// @@     the scheduling queue to wait for additional requests for
+	// @@     batching. Default is 0.
+	// @@
 	MaxQueueDelayMicroseconds uint64 `protobuf:"varint,2,opt,name=max_queue_delay_microseconds,json=maxQueueDelayMicroseconds,proto3" json:"max_queue_delay_microseconds,omitempty"`
-	//@@  .. cpp:var:: bool preserve_ordering
-	//@@
-	//@@     Should the dynamic batcher preserve the ordering of responses to
-	//@@     match the order of requests received by the scheduler. Default is
-	//@@     false. If true, the responses will be returned in the same order as
-	//@@     the order of requests sent to the scheduler. If false, the responses
-	//@@     may be returned in arbitrary order. This option is specifically
-	//@@     needed when a sequence of related inference requests (i.e. inference
-	//@@     requests with the same correlation ID) are sent to the dynamic
-	//@@     batcher to ensure that the sequence responses are in the correct
-	//@@     order.
-	//@@
+	// @@  .. cpp:var:: bool preserve_ordering
+	// @@
+	// @@     Should the dynamic batcher preserve the ordering of responses to
+	// @@     match the order of requests received by the scheduler. Default is
+	// @@     false. If true, the responses will be returned in the same order as
+	// @@     the order of requests sent to the scheduler. If false, the responses
+	// @@     may be returned in arbitrary order. This option is specifically
+	// @@     needed when a sequence of related inference requests (i.e. inference
+	// @@     requests with the same correlation ID) are sent to the dynamic
+	// @@     batcher to ensure that the sequence responses are in the correct
+	// @@     order.
+	// @@
 	PreserveOrdering bool `protobuf:"varint,3,opt,name=preserve_ordering,json=preserveOrdering,proto3" json:"preserve_ordering,omitempty"`
-	//@@  .. cpp:var:: uint32 priority_levels
-	//@@
-	//@@     The number of priority levels to be enabled for the model,
-	//@@     the priority level starts from 1 and 1 is the highest priority.
-	//@@     Requests are handled in priority order with all priority 1 requests
-	//@@     processed before priority 2, all priority 2 requests processed before
-	//@@     priority 3, etc. Requests with the same priority level will be
-	//@@     handled in the order that they are received.
-	//@@
+	// @@  .. cpp:var:: uint32 priority_levels
+	// @@
+	// @@     The number of priority levels to be enabled for the model,
+	// @@     the priority level starts from 1 and 1 is the highest priority.
+	// @@     Requests are handled in priority order with all priority 1 requests
+	// @@     processed before priority 2, all priority 2 requests processed before
+	// @@     priority 3, etc. Requests with the same priority level will be
+	// @@     handled in the order that they are received.
+	// @@
 	PriorityLevels uint32 `protobuf:"varint,4,opt,name=priority_levels,json=priorityLevels,proto3" json:"priority_levels,omitempty"`
-	//@@  .. cpp:var:: uint32 default_priority_level
-	//@@
-	//@@     The priority level used for requests that don't specify their
-	//@@     priority. The value must be in the range [ 1, 'priority_levels' ].
-	//@@
+	// @@  .. cpp:var:: uint32 default_priority_level
+	// @@
+	// @@     The priority level used for requests that don't specify their
+	// @@     priority. The value must be in the range [ 1, 'priority_levels' ].
+	// @@
 	DefaultPriorityLevel uint32 `protobuf:"varint,5,opt,name=default_priority_level,json=defaultPriorityLevel,proto3" json:"default_priority_level,omitempty"`
-	//@@  .. cpp:var:: ModelQueuePolicy default_queue_policy
-	//@@
-	//@@     The default queue policy used for requests that don't require
-	//@@     priority handling and requests that specify priority levels where
-	//@@     there is no specific policy given. If not specified, a policy with
-	//@@     default field values will be used.
-	//@@
+	// @@  .. cpp:var:: ModelQueuePolicy default_queue_policy
+	// @@
+	// @@     The default queue policy used for requests that don't require
+	// @@     priority handling and requests that specify priority levels where
+	// @@     there is no specific policy given. If not specified, a policy with
+	// @@     default field values will be used.
+	// @@
 	DefaultQueuePolicy *ModelQueuePolicy `protobuf:"bytes,6,opt,name=default_queue_policy,json=defaultQueuePolicy,proto3" json:"default_queue_policy,omitempty"`
-	//@@  .. cpp:var:: map<uint32, ModelQueuePolicy> priority_queue_policy
-	//@@
-	//@@     Specify the queue policy for the priority level. The default queue
-	//@@     policy will be used if a priority level doesn't specify a queue
-	//@@     policy.
-	//@@
+	// @@  .. cpp:var:: map<uint32, ModelQueuePolicy> priority_queue_policy
+	// @@
+	// @@     Specify the queue policy for the priority level. The default queue
+	// @@     policy will be used if a priority level doesn't specify a queue
+	// @@     policy.
+	// @@
 	PriorityQueuePolicy map[uint32]*ModelQueuePolicy `protobuf:"bytes,7,rep,name=priority_queue_policy,json=priorityQueuePolicy,proto3" json:"priority_queue_policy,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -1870,44 +1871,45 @@ func (x *ModelDynamicBatching) GetPriorityQueuePolicy() map[uint32]*ModelQueuePo
 	return nil
 }
 
-//@@
-//@@.. cpp:var:: message ModelSequenceBatching
-//@@
-//@@   Sequence batching configuration. These settings control how sequence
-//@@   batching operates for the model.
-//@@
+// @@
+// @@.. cpp:var:: message ModelSequenceBatching
+// @@
+// @@   Sequence batching configuration. These settings control how sequence
+// @@   batching operates for the model.
+// @@
 type ModelSequenceBatching struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: oneof strategy_choice
-	//@@
-	//@@     The strategy used by the sequence batcher. Default strategy
-	//@@     is 'direct'.
-	//@@
+	// @@  .. cpp:var:: oneof strategy_choice
+	// @@
+	// @@     The strategy used by the sequence batcher. Default strategy
+	// @@     is 'direct'.
+	// @@
 	//
 	// Types that are assignable to StrategyChoice:
+	//
 	//	*ModelSequenceBatching_Direct
 	//	*ModelSequenceBatching_Oldest
 	StrategyChoice isModelSequenceBatching_StrategyChoice `protobuf_oneof:"strategy_choice"`
-	//@@  .. cpp:var:: uint64 max_sequence_idle_microseconds
-	//@@
-	//@@     The maximum time, in microseconds, that a sequence is allowed to
-	//@@     be idle before it is aborted. The inference server considers a
-	//@@     sequence idle when it does not have any inference request queued
-	//@@     for the sequence. If this limit is exceeded, the inference server
-	//@@     will free the sequence slot allocated by the sequence and make it
-	//@@     available for another sequence. If not specified (or specified as
-	//@@     zero) a default value of 1000000 (1 second) is used.
-	//@@
+	// @@  .. cpp:var:: uint64 max_sequence_idle_microseconds
+	// @@
+	// @@     The maximum time, in microseconds, that a sequence is allowed to
+	// @@     be idle before it is aborted. The inference server considers a
+	// @@     sequence idle when it does not have any inference request queued
+	// @@     for the sequence. If this limit is exceeded, the inference server
+	// @@     will free the sequence slot allocated by the sequence and make it
+	// @@     available for another sequence. If not specified (or specified as
+	// @@     zero) a default value of 1000000 (1 second) is used.
+	// @@
 	MaxSequenceIdleMicroseconds uint64 `protobuf:"varint,1,opt,name=max_sequence_idle_microseconds,json=maxSequenceIdleMicroseconds,proto3" json:"max_sequence_idle_microseconds,omitempty"`
-	//@@  .. cpp:var:: ControlInput control_input (repeated)
-	//@@
-	//@@     The model input(s) that the server should use to communicate
-	//@@     sequence start, stop, ready and similar control values to the
-	//@@     model.
-	//@@
+	// @@  .. cpp:var:: ControlInput control_input (repeated)
+	// @@
+	// @@     The model input(s) that the server should use to communicate
+	// @@     sequence start, stop, ready and similar control values to the
+	// @@     model.
+	// @@
 	ControlInput []*ModelSequenceBatching_ControlInput `protobuf:"bytes,2,rep,name=control_input,json=controlInput,proto3" json:"control_input,omitempty"`
 }
 
@@ -1983,18 +1985,18 @@ type isModelSequenceBatching_StrategyChoice interface {
 }
 
 type ModelSequenceBatching_Direct struct {
-	//@@    .. cpp:var:: StrategyDirect direct
-	//@@
-	//@@       StrategyDirect scheduling strategy.
-	//@@
+	// @@    .. cpp:var:: StrategyDirect direct
+	// @@
+	// @@       StrategyDirect scheduling strategy.
+	// @@
 	Direct *ModelSequenceBatching_StrategyDirect `protobuf:"bytes,3,opt,name=direct,proto3,oneof"`
 }
 
 type ModelSequenceBatching_Oldest struct {
-	//@@    .. cpp:var:: StrategyOldest oldest
-	//@@
-	//@@       StrategyOldest scheduling strategy.
-	//@@
+	// @@    .. cpp:var:: StrategyOldest oldest
+	// @@
+	// @@       StrategyOldest scheduling strategy.
+	// @@
 	Oldest *ModelSequenceBatching_StrategyOldest `protobuf:"bytes,4,opt,name=oldest,proto3,oneof"`
 }
 
@@ -2002,21 +2004,21 @@ func (*ModelSequenceBatching_Direct) isModelSequenceBatching_StrategyChoice() {}
 
 func (*ModelSequenceBatching_Oldest) isModelSequenceBatching_StrategyChoice() {}
 
-//@@
-//@@.. cpp:var:: message ModelEnsembling
-//@@
-//@@   Model ensembling configuration. These settings specify the models that
-//@@   compose the ensemble and how data flows between the models.
-//@@
+// @@
+// @@.. cpp:var:: message ModelEnsembling
+// @@
+// @@   Model ensembling configuration. These settings specify the models that
+// @@   compose the ensemble and how data flows between the models.
+// @@
 type ModelEnsembling struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: Step step (repeated)
-	//@@
-	//@@     The models and the input / output mappings used within the ensemble.
-	//@@
+	// @@  .. cpp:var:: Step step (repeated)
+	// @@
+	// @@     The models and the input / output mappings used within the ensemble.
+	// @@
 	Step []*ModelEnsembling_Step `protobuf:"bytes,1,rep,name=step,proto3" json:"step,omitempty"`
 }
 
@@ -2059,20 +2061,20 @@ func (x *ModelEnsembling) GetStep() []*ModelEnsembling_Step {
 	return nil
 }
 
-//@@
-//@@.. cpp:var:: message ModelParameter
-//@@
-//@@   A model parameter.
-//@@
+// @@
+// @@.. cpp:var:: message ModelParameter
+// @@
+// @@   A model parameter.
+// @@
 type ModelParameter struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string string_value
-	//@@
-	//@@     The string value of the parameter.
-	//@@
+	// @@  .. cpp:var:: string string_value
+	// @@
+	// @@     The string value of the parameter.
+	// @@
 	StringValue string `protobuf:"bytes,1,opt,name=string_value,json=stringValue,proto3" json:"string_value,omitempty"`
 }
 
@@ -2115,34 +2117,34 @@ func (x *ModelParameter) GetStringValue() string {
 	return ""
 }
 
-//@@
-//@@.. cpp:var:: message ModelWarmup
-//@@
-//@@   Settings used to construct the request sample for model warmup.
-//@@
+// @@
+// @@.. cpp:var:: message ModelWarmup
+// @@
+// @@   Settings used to construct the request sample for model warmup.
+// @@
 type ModelWarmup struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string name
-	//@@
-	//@@     The name of the request sample.
-	//@@
+	// @@  .. cpp:var:: string name
+	// @@
+	// @@     The name of the request sample.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@  .. cpp:var:: uint32 batch_size
-	//@@
-	//@@     The batch size of the inference request. This must be >= 1. For
-	//@@     models that don't support batching, batch_size must be 1. If
-	//@@     batch_size > 1, the 'inputs' specified below will be duplicated to
-	//@@     match the batch size requested.
-	//@@
+	// @@  .. cpp:var:: uint32 batch_size
+	// @@
+	// @@     The batch size of the inference request. This must be >= 1. For
+	// @@     models that don't support batching, batch_size must be 1. If
+	// @@     batch_size > 1, the 'inputs' specified below will be duplicated to
+	// @@     match the batch size requested.
+	// @@
 	BatchSize uint32 `protobuf:"varint,2,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
-	//@@  .. cpp:var:: map<string, Input> inputs
-	//@@
-	//@@     The warmup meta data associated with every model input, including
-	//@@     control tensors.
-	//@@
+	// @@  .. cpp:var:: map<string, Input> inputs
+	// @@
+	// @@     The warmup meta data associated with every model input, including
+	// @@     control tensors.
+	// @@
 	Inputs map[string]*ModelWarmup_Input `protobuf:"bytes,3,rep,name=inputs,proto3" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -2199,21 +2201,21 @@ func (x *ModelWarmup) GetInputs() map[string]*ModelWarmup_Input {
 	return nil
 }
 
-//@@
-//@@ .. cpp:var:: message ModelOperations
-//@@
-//@@    The metadata of libraries providing custom operations for this model.
-//@@
+// @@
+// @@ .. cpp:var:: message ModelOperations
+// @@
+// @@    The metadata of libraries providing custom operations for this model.
+// @@
 type ModelOperations struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string op_library_filename
-	//@@
-	//@@     Optional paths of the libraries providing custom operations for
-	//@@     this model. Valid only for ONNX models.
-	//@@
+	// @@  .. cpp:var:: string op_library_filename
+	// @@
+	// @@     Optional paths of the libraries providing custom operations for
+	// @@     this model. Valid only for ONNX models.
+	// @@
 	OpLibraryFilename []string `protobuf:"bytes,1,rep,name=op_library_filename,json=opLibraryFilename,proto3" json:"op_library_filename,omitempty"`
 }
 
@@ -2256,26 +2258,26 @@ func (x *ModelOperations) GetOpLibraryFilename() []string {
 	return nil
 }
 
-//@@
-//@@ .. cpp:var:: message ModelTransactionPolicy
-//@@
-//@@    The specification that describes the nature of transactions
-//@@    to be expected from the model.
-//@@
+// @@
+// @@ .. cpp:var:: message ModelTransactionPolicy
+// @@
+// @@    The specification that describes the nature of transactions
+// @@    to be expected from the model.
+// @@
 type ModelTransactionPolicy struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: bool decoupled
-	//@@
-	//@@     Indicates whether responses generated by the model are decoupled with
-	//@@     the requests issued to it, which means the number of responses
-	//@@     generated by model may differ from number of requests issued, and
-	//@@     that the responses may be out of order relative to the order of
-	//@@     requests. The default is false, which means the model will generate
-	//@@     exactly one response for each request.
-	//@@
+	// @@  .. cpp:var:: bool decoupled
+	// @@
+	// @@     Indicates whether responses generated by the model are decoupled with
+	// @@     the requests issued to it, which means the number of responses
+	// @@     generated by model may differ from number of requests issued, and
+	// @@     that the responses may be out of order relative to the order of
+	// @@     requests. The default is false, which means the model will generate
+	// @@     exactly one response for each request.
+	// @@
 	Decoupled bool `protobuf:"varint,1,opt,name=decoupled,proto3" json:"decoupled,omitempty"`
 }
 
@@ -2318,152 +2320,153 @@ func (x *ModelTransactionPolicy) GetDecoupled() bool {
 	return false
 }
 
-//@@
-//@@.. cpp:var:: message ModelConfig
-//@@
-//@@   A model configuration.
-//@@
+// @@
+// @@.. cpp:var:: message ModelConfig
+// @@
+// @@   A model configuration.
+// @@
 type ModelConfig struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string name
-	//@@
-	//@@     The name of the model.
-	//@@
+	// @@  .. cpp:var:: string name
+	// @@
+	// @@     The name of the model.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@  .. cpp:var:: string platform
-	//@@
-	//@@     The framework for the model. Possible values are
-	//@@     "tensorrt_plan", "tensorflow_graphdef",
-	//@@     "tensorflow_savedmodel", "caffe2_netdef",
-	//@@     "onnxruntime_onnx", "pytorch_libtorch" and "custom".
-	//@@
+	// @@  .. cpp:var:: string platform
+	// @@
+	// @@     The framework for the model. Possible values are
+	// @@     "tensorrt_plan", "tensorflow_graphdef",
+	// @@     "tensorflow_savedmodel", "caffe2_netdef",
+	// @@     "onnxruntime_onnx", "pytorch_libtorch" and "custom".
+	// @@
 	Platform string `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
-	//@@  .. cpp:var:: string backend
-	//@@
-	//@@     The backend used by the model.
-	//@@
+	// @@  .. cpp:var:: string backend
+	// @@
+	// @@     The backend used by the model.
+	// @@
 	Backend string `protobuf:"bytes,17,opt,name=backend,proto3" json:"backend,omitempty"`
-	//@@  .. cpp:var:: ModelVersionPolicy version_policy
-	//@@
-	//@@     Policy indicating which version(s) of the model will be served.
-	//@@
+	// @@  .. cpp:var:: ModelVersionPolicy version_policy
+	// @@
+	// @@     Policy indicating which version(s) of the model will be served.
+	// @@
 	VersionPolicy *ModelVersionPolicy `protobuf:"bytes,3,opt,name=version_policy,json=versionPolicy,proto3" json:"version_policy,omitempty"`
-	//@@  .. cpp:var:: int32 max_batch_size
-	//@@
-	//@@     Maximum batch size allowed for inference. This can only decrease
-	//@@     what is allowed by the model itself. A max_batch_size value of 0
-	//@@     indicates that batching is not allowed for the model and the
-	//@@     dimension/shape of the input and output tensors must exactly
-	//@@     match what is specified in the input and output configuration. A
-	//@@     max_batch_size value > 0 indicates that batching is allowed and
-	//@@     so the model expects the input tensors to have an additional
-	//@@     initial dimension for the batching that is not specified in the
-	//@@     input (for example, if the model supports batched inputs of
-	//@@     2-dimensional tensors then the model configuration will specify
-	//@@     the input shape as [ X, Y ] but the model will expect the actual
-	//@@     input tensors to have shape [ N, X, Y ]). For max_batch_size > 0
-	//@@     returned outputs will also have an additional initial dimension
-	//@@     for the batch.
-	//@@
+	// @@  .. cpp:var:: int32 max_batch_size
+	// @@
+	// @@     Maximum batch size allowed for inference. This can only decrease
+	// @@     what is allowed by the model itself. A max_batch_size value of 0
+	// @@     indicates that batching is not allowed for the model and the
+	// @@     dimension/shape of the input and output tensors must exactly
+	// @@     match what is specified in the input and output configuration. A
+	// @@     max_batch_size value > 0 indicates that batching is allowed and
+	// @@     so the model expects the input tensors to have an additional
+	// @@     initial dimension for the batching that is not specified in the
+	// @@     input (for example, if the model supports batched inputs of
+	// @@     2-dimensional tensors then the model configuration will specify
+	// @@     the input shape as [ X, Y ] but the model will expect the actual
+	// @@     input tensors to have shape [ N, X, Y ]). For max_batch_size > 0
+	// @@     returned outputs will also have an additional initial dimension
+	// @@     for the batch.
+	// @@
 	MaxBatchSize int32 `protobuf:"varint,4,opt,name=max_batch_size,json=maxBatchSize,proto3" json:"max_batch_size,omitempty"`
-	//@@  .. cpp:var:: ModelInput input (repeated)
-	//@@
-	//@@     The inputs request by the model.
-	//@@
+	// @@  .. cpp:var:: ModelInput input (repeated)
+	// @@
+	// @@     The inputs request by the model.
+	// @@
 	Input []*ModelInput `protobuf:"bytes,5,rep,name=input,proto3" json:"input,omitempty"`
-	//@@  .. cpp:var:: ModelOutput output (repeated)
-	//@@
-	//@@     The outputs produced by the model.
-	//@@
+	// @@  .. cpp:var:: ModelOutput output (repeated)
+	// @@
+	// @@     The outputs produced by the model.
+	// @@
 	Output []*ModelOutput `protobuf:"bytes,6,rep,name=output,proto3" json:"output,omitempty"`
-	//@@  .. cpp:var:: BatchInput batch_input (repeated)
-	//@@
-	//@@     The model input(s) that the server should use to communicate
-	//@@     batch related values to the model.
-	//@@
+	// @@  .. cpp:var:: BatchInput batch_input (repeated)
+	// @@
+	// @@     The model input(s) that the server should use to communicate
+	// @@     batch related values to the model.
+	// @@
 	BatchInput []*BatchInput `protobuf:"bytes,20,rep,name=batch_input,json=batchInput,proto3" json:"batch_input,omitempty"`
-	//@@  .. cpp:var:: BatchOutput batch_output (repeated)
-	//@@
-	//@@     The outputs produced by the model that requires special handling
-	//@@     by the model backend.
-	//@@
+	// @@  .. cpp:var:: BatchOutput batch_output (repeated)
+	// @@
+	// @@     The outputs produced by the model that requires special handling
+	// @@     by the model backend.
+	// @@
 	BatchOutput []*BatchOutput `protobuf:"bytes,21,rep,name=batch_output,json=batchOutput,proto3" json:"batch_output,omitempty"`
-	//@@  .. cpp:var:: ModelOptimizationPolicy optimization
-	//@@
-	//@@     Optimization configuration for the model. If not specified
-	//@@     then default optimization policy is used.
-	//@@
+	// @@  .. cpp:var:: ModelOptimizationPolicy optimization
+	// @@
+	// @@     Optimization configuration for the model. If not specified
+	// @@     then default optimization policy is used.
+	// @@
 	Optimization *ModelOptimizationPolicy `protobuf:"bytes,12,opt,name=optimization,proto3" json:"optimization,omitempty"`
-	//@@  .. cpp:var:: oneof scheduling_choice
-	//@@
-	//@@     The scheduling policy for the model. If not specified the
-	//@@     default scheduling policy is used for the model. The default
-	//@@     policy is to execute each inference request independently.
-	//@@
+	// @@  .. cpp:var:: oneof scheduling_choice
+	// @@
+	// @@     The scheduling policy for the model. If not specified the
+	// @@     default scheduling policy is used for the model. The default
+	// @@     policy is to execute each inference request independently.
+	// @@
 	//
 	// Types that are assignable to SchedulingChoice:
+	//
 	//	*ModelConfig_DynamicBatching
 	//	*ModelConfig_SequenceBatching
 	//	*ModelConfig_EnsembleScheduling
 	SchedulingChoice isModelConfig_SchedulingChoice `protobuf_oneof:"scheduling_choice"`
-	//@@  .. cpp:var:: ModelInstanceGroup instance_group (repeated)
-	//@@
-	//@@     Instances of this model. If not specified, one instance
-	//@@     of the model will be instantiated on each available GPU.
-	//@@
+	// @@  .. cpp:var:: ModelInstanceGroup instance_group (repeated)
+	// @@
+	// @@     Instances of this model. If not specified, one instance
+	// @@     of the model will be instantiated on each available GPU.
+	// @@
 	InstanceGroup []*ModelInstanceGroup `protobuf:"bytes,7,rep,name=instance_group,json=instanceGroup,proto3" json:"instance_group,omitempty"`
-	//@@  .. cpp:var:: string default_model_filename
-	//@@
-	//@@     Optional filename of the model file to use if a
-	//@@     compute-capability specific model is not specified in
-	//@@     :cpp:var:`cc_model_filenames`. If not specified the default name
-	//@@     is 'model.graphdef', 'model.savedmodel', 'model.plan' or
-	//@@     'model.netdef' depending on the model type.
-	//@@
+	// @@  .. cpp:var:: string default_model_filename
+	// @@
+	// @@     Optional filename of the model file to use if a
+	// @@     compute-capability specific model is not specified in
+	// @@     :cpp:var:`cc_model_filenames`. If not specified the default name
+	// @@     is 'model.graphdef', 'model.savedmodel', 'model.plan' or
+	// @@     'model.netdef' depending on the model type.
+	// @@
 	DefaultModelFilename string `protobuf:"bytes,8,opt,name=default_model_filename,json=defaultModelFilename,proto3" json:"default_model_filename,omitempty"`
-	//@@  .. cpp:var:: map<string,string> cc_model_filenames
-	//@@
-	//@@     Optional map from CUDA compute capability to the filename of
-	//@@     the model that supports that compute capability. The filename
-	//@@     refers to a file within the model version directory.
-	//@@
+	// @@  .. cpp:var:: map<string,string> cc_model_filenames
+	// @@
+	// @@     Optional map from CUDA compute capability to the filename of
+	// @@     the model that supports that compute capability. The filename
+	// @@     refers to a file within the model version directory.
+	// @@
 	CcModelFilenames map[string]string `protobuf:"bytes,9,rep,name=cc_model_filenames,json=ccModelFilenames,proto3" json:"cc_model_filenames,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	//@@  .. cpp:var:: map<string,string> metric_tags
-	//@@
-	//@@     Optional metric tags. User-specific key-value pairs for metrics
-	//@@     reported for this model. These tags are applied to the metrics
-	//@@     reported on the HTTP metrics port.
-	//@@
+	// @@  .. cpp:var:: map<string,string> metric_tags
+	// @@
+	// @@     Optional metric tags. User-specific key-value pairs for metrics
+	// @@     reported for this model. These tags are applied to the metrics
+	// @@     reported on the HTTP metrics port.
+	// @@
 	MetricTags map[string]string `protobuf:"bytes,10,rep,name=metric_tags,json=metricTags,proto3" json:"metric_tags,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	//@@  .. cpp:var:: map<string,ModelParameter> parameters
-	//@@
-	//@@     Optional model parameters. User-specified parameter values that
-	//@@     are made available to custom backends.
-	//@@
+	// @@  .. cpp:var:: map<string,ModelParameter> parameters
+	// @@
+	// @@     Optional model parameters. User-specified parameter values that
+	// @@     are made available to custom backends.
+	// @@
 	Parameters map[string]*ModelParameter `protobuf:"bytes,14,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	//@@  .. cpp:var:: ModelWarmup model_warmup (repeated)
-	//@@
-	//@@     Warmup setting of this model. If specified, all instances
-	//@@     will be run with the request samples in sequence before
-	//@@     serving the model.
-	//@@     This field can only be specified if the model is not an ensemble
-	//@@     model.
-	//@@
+	// @@  .. cpp:var:: ModelWarmup model_warmup (repeated)
+	// @@
+	// @@     Warmup setting of this model. If specified, all instances
+	// @@     will be run with the request samples in sequence before
+	// @@     serving the model.
+	// @@     This field can only be specified if the model is not an ensemble
+	// @@     model.
+	// @@
 	ModelWarmup []*ModelWarmup `protobuf:"bytes,16,rep,name=model_warmup,json=modelWarmup,proto3" json:"model_warmup,omitempty"`
-	//@@  .. cpp:var:: ModelOperations model_operations
-	//@@
-	//@@     Optional metadata of the libraries providing custom operations for
-	//@@     this model.
-	//@@
+	// @@  .. cpp:var:: ModelOperations model_operations
+	// @@
+	// @@     Optional metadata of the libraries providing custom operations for
+	// @@     this model.
+	// @@
 	ModelOperations *ModelOperations `protobuf:"bytes,18,opt,name=model_operations,json=modelOperations,proto3" json:"model_operations,omitempty"`
-	//@@  .. cpp:var:: ModelTransactionPolicy model_transaction_policy
-	//@@
-	//@@     Optional specification that describes the nature of transactions
-	//@@     to be expected from the model.
-	//@@
+	// @@  .. cpp:var:: ModelTransactionPolicy model_transaction_policy
+	// @@
+	// @@     Optional specification that describes the nature of transactions
+	// @@     to be expected from the model.
+	// @@
 	ModelTransactionPolicy *ModelTransactionPolicy `protobuf:"bytes,19,opt,name=model_transaction_policy,json=modelTransactionPolicy,proto3" json:"model_transaction_policy,omitempty"`
 }
 
@@ -2658,39 +2661,39 @@ type isModelConfig_SchedulingChoice interface {
 }
 
 type ModelConfig_DynamicBatching struct {
-	//@@    .. cpp:var:: ModelDynamicBatching dynamic_batching
-	//@@
-	//@@       If specified, enables the dynamic-batching scheduling
-	//@@       policy. With dynamic-batching the scheduler may group
-	//@@       together independent requests into a single batch to
-	//@@       improve inference throughput.
-	//@@
+	// @@    .. cpp:var:: ModelDynamicBatching dynamic_batching
+	// @@
+	// @@       If specified, enables the dynamic-batching scheduling
+	// @@       policy. With dynamic-batching the scheduler may group
+	// @@       together independent requests into a single batch to
+	// @@       improve inference throughput.
+	// @@
 	DynamicBatching *ModelDynamicBatching `protobuf:"bytes,11,opt,name=dynamic_batching,json=dynamicBatching,proto3,oneof"`
 }
 
 type ModelConfig_SequenceBatching struct {
-	//@@    .. cpp:var:: ModelSequenceBatching sequence_batching
-	//@@
-	//@@       If specified, enables the sequence-batching scheduling
-	//@@       policy. With sequence-batching, inference requests
-	//@@       with the same correlation ID are routed to the same
-	//@@       model instance. Multiple sequences of inference requests
-	//@@       may be batched together into a single batch to
-	//@@       improve inference throughput.
-	//@@
+	// @@    .. cpp:var:: ModelSequenceBatching sequence_batching
+	// @@
+	// @@       If specified, enables the sequence-batching scheduling
+	// @@       policy. With sequence-batching, inference requests
+	// @@       with the same correlation ID are routed to the same
+	// @@       model instance. Multiple sequences of inference requests
+	// @@       may be batched together into a single batch to
+	// @@       improve inference throughput.
+	// @@
 	SequenceBatching *ModelSequenceBatching `protobuf:"bytes,13,opt,name=sequence_batching,json=sequenceBatching,proto3,oneof"`
 }
 
 type ModelConfig_EnsembleScheduling struct {
-	//@@    .. cpp:var:: ModelEnsembling ensemble_scheduling
-	//@@
-	//@@       If specified, enables the model-ensembling scheduling
-	//@@       policy. With model-ensembling, inference requests
-	//@@       will be processed according to the specification, such as an
-	//@@       execution sequence of models. The input specified in this model
-	//@@       config will be the input for the ensemble, and the output
-	//@@       specified will be the output of the ensemble.
-	//@@
+	// @@    .. cpp:var:: ModelEnsembling ensemble_scheduling
+	// @@
+	// @@       If specified, enables the model-ensembling scheduling
+	// @@       policy. With model-ensembling, inference requests
+	// @@       will be processed according to the specification, such as an
+	// @@       execution sequence of models. The input specified in this model
+	// @@       config will be the input for the ensemble, and the output
+	// @@       specified will be the output of the ensemble.
+	// @@
 	EnsembleScheduling *ModelEnsembling `protobuf:"bytes,15,opt,name=ensemble_scheduling,json=ensembleScheduling,proto3,oneof"`
 }
 
@@ -2700,33 +2703,33 @@ func (*ModelConfig_SequenceBatching) isModelConfig_SchedulingChoice() {}
 
 func (*ModelConfig_EnsembleScheduling) isModelConfig_SchedulingChoice() {}
 
-//@@  .. cpp:var:: message Resource
-//@@
-//@@     The resource property.
-//@@
+// @@  .. cpp:var:: message Resource
+// @@
+// @@     The resource property.
+// @@
 type ModelRateLimiter_Resource struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string name
-	//@@
-	//@@     The name associated with the resource.
-	//@@
+	// @@  .. cpp:var:: string name
+	// @@
+	// @@     The name associated with the resource.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@  .. cpp:var:: bool global
-	//@@
-	//@@     Whether or not the resource is global. If true then the resource
-	//@@     is assumed to be shared among the devices otherwise specified
-	//@@     count of the resource is assumed for each device associated
-	//@@     with the instance.
-	//@@
+	// @@  .. cpp:var:: bool global
+	// @@
+	// @@     Whether or not the resource is global. If true then the resource
+	// @@     is assumed to be shared among the devices otherwise specified
+	// @@     count of the resource is assumed for each device associated
+	// @@     with the instance.
+	// @@
 	Global bool `protobuf:"varint,2,opt,name=global,proto3" json:"global,omitempty"`
-	//@@  .. cpp:var:: uint32 count
-	//@@
-	//@@     The number of resources required for the execution of the model
-	//@@     instance.
-	//@@
+	// @@  .. cpp:var:: uint32 count
+	// @@
+	// @@     The number of resources required for the execution of the model
+	// @@     instance.
+	// @@
 	Count uint32 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
 }
 
@@ -2783,23 +2786,23 @@ func (x *ModelRateLimiter_Resource) GetCount() uint32 {
 	return 0
 }
 
-//@@  .. cpp:var:: message Latest
-//@@
-//@@     Serve only the latest version(s) of a model. This is
-//@@     the default policy.
-//@@
+// @@  .. cpp:var:: message Latest
+// @@
+// @@     Serve only the latest version(s) of a model. This is
+// @@     the default policy.
+// @@
 type ModelVersionPolicy_Latest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: uint32 num_versions
-	//@@
-	//@@       Serve only the 'num_versions' highest-numbered versions. T
-	//@@       The default value of 'num_versions' is 1, indicating that by
-	//@@       default only the single highest-number version of a
-	//@@       model will be served.
-	//@@
+	// @@    .. cpp:var:: uint32 num_versions
+	// @@
+	// @@       Serve only the 'num_versions' highest-numbered versions. T
+	// @@       The default value of 'num_versions' is 1, indicating that by
+	// @@       default only the single highest-number version of a
+	// @@       model will be served.
+	// @@
 	NumVersions uint32 `protobuf:"varint,1,opt,name=num_versions,json=numVersions,proto3" json:"num_versions,omitempty"`
 }
 
@@ -2842,10 +2845,10 @@ func (x *ModelVersionPolicy_Latest) GetNumVersions() uint32 {
 	return 0
 }
 
-//@@  .. cpp:var:: message All
-//@@
-//@@     Serve all versions of the model.
-//@@
+// @@  .. cpp:var:: message All
+// @@
+// @@     Serve all versions of the model.
+// @@
 type ModelVersionPolicy_All struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -2884,19 +2887,19 @@ func (*ModelVersionPolicy_All) Descriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{7, 1}
 }
 
-//@@  .. cpp:var:: message Specific
-//@@
-//@@     Serve only specific versions of the model.
-//@@
+// @@  .. cpp:var:: message Specific
+// @@
+// @@     Serve only specific versions of the model.
+// @@
 type ModelVersionPolicy_Specific struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: int64 versions (repeated)
-	//@@
-	//@@       The specific versions of the model that will be served.
-	//@@
+	// @@    .. cpp:var:: int64 versions (repeated)
+	// @@
+	// @@       The specific versions of the model that will be served.
+	// @@
 	Versions []int64 `protobuf:"varint,1,rep,packed,name=versions,proto3" json:"versions,omitempty"`
 }
 
@@ -2939,30 +2942,30 @@ func (x *ModelVersionPolicy_Specific) GetVersions() []int64 {
 	return nil
 }
 
-//@@
-//@@  .. cpp:var:: message Graph
-//@@
-//@@     Enable generic graph optimization of the model. If not specified
-//@@     the framework's default level of optimization is used. Supports
-//@@     TensorFlow graphdef and savedmodel and Onnx models. For TensorFlow
-//@@     causes XLA to be enabled/disabled for the model. For Onnx defaults
-//@@     to enabling all optimizations, -1 enables only basic optimizations,
-//@@     +1 enables only basic and extended optimizations.
-//@@
+// @@
+// @@  .. cpp:var:: message Graph
+// @@
+// @@     Enable generic graph optimization of the model. If not specified
+// @@     the framework's default level of optimization is used. Supports
+// @@     TensorFlow graphdef and savedmodel and Onnx models. For TensorFlow
+// @@     causes XLA to be enabled/disabled for the model. For Onnx defaults
+// @@     to enabling all optimizations, -1 enables only basic optimizations,
+// @@     +1 enables only basic and extended optimizations.
+// @@
 type ModelOptimizationPolicy_Graph struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: int32 level
-	//@@
-	//@@       The optimization level. Defaults to 0 (zero) if not specified.
-	//@@
-	//@@         - -1: Disabled
-	//@@         -  0: Framework default
-	//@@         -  1+: Enable optimization level (greater values indicate
-	//@@            higher optimization levels)
-	//@@
+	// @@    .. cpp:var:: int32 level
+	// @@
+	// @@       The optimization level. Defaults to 0 (zero) if not specified.
+	// @@
+	// @@         - -1: Disabled
+	// @@         -  0: Framework default
+	// @@         -  1+: Enable optimization level (greater values indicate
+	// @@            higher optimization levels)
+	// @@
 	Level int32 `protobuf:"varint,1,opt,name=level,proto3" json:"level,omitempty"`
 }
 
@@ -3005,38 +3008,38 @@ func (x *ModelOptimizationPolicy_Graph) GetLevel() int32 {
 	return 0
 }
 
-//@@
-//@@  .. cpp:var:: message Cuda
-//@@
-//@@     CUDA-specific optimization settings.
-//@@
+// @@
+// @@  .. cpp:var:: message Cuda
+// @@
+// @@     CUDA-specific optimization settings.
+// @@
 type ModelOptimizationPolicy_Cuda struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: bool graphs
-	//@@
-	//@@       Use CUDA graphs API to capture model operations and execute
-	//@@       them more efficiently. Default value is false.
-	//@@       Currently only recognized by TensorRT backend.
-	//@@
+	// @@    .. cpp:var:: bool graphs
+	// @@
+	// @@       Use CUDA graphs API to capture model operations and execute
+	// @@       them more efficiently. Default value is false.
+	// @@       Currently only recognized by TensorRT backend.
+	// @@
 	Graphs bool `protobuf:"varint,1,opt,name=graphs,proto3" json:"graphs,omitempty"`
-	//@@    .. cpp:var:: bool busy_wait_events
-	//@@
-	//@@       Use busy-waiting to synchronize CUDA events to achieve minimum
-	//@@       latency from event complete to host thread to be notified, with
-	//@@       the cost of high CPU load. Default value is false.
-	//@@       Currently only recognized by TensorRT backend.
-	//@@
+	// @@    .. cpp:var:: bool busy_wait_events
+	// @@
+	// @@       Use busy-waiting to synchronize CUDA events to achieve minimum
+	// @@       latency from event complete to host thread to be notified, with
+	// @@       the cost of high CPU load. Default value is false.
+	// @@       Currently only recognized by TensorRT backend.
+	// @@
 	BusyWaitEvents bool `protobuf:"varint,2,opt,name=busy_wait_events,json=busyWaitEvents,proto3" json:"busy_wait_events,omitempty"`
-	//@@    .. cpp:var:: GraphSpec graph_spec (repeated)
-	//@@
-	//@@       Specification of the CUDA graph to be captured. If not specified
-	//@@       and 'graphs' is true, the default CUDA graphs will be captured
-	//@@       based on model settings.
-	//@@       Currently only recognized by TensorRT backend.
-	//@@
+	// @@    .. cpp:var:: GraphSpec graph_spec (repeated)
+	// @@
+	// @@       Specification of the CUDA graph to be captured. If not specified
+	// @@       and 'graphs' is true, the default CUDA graphs will be captured
+	// @@       based on model settings.
+	// @@       Currently only recognized by TensorRT backend.
+	// @@
 	GraphSpec []*ModelOptimizationPolicy_Cuda_GraphSpec `protobuf:"bytes,3,rep,name=graph_spec,json=graphSpec,proto3" json:"graph_spec,omitempty"`
 }
 
@@ -3093,74 +3096,74 @@ func (x *ModelOptimizationPolicy_Cuda) GetGraphSpec() []*ModelOptimizationPolicy
 	return nil
 }
 
-//@@
-//@@  .. cpp:var:: message ExecutionAccelerators
-//@@
-//@@     Specify the preferred execution accelerators to be used to execute
-//@@     the model. Currently only recognized by ONNX Runtime backend and
-//@@     TensorFlow backend.
-//@@
-//@@     For ONNX Runtime backend, it will deploy the model with the execution
-//@@     accelerators by priority, the priority is determined based on the
-//@@     order that they are set, i.e. the provider at the front has highest
-//@@     priority. Overall, the priority will be in the following order:
-//@@         <gpu_execution_accelerator> (if instance is on GPU)
-//@@         CUDA Execution Provider     (if instance is on GPU)
-//@@         <cpu_execution_accelerator>
-//@@         Default CPU Execution Provider
-//@@
+// @@
+// @@  .. cpp:var:: message ExecutionAccelerators
+// @@
+// @@     Specify the preferred execution accelerators to be used to execute
+// @@     the model. Currently only recognized by ONNX Runtime backend and
+// @@     TensorFlow backend.
+// @@
+// @@     For ONNX Runtime backend, it will deploy the model with the execution
+// @@     accelerators by priority, the priority is determined based on the
+// @@     order that they are set, i.e. the provider at the front has highest
+// @@     priority. Overall, the priority will be in the following order:
+// @@         <gpu_execution_accelerator> (if instance is on GPU)
+// @@         CUDA Execution Provider     (if instance is on GPU)
+// @@         <cpu_execution_accelerator>
+// @@         Default CPU Execution Provider
+// @@
 type ModelOptimizationPolicy_ExecutionAccelerators struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: Accelerator gpu_execution_accelerator (repeated)
-	//@@
-	//@@       The preferred execution provider to be used if the model instance
-	//@@       is deployed on GPU.
-	//@@
-	//@@       For ONNX Runtime backend, possible value is "tensorrt" as name,
-	//@@       and no parameters are required.
-	//@@
-	//@@       For TensorFlow backend, possible values are "tensorrt",
-	//@@       "auto_mixed_precision", "gpu_io".
-	//@@
-	//@@       For "tensorrt", the following parameters can be specified:
-	//@@         "precision_mode": The precision used for optimization.
-	//@@         Allowed values are "FP32" and "FP16". Default value is "FP32".
-	//@@
-	//@@         "max_cached_engines": The maximum number of cached TensorRT
-	//@@         engines in dynamic TensorRT ops. Default value is 100.
-	//@@
-	//@@         "minimum_segment_size": The smallest model subgraph that will
-	//@@         be considered for optimization by TensorRT. Default value is 3.
-	//@@
-	//@@         "max_workspace_size_bytes": The maximum GPU memory the model
-	//@@         can use temporarily during execution. Default value is 1GB.
-	//@@
-	//@@       For "auto_mixed_precision", no parameters are required. If set,
-	//@@       the model will try to use FP16 for better performance.
-	//@@       This optimization can not be set with "tensorrt".
-	//@@
-	//@@       For "gpu_io", no parameters are required. If set, the model will
-	//@@       be executed using TensorFlow Callable API to set input and output
-	//@@       tensors in GPU memory if possible, which can reduce data transfer
-	//@@       overhead if the model is used in ensemble. However, the Callable
-	//@@       object will be created on model creation and it will request all
-	//@@       outputs for every model execution, which may impact the
-	//@@       performance if a request does not require all outputs. This
-	//@@       optimization will only take affect if the model instance is
-	//@@       created with KIND_GPU.
-	//@@
+	// @@    .. cpp:var:: Accelerator gpu_execution_accelerator (repeated)
+	// @@
+	// @@       The preferred execution provider to be used if the model instance
+	// @@       is deployed on GPU.
+	// @@
+	// @@       For ONNX Runtime backend, possible value is "tensorrt" as name,
+	// @@       and no parameters are required.
+	// @@
+	// @@       For TensorFlow backend, possible values are "tensorrt",
+	// @@       "auto_mixed_precision", "gpu_io".
+	// @@
+	// @@       For "tensorrt", the following parameters can be specified:
+	// @@         "precision_mode": The precision used for optimization.
+	// @@         Allowed values are "FP32" and "FP16". Default value is "FP32".
+	// @@
+	// @@         "max_cached_engines": The maximum number of cached TensorRT
+	// @@         engines in dynamic TensorRT ops. Default value is 100.
+	// @@
+	// @@         "minimum_segment_size": The smallest model subgraph that will
+	// @@         be considered for optimization by TensorRT. Default value is 3.
+	// @@
+	// @@         "max_workspace_size_bytes": The maximum GPU memory the model
+	// @@         can use temporarily during execution. Default value is 1GB.
+	// @@
+	// @@       For "auto_mixed_precision", no parameters are required. If set,
+	// @@       the model will try to use FP16 for better performance.
+	// @@       This optimization can not be set with "tensorrt".
+	// @@
+	// @@       For "gpu_io", no parameters are required. If set, the model will
+	// @@       be executed using TensorFlow Callable API to set input and output
+	// @@       tensors in GPU memory if possible, which can reduce data transfer
+	// @@       overhead if the model is used in ensemble. However, the Callable
+	// @@       object will be created on model creation and it will request all
+	// @@       outputs for every model execution, which may impact the
+	// @@       performance if a request does not require all outputs. This
+	// @@       optimization will only take affect if the model instance is
+	// @@       created with KIND_GPU.
+	// @@
 	GpuExecutionAccelerator []*ModelOptimizationPolicy_ExecutionAccelerators_Accelerator `protobuf:"bytes,1,rep,name=gpu_execution_accelerator,json=gpuExecutionAccelerator,proto3" json:"gpu_execution_accelerator,omitempty"`
-	//@@    .. cpp:var:: Accelerator cpu_execution_accelerator (repeated)
-	//@@
-	//@@       The preferred execution provider to be used if the model instance
-	//@@       is deployed on CPU.
-	//@@
-	//@@       For ONNX Runtime backend, possible value is "openvino" as name,
-	//@@       and no parameters are required.
-	//@@
+	// @@    .. cpp:var:: Accelerator cpu_execution_accelerator (repeated)
+	// @@
+	// @@       The preferred execution provider to be used if the model instance
+	// @@       is deployed on CPU.
+	// @@
+	// @@       For ONNX Runtime backend, possible value is "openvino" as name,
+	// @@       and no parameters are required.
+	// @@
 	CpuExecutionAccelerator []*ModelOptimizationPolicy_ExecutionAccelerators_Accelerator `protobuf:"bytes,2,rep,name=cpu_execution_accelerator,json=cpuExecutionAccelerator,proto3" json:"cpu_execution_accelerator,omitempty"`
 }
 
@@ -3210,28 +3213,28 @@ func (x *ModelOptimizationPolicy_ExecutionAccelerators) GetCpuExecutionAccelerat
 	return nil
 }
 
-//@@
-//@@  .. cpp:var:: message PinnedMemoryBuffer
-//@@
-//@@     Specify whether to use a pinned memory buffer when transferring data
-//@@     between non-pinned system memory and GPU memory. Using a pinned
-//@@     memory buffer for system from/to GPU transfers will typically provide
-//@@     increased performance. For example, in the common use case where the
-//@@     request provides inputs and delivers outputs via non-pinned system
-//@@     memory, if the model instance accepts GPU IOs, the inputs will be
-//@@     processed by two copies: from non-pinned system memory to pinned
-//@@     memory, and from pinned memory to GPU memory. Similarly, pinned
-//@@     memory will be used for delivering the outputs.
-//@@
+// @@
+// @@  .. cpp:var:: message PinnedMemoryBuffer
+// @@
+// @@     Specify whether to use a pinned memory buffer when transferring data
+// @@     between non-pinned system memory and GPU memory. Using a pinned
+// @@     memory buffer for system from/to GPU transfers will typically provide
+// @@     increased performance. For example, in the common use case where the
+// @@     request provides inputs and delivers outputs via non-pinned system
+// @@     memory, if the model instance accepts GPU IOs, the inputs will be
+// @@     processed by two copies: from non-pinned system memory to pinned
+// @@     memory, and from pinned memory to GPU memory. Similarly, pinned
+// @@     memory will be used for delivering the outputs.
+// @@
 type ModelOptimizationPolicy_PinnedMemoryBuffer struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: bool enable
-	//@@
-	//@@       Use pinned memory buffer. Default is true.
-	//@@
+	// @@    .. cpp:var:: bool enable
+	// @@
+	// @@       Use pinned memory buffer. Default is true.
+	// @@
 	Enable bool `protobuf:"varint,1,opt,name=enable,proto3" json:"enable,omitempty"`
 }
 
@@ -3274,41 +3277,41 @@ func (x *ModelOptimizationPolicy_PinnedMemoryBuffer) GetEnable() bool {
 	return false
 }
 
-//@@    .. cpp:var:: message GraphSpec
-//@@
-//@@       Specification of the CUDA graph to be captured.
-//@@
+// @@    .. cpp:var:: message GraphSpec
+// @@
+// @@       Specification of the CUDA graph to be captured.
+// @@
 type ModelOptimizationPolicy_Cuda_GraphSpec struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@      .. cpp:var:: int32 batch_size
-	//@@
-	//@@         The batch size of the CUDA graph. If 'max_batch_size' is 0,
-	//@@         'batch_size' must be set to 0. Otherwise, 'batch_size' must
-	//@@         be set to value between 1 and 'max_batch_size'.
-	//@@
+	// @@      .. cpp:var:: int32 batch_size
+	// @@
+	// @@         The batch size of the CUDA graph. If 'max_batch_size' is 0,
+	// @@         'batch_size' must be set to 0. Otherwise, 'batch_size' must
+	// @@         be set to value between 1 and 'max_batch_size'.
+	// @@
 	BatchSize int32 `protobuf:"varint,1,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
-	//@@      .. cpp:var:: map<string, Shape> input
-	//@@
-	//@@         The specification of the inputs. 'Shape' is the shape of the
-	//@@         input without batching dimension.
-	//@@
+	// @@      .. cpp:var:: map<string, Shape> input
+	// @@
+	// @@         The specification of the inputs. 'Shape' is the shape of the
+	// @@         input without batching dimension.
+	// @@
 	Input map[string]*ModelOptimizationPolicy_Cuda_GraphSpec_Shape `protobuf:"bytes,2,rep,name=input,proto3" json:"input,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	//@@      .. cpp:var:: LowerBound graph_lower_bound
-	//@@
-	//@@         Specify the lower bound of the CUDA graph. Optional.
-	//@@         If specified, the graph can be used for input shapes and
-	//@@         batch sizes that are in closed interval between the lower
-	//@@         bound specification and graph specification. For dynamic
-	//@@         shape model, this allows CUDA graphs to be launched
-	//@@         frequently without capturing all possible shape combinations.
-	//@@         However, using graph for shape combinations different from
-	//@@         the one used for capturing introduces uninitialized data for
-	//@@         execution and it may distort the inference result if
-	//@@         the model is sensitive to uninitialized data.
-	//@@
+	// @@      .. cpp:var:: LowerBound graph_lower_bound
+	// @@
+	// @@         Specify the lower bound of the CUDA graph. Optional.
+	// @@         If specified, the graph can be used for input shapes and
+	// @@         batch sizes that are in closed interval between the lower
+	// @@         bound specification and graph specification. For dynamic
+	// @@         shape model, this allows CUDA graphs to be launched
+	// @@         frequently without capturing all possible shape combinations.
+	// @@         However, using graph for shape combinations different from
+	// @@         the one used for capturing introduces uninitialized data for
+	// @@         execution and it may distort the inference result if
+	// @@         the model is sensitive to uninitialized data.
+	// @@
 	GraphLowerBound *ModelOptimizationPolicy_Cuda_GraphSpec_LowerBound `protobuf:"bytes,3,opt,name=graph_lower_bound,json=graphLowerBound,proto3" json:"graph_lower_bound,omitempty"`
 }
 
@@ -3365,19 +3368,19 @@ func (x *ModelOptimizationPolicy_Cuda_GraphSpec) GetGraphLowerBound() *ModelOpti
 	return nil
 }
 
-//@@      .. cpp:var:: message Dims
-//@@
-//@@         Specification of tensor dimension.
-//@@
+// @@      .. cpp:var:: message Dims
+// @@
+// @@         Specification of tensor dimension.
+// @@
 type ModelOptimizationPolicy_Cuda_GraphSpec_Shape struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@        .. cpp:var:: int64 dim (repeated)
-	//@@
-	//@@           The dimension.
-	//@@
+	// @@        .. cpp:var:: int64 dim (repeated)
+	// @@
+	// @@           The dimension.
+	// @@
 	Dim []int64 `protobuf:"varint,1,rep,packed,name=dim,proto3" json:"dim,omitempty"`
 }
 
@@ -3425,18 +3428,18 @@ type ModelOptimizationPolicy_Cuda_GraphSpec_LowerBound struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@      .. cpp:var:: int32 batch_size
-	//@@
-	//@@         The batch size of the CUDA graph. If 'max_batch_size' is 0,
-	//@@         'batch_size' must be set to 0. Otherwise, 'batch_size' must
-	//@@         be set to value between 1 and 'max_batch_size'.
-	//@@
+	// @@      .. cpp:var:: int32 batch_size
+	// @@
+	// @@         The batch size of the CUDA graph. If 'max_batch_size' is 0,
+	// @@         'batch_size' must be set to 0. Otherwise, 'batch_size' must
+	// @@         be set to value between 1 and 'max_batch_size'.
+	// @@
 	BatchSize int32 `protobuf:"varint,1,opt,name=batch_size,json=batchSize,proto3" json:"batch_size,omitempty"`
-	//@@      .. cpp:var:: map<string, Shape> input
-	//@@
-	//@@         The specification of the inputs. 'Shape' is the shape of
-	//@@         the input without batching dimension.
-	//@@
+	// @@      .. cpp:var:: map<string, Shape> input
+	// @@
+	// @@         The specification of the inputs. 'Shape' is the shape of
+	// @@         the input without batching dimension.
+	// @@
 	Input map[string]*ModelOptimizationPolicy_Cuda_GraphSpec_Shape `protobuf:"bytes,2,rep,name=input,proto3" json:"input,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -3486,27 +3489,27 @@ func (x *ModelOptimizationPolicy_Cuda_GraphSpec_LowerBound) GetInput() map[strin
 	return nil
 }
 
-//@@
-//@@  .. cpp:var:: message Accelerator
-//@@
-//@@     Specify the accelerator to be used to execute the model.
-//@@     Accelerator with the same name may accept different parameters
-//@@     depending on the backends.
-//@@
+// @@
+// @@  .. cpp:var:: message Accelerator
+// @@
+// @@     Specify the accelerator to be used to execute the model.
+// @@     Accelerator with the same name may accept different parameters
+// @@     depending on the backends.
+// @@
 type ModelOptimizationPolicy_ExecutionAccelerators_Accelerator struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: string name
-	//@@
-	//@@       The name of the execution accelerator.
-	//@@
+	// @@    .. cpp:var:: string name
+	// @@
+	// @@       The name of the execution accelerator.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@    .. cpp:var:: map<string, string> parameters
-	//@@
-	//@@       Additional paremeters used to configure the accelerator.
-	//@@
+	// @@    .. cpp:var:: map<string, string> parameters
+	// @@
+	// @@       Additional paremeters used to configure the accelerator.
+	// @@
 	Parameters map[string]string `protobuf:"bytes,2,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -3556,43 +3559,43 @@ func (x *ModelOptimizationPolicy_ExecutionAccelerators_Accelerator) GetParameter
 	return nil
 }
 
-//@@  .. cpp:var:: message Control
-//@@
-//@@     A control is a signal that the sequence batcher uses to
-//@@     communicate with a backend.
-//@@
+// @@  .. cpp:var:: message Control
+// @@
+// @@     A control is a signal that the sequence batcher uses to
+// @@     communicate with a backend.
+// @@
 type ModelSequenceBatching_Control struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: Kind kind
-	//@@
-	//@@       The kind of this control.
-	//@@
+	// @@    .. cpp:var:: Kind kind
+	// @@
+	// @@       The kind of this control.
+	// @@
 	Kind ModelSequenceBatching_Control_Kind `protobuf:"varint,1,opt,name=kind,proto3,enum=inference.ModelSequenceBatching_Control_Kind" json:"kind,omitempty"`
-	//@@    .. cpp:var:: int32 int32_false_true (repeated)
-	//@@
-	//@@       The control's true and false setting is indicated by setting
-	//@@       a value in an int32 tensor. The tensor must be a
-	//@@       1-dimensional tensor with size equal to the batch size of
-	//@@       the request. 'int32_false_true' must have two entries: the
-	//@@       first the false value and the second the true value.
-	//@@
+	// @@    .. cpp:var:: int32 int32_false_true (repeated)
+	// @@
+	// @@       The control's true and false setting is indicated by setting
+	// @@       a value in an int32 tensor. The tensor must be a
+	// @@       1-dimensional tensor with size equal to the batch size of
+	// @@       the request. 'int32_false_true' must have two entries: the
+	// @@       first the false value and the second the true value.
+	// @@
 	Int32FalseTrue []int32 `protobuf:"varint,2,rep,packed,name=int32_false_true,json=int32FalseTrue,proto3" json:"int32_false_true,omitempty"`
-	//@@    .. cpp:var:: float fp32_false_true (repeated)
-	//@@
-	//@@       The control's true and false setting is indicated by setting
-	//@@       a value in a fp32 tensor. The tensor must be a
-	//@@       1-dimensional tensor with size equal to the batch size of
-	//@@       the request. 'fp32_false_true' must have two entries: the
-	//@@       first the false value and the second the true value.
-	//@@
+	// @@    .. cpp:var:: float fp32_false_true (repeated)
+	// @@
+	// @@       The control's true and false setting is indicated by setting
+	// @@       a value in a fp32 tensor. The tensor must be a
+	// @@       1-dimensional tensor with size equal to the batch size of
+	// @@       the request. 'fp32_false_true' must have two entries: the
+	// @@       first the false value and the second the true value.
+	// @@
 	Fp32FalseTrue []float32 `protobuf:"fixed32,3,rep,packed,name=fp32_false_true,json=fp32FalseTrue,proto3" json:"fp32_false_true,omitempty"`
-	//@@    .. cpp:var:: DataType data_type
-	//@@
-	//@@       The control's datatype.
-	//@@
+	// @@    .. cpp:var:: DataType data_type
+	// @@
+	// @@       The control's datatype.
+	// @@
 	DataType DataType `protobuf:"varint,4,opt,name=data_type,json=dataType,proto3,enum=inference.DataType" json:"data_type,omitempty"`
 }
 
@@ -3656,25 +3659,25 @@ func (x *ModelSequenceBatching_Control) GetDataType() DataType {
 	return DataType_TYPE_INVALID
 }
 
-//@@  .. cpp:var:: message ControlInput
-//@@
-//@@     The sequence control values to communicate by a model input.
-//@@
+// @@  .. cpp:var:: message ControlInput
+// @@
+// @@     The sequence control values to communicate by a model input.
+// @@
 type ModelSequenceBatching_ControlInput struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: string name
-	//@@
-	//@@       The name of the model input.
-	//@@
+	// @@    .. cpp:var:: string name
+	// @@
+	// @@       The name of the model input.
+	// @@
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	//@@    .. cpp:var:: Control control (repeated)
-	//@@
-	//@@       The control value(s) that should be communicated to the
-	//@@       model using this model input.
-	//@@
+	// @@    .. cpp:var:: Control control (repeated)
+	// @@
+	// @@       The control value(s) that should be communicated to the
+	// @@       model using this model input.
+	// @@
 	Control []*ModelSequenceBatching_Control `protobuf:"bytes,2,rep,name=control,proto3" json:"control,omitempty"`
 }
 
@@ -3724,14 +3727,14 @@ func (x *ModelSequenceBatching_ControlInput) GetControl() []*ModelSequenceBatchi
 	return nil
 }
 
-//@@  .. cpp:var:: message StrategyDirect
-//@@
-//@@     The sequence batcher uses a specific, unique batch
-//@@     slot for each sequence. All inference requests in a
-//@@     sequence are directed to the same batch slot in the same
-//@@     model instance over the lifetime of the sequence. This
-//@@     is the default strategy.
-//@@
+// @@  .. cpp:var:: message StrategyDirect
+// @@
+// @@     The sequence batcher uses a specific, unique batch
+// @@     slot for each sequence. All inference requests in a
+// @@     sequence are directed to the same batch slot in the same
+// @@     model instance over the lifetime of the sequence. This
+// @@     is the default strategy.
+// @@
 type ModelSequenceBatching_StrategyDirect struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -3770,45 +3773,45 @@ func (*ModelSequenceBatching_StrategyDirect) Descriptor() ([]byte, []int) {
 	return file_model_config_proto_rawDescGZIP(), []int{11, 2}
 }
 
-//@@  .. cpp:var:: message StrategyOldest
-//@@
-//@@     The sequence batcher maintains up to 'max_candidate_sequences'
-//@@     candidate sequences. 'max_candidate_sequences' can be greater
-//@@     than the model's 'max_batch_size'. For inferencing the batcher
-//@@     chooses from the candidate sequences up to 'max_batch_size'
-//@@     inference requests. Requests are chosen in an oldest-first
-//@@     manner across all candidate sequences. A given sequence is
-//@@     not guaranteed to be assigned to the same batch slot for
-//@@     all inference requests of that sequence.
-//@@
+// @@  .. cpp:var:: message StrategyOldest
+// @@
+// @@     The sequence batcher maintains up to 'max_candidate_sequences'
+// @@     candidate sequences. 'max_candidate_sequences' can be greater
+// @@     than the model's 'max_batch_size'. For inferencing the batcher
+// @@     chooses from the candidate sequences up to 'max_batch_size'
+// @@     inference requests. Requests are chosen in an oldest-first
+// @@     manner across all candidate sequences. A given sequence is
+// @@     not guaranteed to be assigned to the same batch slot for
+// @@     all inference requests of that sequence.
+// @@
 type ModelSequenceBatching_StrategyOldest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: int32 max_candidate_sequences
-	//@@
-	//@@       Maximum number of candidate sequences that the batcher
-	//@@       maintains. Excess seqences are kept in an ordered backlog
-	//@@       and become candidates when existing candidate sequences
-	//@@       complete.
-	//@@
+	// @@    .. cpp:var:: int32 max_candidate_sequences
+	// @@
+	// @@       Maximum number of candidate sequences that the batcher
+	// @@       maintains. Excess seqences are kept in an ordered backlog
+	// @@       and become candidates when existing candidate sequences
+	// @@       complete.
+	// @@
 	MaxCandidateSequences int32 `protobuf:"varint,1,opt,name=max_candidate_sequences,json=maxCandidateSequences,proto3" json:"max_candidate_sequences,omitempty"`
-	//@@    .. cpp:var:: int32 preferred_batch_size (repeated)
-	//@@
-	//@@       Preferred batch sizes for dynamic batching of candidate
-	//@@       sequences. If a batch of one of these sizes can be formed
-	//@@       it will be executed immediately.  If not specified a
-	//@@       preferred batch size will be chosen automatically
-	//@@       based on model and GPU characteristics.
-	//@@
+	// @@    .. cpp:var:: int32 preferred_batch_size (repeated)
+	// @@
+	// @@       Preferred batch sizes for dynamic batching of candidate
+	// @@       sequences. If a batch of one of these sizes can be formed
+	// @@       it will be executed immediately.  If not specified a
+	// @@       preferred batch size will be chosen automatically
+	// @@       based on model and GPU characteristics.
+	// @@
 	PreferredBatchSize []int32 `protobuf:"varint,2,rep,packed,name=preferred_batch_size,json=preferredBatchSize,proto3" json:"preferred_batch_size,omitempty"`
-	//@@    .. cpp:var:: uint64 max_queue_delay_microseconds
-	//@@
-	//@@       The maximum time, in microseconds, a candidate request
-	//@@       will be delayed in the dynamic batch scheduling queue to
-	//@@       wait for additional requests for batching. Default is 0.
-	//@@
+	// @@    .. cpp:var:: uint64 max_queue_delay_microseconds
+	// @@
+	// @@       The maximum time, in microseconds, a candidate request
+	// @@       will be delayed in the dynamic batch scheduling queue to
+	// @@       wait for additional requests for batching. Default is 0.
+	// @@
 	MaxQueueDelayMicroseconds uint64 `protobuf:"varint,3,opt,name=max_queue_delay_microseconds,json=maxQueueDelayMicroseconds,proto3" json:"max_queue_delay_microseconds,omitempty"`
 }
 
@@ -3865,45 +3868,45 @@ func (x *ModelSequenceBatching_StrategyOldest) GetMaxQueueDelayMicroseconds() ui
 	return 0
 }
 
-//@@  .. cpp:var:: message Step
-//@@
-//@@     Each step specifies a model included in the ensemble,
-//@@     maps ensemble tensor names to the model input tensors,
-//@@     and maps model output tensors to ensemble tensor names
-//@@
+// @@  .. cpp:var:: message Step
+// @@
+// @@     Each step specifies a model included in the ensemble,
+// @@     maps ensemble tensor names to the model input tensors,
+// @@     and maps model output tensors to ensemble tensor names
+// @@
 type ModelEnsembling_Step struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@  .. cpp:var:: string model_name
-	//@@
-	//@@     The name of the model to execute for this step of the ensemble.
-	//@@
+	// @@  .. cpp:var:: string model_name
+	// @@
+	// @@     The name of the model to execute for this step of the ensemble.
+	// @@
 	ModelName string `protobuf:"bytes,1,opt,name=model_name,json=modelName,proto3" json:"model_name,omitempty"`
-	//@@  .. cpp:var:: int64 model_version
-	//@@
-	//@@     The version of the model to use for inference. If -1
-	//@@     the latest/most-recent version of the model is used.
-	//@@
+	// @@  .. cpp:var:: int64 model_version
+	// @@
+	// @@     The version of the model to use for inference. If -1
+	// @@     the latest/most-recent version of the model is used.
+	// @@
 	ModelVersion int64 `protobuf:"varint,2,opt,name=model_version,json=modelVersion,proto3" json:"model_version,omitempty"`
-	//@@  .. cpp:var:: map<string,string> input_map
-	//@@
-	//@@     Map from name of an input tensor on this step's model to ensemble
-	//@@     tensor name. The ensemble tensor must have the same data type and
-	//@@     shape as the model input. Each model input must be assigned to
-	//@@     one ensemble tensor, but the same ensemble tensor can be assigned
-	//@@     to multiple model inputs.
-	//@@
+	// @@  .. cpp:var:: map<string,string> input_map
+	// @@
+	// @@     Map from name of an input tensor on this step's model to ensemble
+	// @@     tensor name. The ensemble tensor must have the same data type and
+	// @@     shape as the model input. Each model input must be assigned to
+	// @@     one ensemble tensor, but the same ensemble tensor can be assigned
+	// @@     to multiple model inputs.
+	// @@
 	InputMap map[string]string `protobuf:"bytes,3,rep,name=input_map,json=inputMap,proto3" json:"input_map,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	//@@  .. cpp:var:: map<string,string> output_map
-	//@@
-	//@@     Map from name of an output tensor on this step's model to ensemble
-	//@@     tensor name. The data type and shape of the ensemble tensor will
-	//@@     be inferred from the model output. It is optional to assign all
-	//@@     model outputs to ensemble tensors. One ensemble tensor name
-	//@@     can appear in an output map only once.
-	//@@
+	// @@  .. cpp:var:: map<string,string> output_map
+	// @@
+	// @@     Map from name of an output tensor on this step's model to ensemble
+	// @@     tensor name. The data type and shape of the ensemble tensor will
+	// @@     be inferred from the model output. It is optional to assign all
+	// @@     model outputs to ensemble tensors. One ensemble tensor name
+	// @@     can appear in an output map only once.
+	// @@
 	OutputMap map[string]string `protobuf:"bytes,4,rep,name=output_map,json=outputMap,proto3" json:"output_map,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
@@ -3967,34 +3970,35 @@ func (x *ModelEnsembling_Step) GetOutputMap() map[string]string {
 	return nil
 }
 
-//@@
-//@@  .. cpp:var:: message Input
-//@@
-//@@     Meta data associated with an input.
-//@@
+// @@
+// @@  .. cpp:var:: message Input
+// @@
+// @@     Meta data associated with an input.
+// @@
 type ModelWarmup_Input struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//@@    .. cpp:var:: DataType data_type
-	//@@
-	//@@       The data-type of the input.
-	//@@
+	// @@    .. cpp:var:: DataType data_type
+	// @@
+	// @@       The data-type of the input.
+	// @@
 	DataType DataType `protobuf:"varint,1,opt,name=data_type,json=dataType,proto3,enum=inference.DataType" json:"data_type,omitempty"`
-	//@@    .. cpp:var:: int64 dims (repeated)
-	//@@
-	//@@       The shape of the input tensor, not including the batch dimension.
-	//@@
+	// @@    .. cpp:var:: int64 dims (repeated)
+	// @@
+	// @@       The shape of the input tensor, not including the batch dimension.
+	// @@
 	Dims []int64 `protobuf:"varint,2,rep,packed,name=dims,proto3" json:"dims,omitempty"`
-	//@@    .. cpp:var:: oneof input_data_type
-	//@@
-	//@@       Specify how the input data is generated. If the input has STRING
-	//@@       data type and 'random_data' is set, the data generation will fall
-	//@@       back to 'zero_data'.
-	//@@
+	// @@    .. cpp:var:: oneof input_data_type
+	// @@
+	// @@       Specify how the input data is generated. If the input has STRING
+	// @@       data type and 'random_data' is set, the data generation will fall
+	// @@       back to 'zero_data'.
+	// @@
 	//
 	// Types that are assignable to InputDataType:
+	//
 	//	*ModelWarmup_Input_ZeroData
 	//	*ModelWarmup_Input_RandomData
 	//	*ModelWarmup_Input_InputDataFile
@@ -4080,34 +4084,34 @@ type isModelWarmup_Input_InputDataType interface {
 }
 
 type ModelWarmup_Input_ZeroData struct {
-	//@@
-	//@@    .. cpp:var:: bool zero_data
-	//@@
-	//@@       The identifier for using zeros as input data. Note that the
-	//@@       value of 'zero_data' will not be checked, instead, zero data
-	//@@       will be used as long as the field is set.
-	//@@
+	// @@
+	// @@    .. cpp:var:: bool zero_data
+	// @@
+	// @@       The identifier for using zeros as input data. Note that the
+	// @@       value of 'zero_data' will not be checked, instead, zero data
+	// @@       will be used as long as the field is set.
+	// @@
 	ZeroData bool `protobuf:"varint,3,opt,name=zero_data,json=zeroData,proto3,oneof"`
 }
 
 type ModelWarmup_Input_RandomData struct {
-	//@@
-	//@@    .. cpp:var:: bool random_data
-	//@@
-	//@@       The identifier for using random data as input data. Note that
-	//@@       the value of 'random_data' will not be checked, instead,
-	//@@       random data will be used as long as the field is set.
-	//@@
+	// @@
+	// @@    .. cpp:var:: bool random_data
+	// @@
+	// @@       The identifier for using random data as input data. Note that
+	// @@       the value of 'random_data' will not be checked, instead,
+	// @@       random data will be used as long as the field is set.
+	// @@
 	RandomData bool `protobuf:"varint,4,opt,name=random_data,json=randomData,proto3,oneof"`
 }
 
 type ModelWarmup_Input_InputDataFile struct {
-	//@@    .. cpp:var:: string input_data_file
-	//@@
-	//@@       The file whose content will be used as raw input data in
-	//@@       row-major order. The file must be provided in a sub-directory
-	//@@       'warmup' under the model directory.
-	//@@
+	// @@    .. cpp:var:: string input_data_file
+	// @@
+	// @@       The file whose content will be used as raw input data in
+	// @@       row-major order. The file must be provided in a sub-directory
+	// @@       'warmup' under the model directory.
+	// @@
 	InputDataFile string `protobuf:"bytes,5,opt,name=input_data_file,json=inputDataFile,proto3,oneof"`
 }
 
