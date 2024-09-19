@@ -369,6 +369,7 @@ func generateModelConfigJSON(modelID string, modelType string, uri string, schem
 		"sklearn":  "mlserver_sklearn.SKLearnModel",
 		"xgboost":  "mlserver_xgboost.XGBoostModel",
 		"mllib":    "mlserver-mllib.MLlibModel",
+		"mlflow":   "mlserver_mlflow.MLflowRuntime",
 	}
 
 	// set the implementation
