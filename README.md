@@ -53,10 +53,10 @@ make run fmt
 ## Build the Docker image
 
 Once the code changes have been tested and linted, build a new `modelmesh-runtime-adapter`
-Docker image.
+Container image. If you need to use another builder than `docker`, you can specify it by using the `ENGINE` variable:
 
 ```shell
-make build
+ENGINE=podman make build
 ```
 
 ## Push the image to a container registry
