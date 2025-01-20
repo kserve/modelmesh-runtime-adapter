@@ -14,7 +14,7 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.24.0
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.10.0
 	google.golang.org/api v0.114.0
 	google.golang.org/grpc v1.56.3
 	google.golang.org/protobuf v1.33.0
@@ -52,11 +52,11 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
@@ -71,8 +71,8 @@ require (
 )
 
 replace (
-	// Fix CVE-2023-45288
-	golang.org/x/net => golang.org/x/net v0.23.0
+	// Fixes CVE-2024-45338
+	golang.org/x/net => golang.org/x/net v0.33.0
 	// remove when upgrade to controller-runtime 0.15.x or apimachinery to 0.27.x
 	// Fixes SNYK-GOLANG-K8SIOAPIMACHINERYPKGUTILRUNTIME-8367153
 	k8s.io/apimachinery => k8s.io/apimachinery v0.29.0
