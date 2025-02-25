@@ -24,11 +24,12 @@ USER root
 ENV HOME=/root
 
 # Install build and dev tools
-# NOTE: Require python38 to install pre-commit
+# NOTE: Require python311 to install pre-commit
 RUN --mount=type=cache,target=/root/.cache/dnf:rw \
     dnf install --setopt=cachedir=/root/.cache/dnf -y --nodocs \
         nodejs \
-        python38 \
+        python3.11 \
+        python3.11-pip \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && true
@@ -149,8 +150,9 @@ RUN --mount=type=cache,target=/root/.cache/microdnf:rw \
     microdnf install --setopt=cachedir=/root/.cache/microdnf \
        gcc \
        gcc-c++ \
-       python38-devel \
-       python38 \
+       python3.11-devel \
+       python3.11 \
+       python3.11-pip \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && true
