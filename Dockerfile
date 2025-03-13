@@ -15,8 +15,8 @@
 ###############################################################################
 # Stage 1: Create the developer image for the BUILDPLATFORM only
 ###############################################################################
-ARG GOLANG_VERSION=1.21
-FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi8/go-toolset:$GOLANG_VERSION AS develop
+ARG GOLANG_VERSION=1.22
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi9/go-toolset:$GOLANG_VERSION AS develop
 
 ARG PROTOC_VERSION=21.5
 
@@ -30,8 +30,8 @@ RUN --mount=type=cache,target=/root/.cache/dnf:rw \
         nodejs \
         python3.11 \
         python3.11-pip \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip \
+    && alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && alternatives --install /usr/bin/pip pip /usr/bin/pip3.11 1 \
     && true
 
 # Install pre-commit
@@ -138,7 +138,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 ###############################################################################
 # Stage 3: Copy build assets to create the smallest final runtime image
 ###############################################################################
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest as runtime
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest as runtime
 
 ARG USER=2000
 
@@ -147,14 +147,14 @@ USER root
 # install python to convert keras to tf
 # NOTE: tensorflow not supported on PowerPC (ppc64le) or System Z (s390x) https://github.com/tensorflow/tensorflow/issues/46181
 RUN --mount=type=cache,target=/root/.cache/microdnf:rw \
-    microdnf install --setopt=cachedir=/root/.cache/microdnf \
+    microdnf install -y --setopt=cachedir=/root/.cache/microdnf \
        gcc \
        gcc-c++ \
        python3.11-devel \
        python3.11 \
        python3.11-pip \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip \
+    && alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && alternatives --install /usr/bin/pip pip /usr/bin/pip3.11 1 \
     && true
 
 # need to upgrade pip and install wheel before installing grpcio, before installing tensorflow on aarch64
