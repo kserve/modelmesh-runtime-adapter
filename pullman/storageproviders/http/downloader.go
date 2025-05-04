@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -69,13 +72,21 @@ type httpFetcher struct {
 var _ fetcher = (*httpFetcher)(nil)
 
 func (c *httpFetcher) download(ctx context.Context, req *http.Request, filename string) error {
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error getting resource '%s': %w", req.URL.String(), err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return fmt.Errorf("error getting resource '%s'. HTTP Status Code: %d, Error: %w", req.URL.String(), resp.StatusCode, readErr)
+		}
+		return fmt.Errorf("error getting resource '%s'. HTTP Status Code: %d, Error: %s", req.URL.String(), resp.StatusCode, string(body))
+	}
+
+	// Download file first.
 	file, fileErr := pullman.OpenFile(filename)
 	if fileErr != nil {
 		return fmt.Errorf("unable to open local file '%s' for writing: %w", filename, fileErr)
@@ -86,5 +97,35 @@ func (c *httpFetcher) download(ctx context.Context, req *http.Request, filename 
 		return fmt.Errorf("error writing resource to local file '%s': %w", filename, err)
 	}
 
+	fileFormat := pullman.GetFileFormat(filename)
+
+	// Check if the file format is a supported archive format and automatically extract it.
+	if fileFormat != nil {
+		switch fileFormat.Extension {
+		case "gz":
+			decompressedFilePath := strings.TrimSuffix(filename, ".gz")
+			if err := pullman.ExtractGzip(filename, decompressedFilePath); err != nil {
+				return fmt.Errorf("error decompressing gzip file '%s': %w", filename, err)
+			}
+			os.Remove(filename)
+			fileFormat = pullman.GetFileFormat(decompressedFilePath)
+			if fileFormat != nil && fileFormat.Extension == "tar" {
+				if err := pullman.ExtractTar(decompressedFilePath, filepath.Dir(decompressedFilePath)); err != nil {
+					return fmt.Errorf("error extracting tar file '%s': %w", filename, err)
+				}
+				os.Remove(decompressedFilePath)
+			}
+		case "tar":
+			if err := pullman.ExtractTar(filename, filepath.Dir(filename)); err != nil {
+				return fmt.Errorf("error extracting tar file '%s': %w", filename, err)
+			}
+			os.Remove(filename)
+		case "zip":
+			if err := pullman.ExtractZip(filename, filepath.Dir(filename)); err != nil {
+				return fmt.Errorf("error extracting zip file '%s': %w", filename, err)
+			}
+			os.Remove(filename)
+		}
+	}
 	return nil
 }
