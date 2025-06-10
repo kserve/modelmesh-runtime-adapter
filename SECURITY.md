@@ -40,6 +40,7 @@ KServe employs several measures to prevent security issues:
 **Static Analysis**: Static code analysis tools are used to identify potential security issues in the codebase.
 
 ## Communication Channels
+
 For general questions and discussions, please use the following channels:
 
 **Slack**: Join the [KServe Slack channel](https://kserve.github.io/website/latest/community/get_involved/#become-a-contributor) for real-time communication.
